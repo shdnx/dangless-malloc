@@ -1,0 +1,21 @@
+Dune: http://dune.scs.stanford.edu/
+Dune sources: https://github.com/vusec/dune
+
+Use-after-free detection
+==================================
+
+Need a custom memory allocator, e.g. based on my dumb kmalloc implementation from the Kernel Programming course (possibly optimized with size-class caches, etc.).
+
+Allocation:
+ - physical memory is allocated as usual
+ - a new virtual memory page is allocated for each allocated object
+
+Deallocation:
+ - physical memory is deallocated as usual
+ - the virtual memory page's PTE is updated with PTE_P = 0, and some bits indicating that it was free()-d; but it cannot be re-used by the allocator
+
+Will likely need a kind of garbage collector that returns virtual memory pages to the allocator for re-use when it's sure that no more pointers remain to a given virtual memory page.
+
+Notes on Dune
+=================================
+

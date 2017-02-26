@@ -1,0 +1,29 @@
+https://github.com/rumpkernel/wiki/wiki/Tutorial%3A-Building-Rumprun-Unikernels
+
+"The first thing to note is that Rumprun unikernels are always cross-compiled. In practical terms, that statement means that the compiler will never run on a Rumprun unikernel. Instead, the compiler always runs on a build host (e.g. a regular Linux/BSD system). In case a software package supports cross-compiling, odds are that you can just compile it as a Rumprun unikernel. If the software package uses a custom build system which does not support cross-compilation, you will first have to add cross-compile support to the build system in question. Since we are optimistic, and since modifying an arbitrary build system to support cross-compilation is beyond the scope of this tutorial, we assume cross-compilable software."
+
+>> Finished ./build-rr.sh for hw
+>>
+>> For Rumprun developers (if you're not sure, you don't need it):
+. "/home/gabor/dev/vusec/thesis/rumprun/./obj-amd64-hw/config"
+>>
+>> toolchain tuple: x86_64-rumprun-netbsd
+>> cc wrapper: x86_64-rumprun-netbsd-gcc
+>> installed to "/home/gabor/dev/vusec/thesis/rumprun/./rumprun"
+>>
+>> Set tooldir to front of $PATH (bourne-style shells)
+. "/home/gabor/dev/vusec/thesis/rumprun/./obj-amd64-hw/config-PATH.sh"
+
+first, compile using the cross-compiler wrapper provided by rumprun:
+> x86_64-rumprun-netbsd-gcc main.c -o testrump
+
+now, the binary needs to be "baked", i.e. the kernel components added:
+> rumprun-bake hw_generic testrump.bin testrump
+
+now, the binary can be run with e.g. kvm or qemu:
+> rumprun kvm -i testrump.bin
+
+----------------------
+
+0x0000000000001000 - 0x0000000100000000: user space, identity mapping (first 4 GB)
+0x0000000100000000 - 0x00007f8000000000: user space, unmapped

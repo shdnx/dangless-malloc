@@ -1,0 +1,37 @@
+Topics:
+ - rowhammer over the network (rDMA)
+ - IOMMU: DMA attacks, the MMU for that is really vulnerable, but most of them are fixed => try rowhammering via DMA
+ - MetAlloc for the kernel - eww
+ - Lua and BPF interpreter in the Linux kernel in a sandbox, can run them unpriviledged => rowhammer rootkit to break out of the sandbox
+ - defenses against side-channel attacks such as cache attacks and rowbuffer sidechannel => redesign the kernel memory allocator with coloring, so that two security domains never alias (not even in the cache)
+ - Dune:
+  - Clear Linux: Intel building a production-ready version of Dune - Intel clear containers: container that runs in the VM, which sounds something like Dune; worth looking at it, because it should be production-ready
+  - VTX: super fast way to change address space: vmfunc; this is an extension point: new feature: dirty-bit tracking
+    call: clear all dirty bits
+    run application
+    call: list all dirty pages
+    could be used for memory checkpointing, debugging, error recovery or live migration
+    could be much faster than other techniques
+  - improve the speed of hardening techniques: basically Dune gives you a very fast mprotect() - look at existing defenses that rely on mprotect(), or spacial/temporal memory safety (uninitialized read detection, use after free, etc.)
+    - for unintialized read detection: you could memory aliasing, e.g. 10 byte object mapped to 10 virtual memory pages: would need instrumentation to redirect memory reads
+      is this scalable? memory waste? reduce locality, trash caches, etc.
+    - use-after-free protection: dedicated virtual memory page for all tracked objects; when free() happens, just make it unaccessible; but squash the objects together on one physical page
+      but memory needs to be reused at some point, and that breaks the protection
+      so run a conservative synchrnous GC in a background that tracks memory and looks for words that could be pointers; this would do a safe clean-up
+      GCs can be made efficient because we just use the dirty bits to track which memory pages have changed
+    - spatial protection: e.g. put buffers on their on page, and put guard pages around it
+      e.g. can use tcmalloc
+
+TODO:
+ - look at ClearLinux
+ - ask for papers from Cristiano and Herbert (DSN paper?)
+ - Koen will be my supervisor
+ - meetings on Wednesday 11:00 as usual
+
+Ask about PhD:
+ - status?
+ - accommodation is guaranteed?
+    there's a waiting list
+ - instructing during PhD
+    possible, but research on hold: would be better to do internships
+    better would be to start later

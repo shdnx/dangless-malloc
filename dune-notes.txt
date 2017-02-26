@@ -1,0 +1,9 @@
+will need to re-compile the application anyway:
+ - link to libdune
+ - enter dune mode at some point before main()
+
+Koen has stuff for this: can write a static library that's linked to the application itself
+in the static library, you write a .preinit function that enters Dune
+
+to support fork(), exec() and pthread_create(), need to modify Dune so that the new application enters Dune again
+look at what the sandbox example application of dune did (trap.c @ pthread_entry)
