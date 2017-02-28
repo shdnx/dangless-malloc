@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+// Used to indicate function parameters
 #define OUT /* empty */
 #define INOUT /* empty */
 
@@ -26,5 +27,14 @@
 
 // Round down A to the nearest multiple of N.
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
+
+#define dprintf(...) fprintf(stderr, __VA_ARGS__)
+
+#define UNREACHABLE(...) \
+  do { \
+    dprintf("Unreachable reached in %s at %s:%d: ", __func__, __FILE__, __LINE__); \
+    dprintf(__VA_ARGS__); \
+    __builtin_unreachable(); \
+  } while (0)
 
 #endif // COMMON_H

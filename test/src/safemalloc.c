@@ -6,7 +6,15 @@
 #include "safemalloc.h"
 #include "virtmem.h"
 
-#include <sys/queue.h>
+#include <bmk-core/queue.h>
+
+#define SAFEMALLOC_DEBUG 1
+
+#if SAFEMALLOC_DEBUG
+  #define SAFEMALLOC_DPRINTF(...) dprintf("[safemalloc] " __VA_ARGS__)
+#else
+  #define SAFEMALLOC_DPRINTF(...) /* empty */
+#endif
 
 struct vmem_page_span {
   vaddr_t begin;
@@ -26,8 +34,10 @@ static bool alloc_virtual_mem(void) {
     return false;
 
   struct vmem_page_span *span = malloc(sizeof(struct vmem_page_span));
-  if (!span)
+  if (!span) {
+    SAFEMALLOC_DPRINTF("alloc_virtual_mem failed: malloc returned NULL\n");
     return false;
+  }
 
   span->begin = start;
   span->npages = max_pages;
@@ -40,7 +50,7 @@ static bool alloc_virtual_mem(void) {
 static vaddr_t alloc_virtual_page(void) {
   if (SLIST_EMPTY(&span_list)) {
     if (!alloc_virtual_mem()) {
-      printf("Warning: out of virtual memory!\n");
+      SAFEMALLOC_DPRINTF("alloc_virtual_page: out of virtual memory!\n");
       return 0;
     }
   }
@@ -49,7 +59,12 @@ static vaddr_t alloc_virtual_page(void) {
   assert(span);
 
   vaddr_t va = span->begin;
-  span->begin += PAGE_SIZE;
+
+  enum pt_level level;
+  paddr_t pa = get_paddr_page((void *)va, OUT &level);
+  assert(!pa && "Allocated dirtual page is already mapped to a physical address!");
+
+  span->begin += PGSIZE;
   span->npages--;
 
   if (span->npages == 0) {
@@ -62,15 +77,23 @@ static vaddr_t alloc_virtual_page(void) {
 
 void *safe_malloc(size_t sz) {
   void *p = malloc(sz);
-  if (!p)
-    return p;
+  if (!p) {
+    SAFEMALLOC_DPRINTF("safe_malloc failed: malloc() returned NULL!\n");
+    return NULL;
+  }
 
   vaddr_t va = alloc_virtual_page();
-  if (!va)
+  if (!va) {
+    SAFEMALLOC_DPRINTF("safe_malloc failed: alloc_virtual_page() returned NULL!\n");
     return p;
+  }
 
-  if (pt_map(ROUND_DOWN((paddr_t)p, PAGE_SIZE), va, PG_RW | PG_NX) < 0)
+  paddr_t pa = ROUND_DOWN((paddr_t)p, PGSIZE);
+  int result;
+  if ((result = pt_map(pa, va, PG_RW | PG_NX)) < 0) {
+    SAFEMALLOC_DPRINTF("safe_malloc failed: could not map pa 0x%lx to va 0x%lx!, code %d\n", pa, va, result);
     return p;
+  }
 
   return (uint8_t *)va + get_page_offset((uintptr_t)p, PT_4K);
 }
@@ -82,6 +105,8 @@ void safe_free(void *p) {
 
   if (level == PT_L1) {
     paddr_t pa = (paddr_t)(*ppte & PG_FRAME);
+    pa += get_page_offset((uintptr_t)p, PT_L1);
+
     *ppte = 0xDEAD00;
 
     // since the original virtual address == physical address, we can just get the physical address and give that to free()

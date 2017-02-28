@@ -1,6 +1,8 @@
 #ifndef VIRTMEM_H
 #define VIRTMEM_H
 
+#include <stdio.h>
+
 #include "common.h"
 #include "mem.h"
 
@@ -28,7 +30,7 @@ enum pt_level {
   PT_512G = PT_L4
 };
 
-void pte_dump(pte_t pte, enum pt_level level);
+void pte_dump(FILE *stream, pte_t pte, enum pt_level level);
 
 enum {
   PGWALK_FULL = PT_L1
@@ -49,6 +51,8 @@ paddr_t get_paddr_page(void *p, OUT enum pt_level *page_level);
 paddr_t get_paddr(void *p);
 
 int pt_map(paddr_t pa, vaddr_t va, pte_t flags);
-int pt_unmap(vaddr_t va);
+
+// Unmap the given virtual address from the current address space at the specified level.
+int pt_unmap(vaddr_t va, enum pt_level on_level);
 
 #endif // VIRTMEM_H

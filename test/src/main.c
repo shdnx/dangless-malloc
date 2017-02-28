@@ -20,7 +20,7 @@ static void dump_mappings(uintptr_t va_start, uintptr_t va_end) {
   bool mapped = false;
   uintptr_t start = 0;
 
-  for (va = va_start; va < va_end; va += PAGE_SIZE) {
+  for (va = va_start; va < va_end; va += PGSIZE) {
     pa = get_paddr_page((void *)va, OUT &level);
     if (pa) {
       if (!mapped && start != 0) {
@@ -38,10 +38,10 @@ static void dump_mappings(uintptr_t va_start, uintptr_t va_end) {
           // 2 MB large-page
           mapped = true;
           if (start == 0) {
-            start = va - PAGE_SIZE;
+            start = va - PGSIZE;
           }
 
-          va += 2 * MB - 2 * PAGE_SIZE;
+          va += 2 * MB - 2 * PGSIZE;
           continue;
         }
 
@@ -83,7 +83,7 @@ static void dump_pt(pte_t *pt, unsigned level) {
     pte_t pte = pt[i];
     if (pte) {
       printf("Mapped: 0x%lx - 0x%lx by ", (uintptr_t)i << level_shift, (uintptr_t)(i + 1) << level_shift);
-      pte_dump(pte, level);
+      pte_dump(stdout, pte, level);
     }
   }
 }
@@ -159,20 +159,20 @@ static void *scan_memory(void *start_, void *end_, uint8_t *pattern, size_t patt
 
 static int global_var;
 
-#include "rumpkern.h"
-RUMPKERN_DECL_FUNC(0xcac0, void, bmk_pgalloc_dumpstats, void);
+#include "rumprun.h"
+RUMPRUN_DEF_FUNC(0xcac0, void, bmk_pgalloc_dumpstats, void);
 
 int main() {
   printf("Hello, Rumprun!\n");
 
-  RUMPKERN_FUNC(bmk_pgalloc_dumpstats)();
+  //RUMPRUN_FUNC(bmk_pgalloc_dumpstats)();
 
   // memory scanning
   //const char *symname = "bmk_pgalloc";
   //uint8_t pattern[] = { 0xbe, 0x00, 0x10, 0x00, 0x00, 0xe9, 0x06, 0xfe, 0xff, 0xff, 0x66, 0x0f, 0x1f, 0x44, 0x00, 0x00 };
   //const size_t pattern_length = 16;
 
-  const char *symname = "pgalloc_totalkb";
+  /*const char *symname = "pgalloc_totalkb";
   unsigned long pattern = 3208; // pgalloc_totalkb = 60680
   const size_t pattern_length = sizeof(pattern);
 
@@ -189,7 +189,7 @@ int main() {
   } else {
     printf("%s = %p\nNext 32 bytes:\n", symname, p);
 
-    /*size_t i;
+    size_t i;
     for (i = 0; i < 32; i++) {
       printf("0x%hhx ", ((uint8_t *)p)[pattern_length + i]);
     }
@@ -199,15 +199,15 @@ int main() {
     for (; i > 1; i--) {
       printf("0x%hhx ", ((uint8_t *)p)[pattern_length - i]);
     }
-    printf("\n");*/
-  }
+    printf("\n");
+  }*/
 
   // pgalloc_totalkb = 0x4929a8 ??
   // pgalloc_usedkb = 0x492a68 ??
 
   // -------------
 
-  /*uint64_t cr3 = rcr3();
+  uint64_t cr3 = rcr3();
   printf("cr3 = 0x%lx\n", cr3);
 
   pte_t *pml4 = (pte_t *)cr3;
@@ -223,7 +223,7 @@ int main() {
 
   void *safemallocd = safe_malloc(sizeof(void *));
   printf("safemallocd = %p, phys = 0x%lx\n", safemallocd, get_paddr(safemallocd));
-  safe_free(safemallocd);*/
+  safe_free(safemallocd);
 
   // -------------
 
