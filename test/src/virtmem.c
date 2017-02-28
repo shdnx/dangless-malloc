@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
-#include <bmk-core/pgalloc.h> // bmk_pgalloc_one()
-
 #include "common.h"
-#include "pagetables.h"
+#include "virtmem.h"
+#include "physmem.h"
 
 uint64_t rcr3(void) {
   uint64_t val;
@@ -15,7 +15,7 @@ uint64_t rcr3(void) {
 
 #define PT_LEVEL_OFFSET(VA, LEVEL) (((VA) & CONCAT3(L, LEVEL, _MASK)) >> CONCAT3(L, LEVEL, _SHIFT))
 
-void pte_dump(pte_t pte, unsigned level) {
+void pte_dump(pte_t pte, enum pt_level level) {
   printf("PTE addr = 0x%lx", pte & PG_FRAME);
 
 #define HANDLE_BIT(BIT) if (pte & (BIT)) printf(" " #BIT)
@@ -35,7 +35,7 @@ void pte_dump(pte_t pte, unsigned level) {
   printf(" (raw: 0x%lx)\n", pte);
 }
 
-unsigned pt_walk(void *p, unsigned requested_level, OUT pte_t **result_ppte) {
+enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result_ppte) {
   vaddr_t va = (vaddr_t)p;
   paddr_t paddr = (paddr_t)rcr3();
   pte_t *ppte;
@@ -61,9 +61,9 @@ unsigned pt_walk(void *p, unsigned requested_level, OUT pte_t **result_ppte) {
   return 1;
 }
 
-paddr_t get_paddr_page(void *p, OUT unsigned *page_level) {
+paddr_t get_paddr_page(void *p, OUT enum pt_level *page_level) {
   pte_t *ppte;
-  unsigned level = pt_walk(p, PGWALK_FULL, OUT &ppte);
+  enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
 
   if (!FLAG_ISSET(*ppte, PG_V))
     return 0;
@@ -88,13 +88,13 @@ paddr_t get_paddr_page(void *p, OUT unsigned *page_level) {
   __builtin_unreachable();
 }
 
-size_t get_page_offset(uintptr_t addr, unsigned pt_level) {
+size_t get_page_offset(uintptr_t addr, enum pt_level pt_level) {
   uintptr_t page_offset_mask = (1 << (12 + (pt_level - 1) * 9)) - 1;
   return (size_t)(addr & page_offset_mask);
 }
 
 paddr_t get_paddr(void *p) {
-  unsigned level;
+  enum pt_level level;
   paddr_t pa = get_paddr_page(p, OUT &level);
   if (!pa)
     return 0;
@@ -106,11 +106,11 @@ int pt_map(paddr_t pa, vaddr_t va, pte_t flags) {
   assert(pa % PAGE_SIZE == 0);
 
   pte_t *ppte;
-  unsigned level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
+  enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
   pte_t *pt;
 
   #define CREATE_LEVEL(LVL) \
-    pt = (pte_t *)bmk_pgalloc_one(); \
+    pt = (pte_t *)page_alloc(); \
     assert((uintptr_t)pt % PAGE_SIZE == 0); \
     \
     if (!pt) { \
@@ -118,6 +118,7 @@ int pt_map(paddr_t pa, vaddr_t va, pte_t flags) {
       return -1; \
     } \
     \
+    memset(pt, 0, PAGE_SIZE); \
     *ppte = (uintptr_t)pt | flags | PG_V; \
     ppte = &pt[PT_LEVEL_OFFSET(va, EVAL(LVL))]
   
@@ -133,7 +134,7 @@ int pt_map(paddr_t pa, vaddr_t va, pte_t flags) {
 
 int pt_unmap(vaddr_t va) {
   pte_t *ppte;
-  unsigned level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
+  enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
   if (level != 1)
     return -1;
 

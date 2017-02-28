@@ -27,3 +27,25 @@ now, the binary can be run with e.g. kvm or qemu:
 
 0x0000000000001000 - 0x0000000100000000: user space, identity mapping (first 4 GB)
 0x0000000100000000 - 0x00007f8000000000: user space, unmapped
+
+the entire virtual memory seems to be mapped by rumprubb/platform/hw/arch/amd64/pagetable.S
+
+---------------------
+
+interesting file: ./buildrump.sh/dest.stage/usr/include/rump/rumpkern_if_pub.h
+maybe we could write a kernel module?
+
+rumprun/tests is very interesting, especially ./nolibc
+rumprun/src-netbsd/sys/rump/librump/rumpkern - seems to be the rumpkernel itself
+
+rumprun/obj-amd64-hw/dest.stage/rumprun-x86_64/lib/rumprun-hw/rumprun.o:
+  000000000000ce60 T bmk_pgalloc
+  000000000000cc70 T bmk_pgalloc_align
+  000000000000cac0 T bmk_pgalloc_dumpstats
+  000000000000cb80 T bmk_pgalloc_loadmem
+
+scanning memory we find bmk_pgalloc() at 0x10ee60, so we know that the kernel .text is at 0x102000
+
+----------------
+
+there's 64 MB physical memory available in total, and yet 4 GB address space is identity-mapped in????

@@ -5,13 +5,15 @@ RUMPRUN_RUN = rumprun
 RUMPRUN_PLATFORM = kvm
 RUMPRUN_ROOT = ../rumprun
 RUMPRUN_OBJ_PATH = $(RUMPRUN_ROOT)/obj-amd64-hw
-CFLAGS = -Iinclude -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/rumprun/src-netbsd/sys
-LDFLAGS = -L$(RUMPRUN_OBJ_PATH)/lib/libbmk_core -Wl,-whole-archive -l:libbmk_core.a -Wl,-no-whole-archive
+CFLAGS = -Iinclude -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/src-netbsd/sys
+# $(RUMPRUN_OBJ_PATH)/lib/librumprun_base/librumprun_base.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_core/libbmk_core.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_rumpuser/libbmk_rumpuser.a
+#LDFLAGS = -Wl,-whole-archive $(RUMPRUN_OBJ_PATH)/rumprun.o -Wl,-no-whole-archive
+LDFLAGS = 
 BIN = bin/testrump
 IMG = bin/testrump.img
 
-SRCS = $(wildcard *.c)
-OBJS = $(patsubst %.c,obj/%.o,$(SRCS))
+SRCS = $(wildcard src/*.c)
+OBJS = $(patsubst src/%.c,obj/%.o,$(SRCS))
 
 .PHONY: clean directories run
 
@@ -21,17 +23,17 @@ directories:
 	mkdir -p obj
 	mkdir -p bin
 
-obj/%.o: %.c
+obj/%.o: src/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BIN): $(OBJS)
-	$(CC) $(LDFLAGS) $(RUMPRUN_OBJ_PATH)/platform/arch/amd64/*.o $^ -o $@
+	$(CC) $(LDFLAGS) $^ -o $@
 
 $(IMG): $(BIN)
 	$(RUMPRUN_BAKE) $(RUMPRUN_CONFIG) $@ $<
 
 run: $(IMG)
-	$(RUMPRUN_RUN) -D $(RUMPRUN_PLATFORM) -i $<
+	$(RUMPRUN_RUN) $(RUMPRUN_PLATFORM) -i $<
 
 clean:
 	rm -f obj/*

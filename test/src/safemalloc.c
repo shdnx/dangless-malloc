@@ -4,7 +4,7 @@
 
 #include "common.h"
 #include "safemalloc.h"
-#include "pagetables.h"
+#include "virtmem.h"
 
 #include <sys/queue.h>
 
@@ -77,14 +77,18 @@ void *safe_malloc(size_t sz) {
 
 void safe_free(void *p) {
   pte_t *ppte;
-  unsigned level = pt_walk(p, PGWALK_FULL, OUT &ppte);
-  assert(level == PT_L1);
+  enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
   assert(FLAG_ISSET(*ppte, PG_V));
 
-  paddr_t pa = (paddr_t)(*ppte & PG_FRAME);
-  *ppte = 0xDEAD00;
+  if (level == PT_L1) {
+    paddr_t pa = (paddr_t)(*ppte & PG_FRAME);
+    *ppte = 0xDEAD00;
 
-  // since the original virtual address == physical address, we can just get the physical address and give that to free()
-  // this allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
-  free((void *)pa);
+    // since the original virtual address == physical address, we can just get the physical address and give that to free()
+    // this allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
+    free((void *)pa);
+  } else {
+    // we must have failed to allocate a dedicated virtual page, just forward to the standard free()
+    free(p);
+  }
 }
