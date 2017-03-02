@@ -217,9 +217,9 @@ int main() {
   printf("&main = %p, phys = 0x%lx\n", &main, get_paddr(&main));
   printf("&global_var = %p, phys = 0x%lx\n", &global_var, get_paddr(&global_var));
 
-  void *mallocd = malloc(sizeof(void *));
+  void *mallocd = MALLOC(void *);
   printf("mallocd = %p, phys = 0x%lx\n", mallocd, get_paddr(mallocd));
-  free(mallocd);
+  FREE(mallocd);
 
   dangless_dedicate_vmem((void *)(GB * 5), (void *)(GB * 1024));
 
@@ -227,9 +227,9 @@ int main() {
   printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, get_paddr(safemallocd1));
   dangless_free(safemallocd1);
 
-  void *safemallocd2 = dangless_malloc(sizeof(void *));
-  printf("safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, get_paddr(safemallocd2));
-  dangless_free(safemallocd2);
+  void *safemallocd2 = malloc(sizeof(void *));
+  printf("overriden safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, get_paddr(safemallocd2));
+  free(safemallocd2);
 
   // -------------
 

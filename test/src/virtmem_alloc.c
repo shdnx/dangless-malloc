@@ -53,7 +53,7 @@ void *vp_alloc(size_t npages) {
   if (span_empty(span)) {
     VMALLOC_DPRINTF("vp_alloc: span %p is now empty, deallocating\n", span);
     LIST_REMOVE(span, freelist);
-    free(span);
+    FREE(span);
   }
 
   return (void *)va;
@@ -68,7 +68,7 @@ int vp_free(void *p, size_t npages) {
 
   // TODO: try merging with other free spans
 
-  struct vp_span *span = malloc(sizeof(struct vp_span));
+  struct vp_span *span = MALLOC(struct vp_span);
   if (!span) {
     VMALLOC_DPRINTF("vp_free: could not allocate vp_span: out of memory?\n");
     return -1;

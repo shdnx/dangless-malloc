@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -8,6 +7,7 @@
 #include "rumprun.h"
 #include "physmem_alloc.h"
 #include "virtmem.h"
+#include "sysmalloc.h"
 
 // Physical page allocation with rumprun is tricky. Rumprun appears to use a virtual memory identity mapping for the first 4 GBs of the address space, and it doesn't use the rest.
 // This means that it doesn't have a physical memory allocator. It only has a page allocator in bmk-core/pgalloc.h.
@@ -61,7 +61,7 @@ static struct pp_span *physmem_acquire(void) {
   assert(pa && "bmk_pgalloc_align() returned a page not backed by physical memory!");
   assert(level == PT_2M && "bmk_pgalloc_align() returned virtual memory not backed by a 2M hugepage!");
 
-  struct pp_span *ps = malloc(sizeof(struct pp_span));
+  struct pp_span *ps = MALLOC(struct pp_span);
   if (!ps) {
     PHYSMEM_DPRINTF("Failed to malloc pp_span: out of memory?\n");
     RUMPRUN_FUNC(bmk_pgfree)(p, BMK_PGALLOC_ORDER);
@@ -86,7 +86,7 @@ static void physmem_free(struct pp_span *ps) {
   RUMPRUN_FUNC(bmk_pgfree)(p, BMK_PGALLOC_ORDER);
 
   LIST_REMOVE(ps, freelist);
-  free(ps);
+  FREE(ps);
 }
 
 paddr_t pp_alloc(size_t npages) {
@@ -118,7 +118,7 @@ paddr_t pp_alloc(size_t npages) {
   if (ps->begin == ps->end) {
     PHYSMEM_DPRINTF("pp_span %p is now empty, deallocating\n", ps);
     LIST_REMOVE(ps, freelist);
-    free(ps);
+    FREE(ps);
   }
 
   return pa;
@@ -141,7 +141,7 @@ void pp_free(paddr_t pa, size_t npages) {
 
   // TODO: it's a paradox situation that we need to allocate memory in order to free memory, and it's not very nice, should be fixed
   // it's okay for now, since memory allocated via this module will very often never be freed
-  struct pp_span *ps = malloc(sizeof(struct pp_span));
+  struct pp_span *ps = MALLOC(struct pp_span);
   assert(ps);
 
   ps->begin = pa2ppindex(pa);

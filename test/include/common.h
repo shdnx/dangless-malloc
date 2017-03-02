@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "sysmalloc.h"
+
 // Used to indicate function parameters
 #define OUT /* empty */
 #define INOUT /* empty */

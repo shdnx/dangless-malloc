@@ -5,7 +5,7 @@
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
-#include "rumprun.h"
+#include "sysmalloc.h"
 
 #define DGLMALLOC_DEBUG 1
 
@@ -15,26 +15,9 @@
   #define DGLMALLOC_DPRINTF(...) /* empty */
 #endif
 
-// bmk-core/memalloc.h
 enum {
-  BMK_MEMALLOC_WHO = 2 // = BMK_MEMWHO_USER
-};
-
-RUMPRUN_DEF_FUNC(0xc440, void *, bmk_memalloc, unsigned long /*nbytes*/, unsigned long /*align*/, int /* enum bmk_memwho who */);
-RUMPRUN_DEF_FUNC(0xc6b0, void, bmk_memfree, void * /* p */, int /* enum bmk_memwho who */);
-
-enum {
-  BMK_MEMALLOC_ALIGN = 16, // just to be safe
   DEAD_PTE = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
 };
-
-static void *_memalloc(size_t sz) {
-  return RUMPRUN_FUNC(bmk_memalloc)(sz, BMK_MEMALLOC_ALIGN, BMK_MEMALLOC_WHO);
-}
-
-static void _memfree(void *p) {
-  RUMPRUN_FUNC(bmk_memfree)(p, BMK_MEMALLOC_WHO);
-}
 
 int dangless_dedicate_vmem(void *start, void *end) {
   DGLMALLOC_DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
@@ -42,7 +25,7 @@ int dangless_dedicate_vmem(void *start, void *end) {
 }
 
 void *dangless_malloc(size_t sz) {
-  void *p = _memalloc(sz);
+  void *p = sysmalloc(sz);
   if (!p) {
     DGLMALLOC_DPRINTF("dangless_malloc failed: bmk_memalloc() returned NULL!\n");
     return NULL;
@@ -76,7 +59,7 @@ void *dangless_malloc(size_t sz) {
 }
 
 void dangless_free(void *p) {
-  // compatibility with the standard free()
+  // compatibility with the libc free()
   if (!p)
     return;
 
@@ -92,9 +75,14 @@ void dangless_free(void *p) {
 
     // since the original virtual address == physical address, we can just get the physical address and give that to bmk_memfree()
     // this allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
-    _memfree((void *)pa);
+    sysfree((void *)pa);
   } else {
     // we must have failed to allocate a dedicated virtual page, just forward to the bmk_memfree()
-    _memfree(p);
+    sysfree(p);
   }
 }
+
+// strong overrides of the libc memory allocation symbols
+// when this all gets moved to a library, --whole-archive will have to be used when linking against the library so that these symbols will get picked up instead of the libc one
+__strong_alias(malloc, dangless_malloc);
+__strong_alias(free, dangless_free);
