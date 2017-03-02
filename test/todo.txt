@@ -1,9 +1,11 @@
+ - implement realloc()
+ - support allocations of size >= PGSIZE, like normal malloc() et al
  - mirror output to disk; look into how the rumprun tests do this
- - make the virtual and physical page allocator thread-safe
- - overwrite the malloc/free/etc. symbols
- - implement calloc, realloc, memalign, etc.
+ - make the virtual page allocator thread-safe
+ - make the physical page allocator thread-safe
 
  - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries
  - span merging in the physical/virtual page allocator
  - design the garbage collector
  - create regression test framework
+ - aligned_alloc()? rumprun doesn't implement it

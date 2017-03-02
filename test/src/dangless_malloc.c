@@ -24,16 +24,15 @@ int dangless_dedicate_vmem(void *start, void *end) {
   return vp_free_region(start, end);
 }
 
-void *dangless_malloc(size_t sz) {
-  void *p = sysmalloc(sz);
-  if (!p) {
-    DGLMALLOC_DPRINTF("dangless_malloc failed: bmk_memalloc() returned NULL!\n");
-    return NULL;
-  }
+static void *virtual_remap(void *p, size_t size) {
+  assert(p);
+
+  // TODO: should be able to support size >= PGSIZE, like normal malloc() et al
+  assert(size < PGSIZE);
 
   void *va = vp_alloc_one();
   if (!va) {
-    DGLMALLOC_DPRINTF("dangless_malloc: could not allocate virtual memory page, falling back to just proxying bmk_memalloc\n");
+    DGLMALLOC_DPRINTF("_alloc_vremap: could not allocate virtual memory page, falling back to just proxying bmk_memalloc\n");
     return p;
   }
 
@@ -48,7 +47,7 @@ void *dangless_malloc(size_t sz) {
   paddr_t pa = ROUND_DOWN((paddr_t)p, PGSIZE);
   int result;
   if ((result = pt_map(pa, (vaddr_t)va, PG_RW | PG_NX)) < 0) {
-    DGLMALLOC_DPRINTF("dangless_malloc failed: could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa, va, result);
+    DGLMALLOC_DPRINTF("_alloc_vremap failed: could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free_one(va);
@@ -56,6 +55,39 @@ void *dangless_malloc(size_t sz) {
   }
 
   return (uint8_t *)va + get_page_offset((uintptr_t)p, PT_4K);
+}
+
+void *dangless_malloc(size_t size) {
+  void *p = sysmalloc(size);
+  if (!p) {
+    DGLMALLOC_DPRINTF("dangless_malloc failed: bmk_memalloc() returned NULL!\n");
+    return NULL;
+  }
+
+  return virtual_remap(p, size);
+}
+
+void *dangless_calloc(size_t num, size_t size) {
+  void *p = syscalloc(num, size);
+  if (!p) {
+    DGLMALLOC_DPRINTF("dangless_calloc failed: bmk_memcalloc() returned NULL!\n");
+    return NULL;
+  }
+
+  return virtual_remap(p, size);
+}
+
+void *dangless_realloc(void *p, size_t new_size) {
+  UNREACHABLE("TODO");
+}
+
+int dangless_posix_memalign(void **pp, size_t align, size_t size) {
+  int result = sysmemalign(pp, align, size);
+  if (result != 0)
+    return result;
+
+  *pp = virtual_remap(*pp, size);
+  return 0;
 }
 
 void dangless_free(void *p) {
@@ -85,4 +117,7 @@ void dangless_free(void *p) {
 // strong overrides of the libc memory allocation symbols
 // when this all gets moved to a library, --whole-archive will have to be used when linking against the library so that these symbols will get picked up instead of the libc one
 __strong_alias(malloc, dangless_malloc);
+__strong_alias(calloc, dangless_calloc);
+__strong_alias(realloc, dangless_realloc);
+__strong_alias(posix_memalign, dangless_posix_memalign);
 __strong_alias(free, dangless_free);
