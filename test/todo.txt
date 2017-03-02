@@ -1,0 +1,6 @@
+ - mirror output to disk; look into how the rumprun tests do this
+ - make the virtual and physical page allocator thread-safe
+ - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries
+ - span merging in the physical/virtual page allocator
+ - design the garbage collector
+ - create regression test framework

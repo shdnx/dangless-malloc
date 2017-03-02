@@ -6,7 +6,7 @@
 #include <bmk-core/queue.h>
 
 #include "rumprun.h"
-#include "physmem.h"
+#include "physmem_alloc.h"
 #include "virtmem.h"
 
 // Physical page allocation with rumprun is tricky. Rumprun appears to use a virtual memory identity mapping for the first 4 GBs of the address space, and it doesn't use the rest.
@@ -18,8 +18,6 @@
 RUMPRUN_DEF_FUNC(0xce60, void *, bmk_pgalloc, int /* order */);
 RUMPRUN_DEF_FUNC(0xcc70, void *, bmk_pgalloc_align, int /* order */, unsigned long /*align*/);
 RUMPRUN_DEF_FUNC(0xce70, void, bmk_pgfree, void * /* ptr */, int /* order */);
-
-#define PHYSMEM_DEBUG 1
 
 #if PHYSMEM_DEBUG
   #define PHYSMEM_DPRINTF(...) dprintf("[physmem] " __VA_ARGS__)

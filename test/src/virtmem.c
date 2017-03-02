@@ -3,9 +3,7 @@
 
 #include "common.h"
 #include "virtmem.h"
-#include "physmem.h"
-
-#define VIRTMEM_DEBUG 1
+#include "physmem_alloc.h"
 
 #if VIRTMEM_DEBUG
   #define VIRTMEM_DPRINTF(...) dprintf("[virtmem] " __VA_ARGS__)

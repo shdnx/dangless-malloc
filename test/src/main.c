@@ -6,7 +6,7 @@
 
 #include "common.h"
 #include "virtmem.h"
-#include "safemalloc.h"
+#include "dangless_malloc.h"
 
 #define PRINTF_INDENT(INDENT_LENGTH, FORMAT, ...) \
   printf("%*s" FORMAT, (INDENT_LENGTH), "", __VA_ARGS__)
@@ -221,9 +221,15 @@ int main() {
   printf("mallocd = %p, phys = 0x%lx\n", mallocd, get_paddr(mallocd));
   free(mallocd);
 
-  void *safemallocd = safe_malloc(sizeof(void *));
-  printf("safemallocd = %p, phys = 0x%lx\n", safemallocd, get_paddr(safemallocd));
-  safe_free(safemallocd);
+  dangless_dedicate_vmem((void *)(GB * 5), (void *)(GB * 1024));
+
+  void *safemallocd1 = dangless_malloc(sizeof(void *));
+  printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, get_paddr(safemallocd1));
+  dangless_free(safemallocd1);
+
+  void *safemallocd2 = dangless_malloc(sizeof(void *));
+  printf("safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, get_paddr(safemallocd2));
+  dangless_free(safemallocd2);
 
   // -------------
 
