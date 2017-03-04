@@ -65,16 +65,6 @@ static void dump_mappings(uintptr_t va_start, uintptr_t va_end) {
   }
 }
 
-static unsigned get_level_shift(unsigned level) {
-  switch (level) {
-  case 4: return L4_SHIFT;
-  case 3: return L3_SHIFT;
-  case 2: return L2_SHIFT;
-  case 1: return L1_SHIFT;
-  default: __builtin_unreachable();
-  }
-}
-
 static void dump_pt(pte_t *pt, unsigned level) {
   unsigned level_shift = get_level_shift(level);
 

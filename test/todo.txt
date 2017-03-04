@@ -1,5 +1,4 @@
  - implement realloc()
- - support allocations of size >= PGSIZE, like normal malloc() et al
  - mirror output to disk; look into how the rumprun tests do this
  - make the virtual page allocator thread-safe
  - make the physical page allocator thread-safe

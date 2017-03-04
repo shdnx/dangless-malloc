@@ -5,7 +5,7 @@ RUMPRUN_RUN = rumprun
 RUMPRUN_PLATFORM = kvm
 RUMPRUN_ROOT = ../rumprun
 RUMPRUN_OBJ_PATH = $(RUMPRUN_ROOT)/obj-amd64-hw
-CFLAGS = -Iinclude -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/src-netbsd/sys
+CFLAGS = -std=gnu11 -Iinclude -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/src-netbsd/sys
 # $(RUMPRUN_OBJ_PATH)/lib/librumprun_base/librumprun_base.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_core/libbmk_core.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_rumpuser/libbmk_rumpuser.a
 #LDFLAGS = -Wl,-whole-archive $(RUMPRUN_OBJ_PATH)/rumprun.o -Wl,-no-whole-archive
 LDFLAGS = 

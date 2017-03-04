@@ -11,8 +11,8 @@
 // TODO: pt_entry_t and pd_entry_t
 typedef uint64_t pte_t;
 
-// Reads the value of control register 3.
-uint64_t rcr3(void);
+#define PT_BITS_PER_LEVEL 9
+#define PT_NUM_ENTRIES (1uL << PT_BITS_PER_LEVEL)
 
 enum pt_level {
   PT_INVALID = 0,
@@ -29,6 +29,13 @@ enum pt_level {
   PT_L4 = 4,
   PT_512G = PT_L4
 };
+
+static inline unsigned get_level_shift(enum pt_level level) {
+  return PGSHIFT + (level - 1) * PT_BITS_PER_LEVEL;
+}
+
+// Reads the value of control register 3.
+uint64_t rcr3(void);
 
 void pte_dump(FILE *stream, pte_t pte, enum pt_level level);
 
@@ -50,9 +57,10 @@ paddr_t get_paddr_page(void *p, OUT enum pt_level *page_level);
 // Gets the physical address corresponding to the given virtual address.
 paddr_t get_paddr(void *p);
 
-int pt_map(paddr_t pa, vaddr_t va, pte_t flags);
+int pt_map_page(paddr_t pa, vaddr_t va, pte_t flags);
+int pt_map_region(paddr_t pa, vaddr_t va, size_t size, pte_t flags);
 
-// Unmap the given virtual address from the current address space at the specified level.
-int pt_unmap(vaddr_t va, enum pt_level on_level);
+// Unmap the given virtual page from the current address space at the specified level.
+int pt_unmap_page(vaddr_t va, enum pt_level on_level);
 
 #endif // VIRTMEM_H

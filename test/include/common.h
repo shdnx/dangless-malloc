@@ -29,8 +29,14 @@
 
 // Round down A to the nearest multiple of N.
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
+#define ROUND_UP(A, N) ((A) + (N) - (A) % (N))
 
 #define dprintf(...) fprintf(stderr, __VA_ARGS__)
+#define vdprintf(...) \
+  do { \
+    dprintf("[%s :%d] %s: ", __FILE__, __LINE__, __func__); \
+    dprintf(__VA_ARGS__); \
+  } while (0)
 
 #define UNREACHABLE(...) \
   do { \
