@@ -6,9 +6,9 @@
 #include "physmem_alloc.h"
 
 #if VIRTMEM_DEBUG
-  #define VIRTMEM_DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define DPRINTF(...) vdprintf(__VA_ARGS__)
 #else
-  #define VIRTMEM_DPRINTF(...) /* empty */
+  #define DPRINTF(...) /* empty */
 #endif
 
 uint64_t rcr3(void) {
@@ -117,7 +117,7 @@ int pt_map_page(paddr_t pa, vaddr_t va, pte_t flags) {
 #define CREATE_LEVEL(LVL) \
     ptpa = pp_zalloc_one(); \
     if (!ptpa) { \
-      VIRTMEM_DPRINTF("failed to allocate pagetable page"); \
+      DPRINTF("failed to allocate pagetable page"); \
       /* TODO: clean-up */ \
       return -1; \
     } \
@@ -150,7 +150,7 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, pte_t flags) {
   
   for (offset = 0; offset < size; offset += PGSIZE) {
     if ((result = pt_map_page(pa + offset, va + offset, flags)) < 0) {
-      VIRTMEM_DPRINTF("could not map page offset 0x%lx\n", offset);
+      DPRINTF("could not map page offset 0x%lx\n", offset);
       goto fail_unmap;
     }
   }
@@ -168,7 +168,7 @@ int pt_unmap_page(vaddr_t va, enum pt_level on_level) {
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, on_level, OUT &ppte);
   if (level != on_level) {
-    VIRTMEM_DPRINTF("0x%lx is not mapped under level %u, pt_walk() returned level %u\n", va, on_level, level);
+    DPRINTF("0x%lx is not mapped under level %u, pt_walk() returned level %u\n", va, on_level, level);
     return -1;
   }
 

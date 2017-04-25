@@ -49,3 +49,24 @@ scanning memory we find bmk_pgalloc() at 0x10ee60, so we know that the kernel .t
 ----------------
 
 there's 64 MB physical memory available in total, and yet 4 GB address space is identity-mapped in????
+
+----------------- benchmarking --------------------
+
+Set up iptap:
+> sudo ip tuntap add tap0 mode tap
+> sudo ip addr add 10.0.120.100/24 dev tap0
+> sudo ip link set dev tap0 up
+
+Build rumprun redis:
+> source rumprun/obj-amd64-hw/config-PATH.sh
+> cd rumprun-packages/redis
+> make
+> rumprun-bake hw_generic bin/redis-server.bin bin/redis-server
+
+Run it:
+> rumprun qemu -i -M 256 \
+    -I if,vioif,'-net tap,script=no,ifname=tap0' \
+    -W if,inet,static,10.0.120.100/24 \
+    -b images/data.iso,/data \
+    -b images/datapers.img,/backup \
+    -- bin/redis-server.bin /data/conf/redisaof.conf

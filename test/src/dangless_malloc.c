@@ -10,9 +10,9 @@
 #define DGLMALLOC_DEBUG 1
 
 #if DGLMALLOC_DEBUG
-  #define DGLMALLOC_DPRINTF(...) dprintf("[dangless_malloc] " __func__ ": " __VA_ARGS__)
+  #define DPRINTF(...) vdprintf(__VA_ARGS__)
 #else
-  #define DGLMALLOC_DPRINTF(...) /* empty */
+  #define DPRINTF(...) /* empty */
 #endif
 
 enum {
@@ -20,7 +20,7 @@ enum {
 };
 
 int dangless_dedicate_vmem(void *start, void *end) {
-  DGLMALLOC_DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
+  DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
   return vp_free_region(start, end);
 }
 
@@ -29,7 +29,7 @@ static void *virtual_remap(void *p, size_t size) {
 
   void *va = vp_alloc_one();
   if (!va) {
-    DGLMALLOC_DPRINTF("could not allocate virtual memory page, falling back to just proxying bmk_memalloc\n");
+    DPRINTF("could not allocate virtual memory page, falling back to just proxying bmk_memalloc\n");
     return p;
   }
 
@@ -44,7 +44,7 @@ static void *virtual_remap(void *p, size_t size) {
   paddr_t pa = ROUND_DOWN((paddr_t)p, PGSIZE);
   int result;
   if ((result = pt_map_region(pa, (vaddr_t)va, ROUND_UP(size, PGSIZE), PG_RW | PG_NX)) < 0) {
-    DGLMALLOC_DPRINTF("could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa, va, result);
+    DPRINTF("could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free_one(va);
@@ -96,7 +96,7 @@ struct memalloc_hdr {
 void *dangless_malloc(size_t size) {
   void *p = sysmalloc(size);
   if (!p) {
-    DGLMALLOC_DPRINTF("bmk_memalloc() returned NULL!\n");
+    DPRINTF("bmk_memalloc() returned NULL!\n");
     return NULL;
   }
 
@@ -106,7 +106,7 @@ void *dangless_malloc(size_t size) {
 void *dangless_calloc(size_t num, size_t size) {
   void *p = syscalloc(num, size);
   if (!p) {
-    DGLMALLOC_DPRINTF("bmk_memcalloc() returned NULL!\n");
+    DPRINTF("bmk_memcalloc() returned NULL!\n");
     return NULL;
   }
 

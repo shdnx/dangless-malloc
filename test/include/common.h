@@ -34,7 +34,7 @@
 #define dprintf(...) fprintf(stderr, __VA_ARGS__)
 #define vdprintf(...) \
   do { \
-    dprintf("[%s :%d] %s: ", __FILE__, __LINE__, __func__); \
+    dprintf("[%s:%d] %s: ", __FILE__, __LINE__, __func__); \
     dprintf(__VA_ARGS__); \
   } while (0)
 
