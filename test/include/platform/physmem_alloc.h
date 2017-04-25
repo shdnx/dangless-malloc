@@ -2,7 +2,8 @@
 #define PHYSMEM_ALLOC_H
 
 #include "common.h"
-#include "mem.h"
+
+#include "platform/mem.h"
 
 // This is a memory allocator for 4K physical pages that are going to be in use for a very long time, and are very rarely or never freed (e.g. page tables).
 

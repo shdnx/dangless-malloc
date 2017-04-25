@@ -1,7 +1,14 @@
+Platforms:
+ - Finish making dangless_malloc.c platform-independent: the main problem is virtual_is_remapped() - how to implement this outside of Rumprun? We can easily determine whether memory is reallocated by using one of the available bits of the PTE (assuming Dune or the Linux kernel doesn't use it already!), but how do you determine the original virtual address, in order to free it?
+ - Dune implemenetation!
+
+General:
  - implement realloc()
- - mirror output to disk; look into how the rumprun tests do this
  - make the virtual page allocator thread-safe
  - make the physical page allocator thread-safe
+
+Rumprun:
+ - mirror output to disk; look into how the rumprun tests do this
 
  - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries
  - span merging in the physical/virtual page allocator

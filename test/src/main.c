@@ -21,7 +21,7 @@ static void dump_mappings(uintptr_t va_start, uintptr_t va_end) {
   uintptr_t start = 0;
 
   for (va = va_start; va < va_end; va += PGSIZE) {
-    pa = get_paddr_page((void *)va, OUT &level);
+    pa = pt_resolve_page((void *)va, OUT &level);
     if (pa) {
       if (!mapped && start != 0) {
         printf("Unmapped region 0x%lx - 0x%lx\n", start, va);
@@ -202,23 +202,23 @@ int main() {
 
   pte_t *pml4 = (pte_t *)cr3;
 
-  printf("pml4 = %p, phys = 0x%lx\n", pml4, get_paddr(pml4));
-  printf("&pml4 = %p, phys = 0x%lx\n", &pml4, get_paddr(&pml4));
-  printf("&main = %p, phys = 0x%lx\n", &main, get_paddr(&main));
-  printf("&global_var = %p, phys = 0x%lx\n", &global_var, get_paddr(&global_var));
+  printf("pml4 = %p, phys = 0x%lx\n", pml4, pt_resolve(pml4));
+  printf("&pml4 = %p, phys = 0x%lx\n", &pml4, pt_resolve(&pml4));
+  printf("&main = %p, phys = 0x%lx\n", &main, pt_resolve(&main));
+  printf("&global_var = %p, phys = 0x%lx\n", &global_var, pt_resolve(&global_var));
 
   void *mallocd = MALLOC(void *);
-  printf("mallocd = %p, phys = 0x%lx\n", mallocd, get_paddr(mallocd));
+  printf("mallocd = %p, phys = 0x%lx\n", mallocd, pt_resolve(mallocd));
   FREE(mallocd);
 
   dangless_dedicate_vmem((void *)(GB * 5), (void *)(GB * 1024));
 
   void *safemallocd1 = dangless_malloc(sizeof(void *));
-  printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, get_paddr(safemallocd1));
+  printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, pt_resolve(safemallocd1));
   dangless_free(safemallocd1);
 
   void *safemallocd2 = malloc(sizeof(void *));
-  printf("overriden safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, get_paddr(safemallocd2));
+  printf("overriden safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, pt_resolve(safemallocd2));
   free(safemallocd2);
 
   // -------------

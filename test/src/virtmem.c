@@ -3,7 +3,8 @@
 
 #include "common.h"
 #include "virtmem.h"
-#include "physmem_alloc.h"
+
+#include "platform/physmem_alloc.h"
 
 #if VIRTMEM_DEBUG
   #define DPRINTF(...) vdprintf(__VA_ARGS__)
@@ -17,22 +18,20 @@ uint64_t rcr3(void) {
   return val;
 }
 
-#define PT_LEVEL_OFFSET(VA, LEVEL) (((VA) & CONCAT3(L, LEVEL, _MASK)) >> CONCAT3(L, LEVEL, _SHIFT))
-
 void pte_dump(FILE *stream, pte_t pte, enum pt_level level) {
-  fprintf(stream, "PTE addr = 0x%lx", pte & PG_FRAME);
+  fprintf(stream, "PTE addr = 0x%lx", pte & PTE_FRAME);
 
 #define HANDLE_BIT(BIT) if (pte & (BIT)) fprintf(stream, " " #BIT)
 
-  HANDLE_BIT(PG_V);
-  HANDLE_BIT(PG_RW);
-  HANDLE_BIT(PG_u);
-  HANDLE_BIT(PG_NX);
+  HANDLE_BIT(PTE_V);
+  HANDLE_BIT(PTE_W);
+  HANDLE_BIT(PTE_U);
+  HANDLE_BIT(PTE_NX);
 
-  if (level == 1)
-    HANDLE_BIT(PG_PAT);
+  if (level == PT_L1)
+    HANDLE_BIT(PTE_PAT);
   else
-    HANDLE_BIT(PG_PS);
+    HANDLE_BIT(PTE_PS);
 
 #undef HANDLE_BIT
 
@@ -45,19 +44,19 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
   pte_t *ppte;
 
 #define WALK_LEVEL(LVL) \
-    ppte = &((pte_t *)paddr)[PT_LEVEL_OFFSET(va, LVL)]; \
-    if (!FLAG_ISSET(*ppte, PG_V) \
-        || (LVL != PT_L1 && FLAG_ISSET(*ppte, PG_PS)) \
+    ppte = &((pte_t *)paddr)[pt_level_offset(va, LVL)]; \
+    if (!FLAG_ISSET(*ppte, PTE_V) \
+        || (LVL != PT_L1 && FLAG_ISSET(*ppte, PTE_PS)) \
         || requested_level == LVL) { \
       OUT *result_ppte = ppte; \
       return LVL; \
     } \
-    paddr = (paddr_t)(*ppte & PG_FRAME)
+    paddr = (paddr_t)(*ppte & PTE_FRAME)
 
-  WALK_LEVEL(4);
-  WALK_LEVEL(3);
-  WALK_LEVEL(2);
-  WALK_LEVEL(1);
+  WALK_LEVEL(PT_L4);
+  WALK_LEVEL(PT_L3);
+  WALK_LEVEL(PT_L2);
+  WALK_LEVEL(PT_L1);
 
 #undef WALK_LEVEL
 
@@ -65,11 +64,11 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
   return 1;
 }
 
-paddr_t get_paddr_page(void *p, OUT enum pt_level *page_level) {
+paddr_t pt_resolve_page(void *p, OUT enum pt_level *page_level) {
   pte_t *ppte;
   enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
 
-  if (!FLAG_ISSET(*ppte, PG_V))
+  if (!FLAG_ISSET(*ppte, PTE_V))
     return 0;
 
   if (page_level)
@@ -78,35 +77,31 @@ paddr_t get_paddr_page(void *p, OUT enum pt_level *page_level) {
   paddr_t pa;
   switch (level) {
   case PT_4K:
-    return (*ppte & PG_FRAME);
+    return (*ppte & PTE_FRAME_4K);
 
   case PT_2M:
-    assert(FLAG_ISSET(*ppte, PG_PS));
-    return (*ppte & PG_2MFRAME);
+    assert(FLAG_ISSET(*ppte, PTE_PS));
+    return (*ppte & PTE_FRAME_2M);
 
+  // TODO: does this make sense?
   case PT_1G:
-    assert(FLAG_ISSET(*ppte, PG_PS));
-    return (*ppte & PG_1GFRAME);
+    assert(FLAG_ISSET(*ppte, PTE_PS));
+    return (*ppte & PTE_FRAME_1G);
   }
 
   UNREACHABLE("Unhandled pt_level value!\n");
 }
 
-size_t get_page_offset(uintptr_t addr, enum pt_level pt_level) {
-  uintptr_t page_offset_mask = (1uL << get_level_shift(pt_level)) - 1;
-  return (size_t)(addr & page_offset_mask);
-}
-
-paddr_t get_paddr(void *p) {
+paddr_t pt_resolve(void *p) {
   enum pt_level level;
-  paddr_t pa = get_paddr_page(p, OUT &level);
+  paddr_t pa = pt_resolve_page(p, OUT &level);
   if (!pa)
     return 0;
 
   return pa + get_page_offset((uintptr_t)p, level);
 }
 
-int pt_map_page(paddr_t pa, vaddr_t va, pte_t flags) {
+int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   assert(pa % PGSIZE == 0);
   assert(va % PGSIZE == 0);
 
@@ -121,22 +116,22 @@ int pt_map_page(paddr_t pa, vaddr_t va, pte_t flags) {
       /* TODO: clean-up */ \
       return -1; \
     } \
-    *ppte = (pte_t)ptpa | flags | PG_V; \
-    ppte = &((pte_t *)paddr2vaddr(ptpa))[PT_LEVEL_OFFSET(va, LVL)]
+    *ppte = (pte_t)ptpa | flags | PTE_V; \
+    ppte = &((pte_t *)paddr2vaddr(ptpa))[pt_level_offset(va, LVL)]
 
   switch (level) {
-  case PT_L4: CREATE_LEVEL(3);
-  case PT_L3: CREATE_LEVEL(2);
-  case PT_L2: CREATE_LEVEL(1);
+  case PT_L4: CREATE_LEVEL(PT_L3);
+  case PT_L3: CREATE_LEVEL(PT_L2);
+  case PT_L2: CREATE_LEVEL(PT_L1);
   }
 
 #undef CREATE_LEVEL
 
-  *ppte = pa | flags | PG_V;
+  *ppte = pa | flags | PTE_V;
   return 0;
 }
 
-int pt_map_region(paddr_t pa, vaddr_t va, size_t size, pte_t flags) {
+int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
   assert(pa % PGSIZE == 0);
   assert(va % PGSIZE == 0);
   assert(size % PGSIZE == 0);
@@ -147,7 +142,7 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, pte_t flags) {
   int result = 0;
   size_t offset;
   size_t max_offset;
-  
+
   for (offset = 0; offset < size; offset += PGSIZE) {
     if ((result = pt_map_page(pa + offset, va + offset, flags)) < 0) {
       DPRINTF("could not map page offset 0x%lx\n", offset);

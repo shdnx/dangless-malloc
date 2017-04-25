@@ -2,12 +2,13 @@
 #include <string.h>
 #include <assert.h>
 
-#include <bmk-core/queue.h>
+#include "queue.h"
 
-#include "rumprun.h"
 #include "physmem_alloc.h"
 #include "virtmem.h"
 #include "sysmalloc.h"
+
+#include "rumprun.h"
 
 // Physical page allocation with rumprun is tricky. Rumprun appears to use a virtual memory identity mapping for the first 4 GBs of the address space, and it doesn't use the rest.
 // This means that it doesn't have a physical memory allocator. It only has a page allocator in bmk-core/pgalloc.h.
@@ -57,7 +58,7 @@ static struct pp_span *physmem_acquire(void) {
   }
 
   enum pt_level level;
-  paddr_t pa = get_paddr_page(p, OUT &level);
+  paddr_t pa = pt_resolve_page(p, OUT &level);
   assert(pa && "bmk_pgalloc_align() returned a page not backed by physical memory!");
   assert(level == PT_2M && "bmk_pgalloc_align() returned virtual memory not backed by a 2M hugepage!");
 

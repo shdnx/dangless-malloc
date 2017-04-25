@@ -1,5 +1,6 @@
 #include "sysmalloc.h"
 #include "common.h"
+
 #include "rumprun.h"
 
 // bmk-core/memalloc.h
@@ -41,4 +42,44 @@ int sysmemalign(void **pp, size_t align, size_t sz) {
 
 void sysfree(void *p) {
   RUMPRUN_FUNC(bmk_memfree)(p, BMK_MEMALLOC_WHO);
+}
+
+// TODO: this is very bad, very tight coupling with the internal implementation details of BMK's memalloc.c - however, the only alternative is adding our own header, with its own overhead...
+// unfortunately rumprun doesn't support the malloc_usable_size() GNU extension
+size_t sysmalloc_usable_pages(void *p) {
+/*
+// bmk-core/memalloc.c:
+struct memalloc_hdr {
+  uint32_t  mh_alignpad; // padding for alignment
+  uint16_t  mh_magic;    // magic number
+  uint8_t   mh_index;    // bucket number
+  uint8_t   mh_who;      // who allocated
+};
+
+// ...
+
+#define MINSHIFT 5
+#define LOCALBUCKETS (BMK_PCPU_PAGE_SHIFT - MINSHIFT)
+
+// ...
+
+  if (bucket >= LOCALBUCKETS) {
+    hdr = bmk_pgalloc(bucket+MINSHIFT - BMK_PCPU_PAGE_SHIFT);
+  } else {
+    hdr = bucketalloc(bucket);
+  }
+
+// bmk-core/pgalloc.c:
+#define order2size(_order_) (1UL<<(_order_ + BMK_PCPU_PAGE_SHIFT))
+ */
+
+#define BMK_MEMALLOC_LOCALBUCKETS 7
+
+  // read the mh_index field from the memalloc_hdr that's placed before the user memory
+  uint8_t bucket_index = *((uint8_t *)p - 2);
+  if (bucket_index <= BMK_MEMALLOC_LOCALBUCKETS)
+    return 1;
+
+  int pgalloc_order = bucket_index - BMK_MEMALLOC_LOCALBUCKETS;
+  return (size_t)(1uL << pgalloc_order);
 }

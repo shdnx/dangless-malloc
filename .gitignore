@@ -1,5 +1,5 @@
 dune
 papers
-rumprun
+./rumprun
 *.sublime-workspace
 *.*~

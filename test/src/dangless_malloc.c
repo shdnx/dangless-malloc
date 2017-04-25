@@ -5,7 +5,8 @@
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
-#include "sysmalloc.h"
+
+#include "platform/sysmalloc.h"
 
 #define DGLMALLOC_DEBUG 1
 
@@ -18,6 +19,8 @@
 enum {
   DEAD_PTE = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
 };
+
+STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!!!");
 
 int dangless_dedicate_vmem(void *start, void *end) {
   DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
@@ -36,15 +39,16 @@ static void *virtual_remap(void *p, size_t size) {
 #if DGLMALLOC_DEBUG
   {
     enum pt_level level;
-    paddr_t pa = get_paddr_page(va, OUT &level);
+    paddr_t pa = pt_resolve_page(va, OUT &level);
     assert(!pa && "Allocated virtual page is already mapped to a physical address!");
   }
 #endif
 
-  paddr_t pa = ROUND_DOWN((paddr_t)p, PGSIZE);
+  paddr_t pa = vaddr2paddr(p);
+  paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
   int result;
-  if ((result = pt_map_region(pa, (vaddr_t)va, ROUND_UP(size, PGSIZE), PG_RW | PG_NX)) < 0) {
-    DPRINTF("could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa, va, result);
+  if ((result = pt_map_region(pa_page, (vaddr_t)va, ROUND_UP(size, PGSIZE), PTE_W | PTE_NX)) < 0) {
+    DPRINTF("could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa_page, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free_one(va);
@@ -54,43 +58,25 @@ static void *virtual_remap(void *p, size_t size) {
   return (uint8_t *)va + get_page_offset((uintptr_t)p, PT_4K);
 }
 
-// For a BMK malloc(), calloc(), etc. allocated chunk, return the number of 4K pages it spans (minimum 1).
-// TODO: this is very bad, very tight coupling with the internal implementation details of BMK's memalloc.c - however, the only alternative is adding our own header, with its own overhead...
-static size_t get_bmk_malloc_chunk_npages(void *p) {
-/*
-// bmk-core/memalloc.c:
-struct memalloc_hdr {
-  uint32_t  mh_alignpad; // padding for alignment
-  uint16_t  mh_magic;    // magic number
-  uint8_t   mh_index;    // bucket number
-  uint8_t   mh_who;      // who allocated
-};
+// TODO: this function is very rumprun-specific
+// how could we make this platform-independent? when physical address != original virtual address, there's not much we can do, other than putting our own header on top of the user memory... but that's a lot of memory overhead...
+bool virtual_is_remapped(void *p, OUT void **original_ptr) {
+  pte_t *ppte;
+  enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
+  assert(FLAG_ISSET(*ppte, PG_V));
 
-// ...
-
-#define MINSHIFT 5
-#define LOCALBUCKETS (BMK_PCPU_PAGE_SHIFT - MINSHIFT)
-
-// ...
-
-  if (bucket >= LOCALBUCKETS) {
-    hdr = bmk_pgalloc(bucket+MINSHIFT - BMK_PCPU_PAGE_SHIFT);
-  } else {
-    hdr = bucketalloc(bucket);
+  // TODO: use instead one of the available PTE bits to note the fact that a page is dangless-remapped
+  // currently this is only possible when we failed to allocate a dedicated virtual page for this allocation, and just falled back to proxying sysmalloc()
+  if (level != PT_L1) {
+    OUT *original_ptr = p;
+    return false;
   }
 
-// bmk-core/pgalloc.c:
-#define order2size(_order_) (1UL<<(_order_ + BMK_PCPU_PAGE_SHIFT))
- */
-
-#define BMK_MEMALLOC_LOCALBUCKETS 7
-
-  uint8_t bucket_index = *((uint8_t *)p - 2);
-  if (bucket_index <= BMK_MEMALLOC_LOCALBUCKETS)
-    return 1;
-
-  int pgalloc_order = bucket_index - BMK_MEMALLOC_LOCALBUCKETS;
-  return (size_t)(1uL << pgalloc_order);
+  // since the original virtual address == physical address, we can just get the physical address and pretend it's a virtual address: specifically, it's the original virtual address, before we remapped it with virtual_remap()
+  // this trickery allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
+  paddr_t pa = (paddr_t)(*ppte & PTE_FRAME_L1) + get_page_offset((uintptr_t)p, PT_L1);
+  OUT *original_ptr = (void *)pa;
+  return true;
 }
 
 void *dangless_malloc(size_t size) {
@@ -118,7 +104,8 @@ void *dangless_realloc(void *p, size_t new_size) {
   if (!newp)
     return NULL;
 
-
+  // TODO
+  UNREACHABLE("Unimplemented!\n");
 }
 
 int dangless_posix_memalign(void **pp, size_t align, size_t size) {
@@ -130,32 +117,25 @@ int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   return 0;
 }
 
-static bool virtual_invalidate(void *p, size_t npages, OUT void **original_ptr) {
-  pte_t *ppte;
-  enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
-  assert(FLAG_ISSET(*ppte, PG_V));
-
-  // currently this is only possible when we failed to allocate a dedicated virtual page for this allocation, and just falled back to proxying sysmalloc()
-  if (level != PT_L1) {
-    OUT *original_ptr = p;
-    return false;
-  }
-
-  // since the original virtual address == physical address, we can just get the physical address and pretend it's a virtual address: specifically, it's the original virtual address, before we remapped it with virtual_remap()
-  // this trickery allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
-  paddr_t pa = (paddr_t)(*ppte & PG_FRAME) + get_page_offset((uintptr_t)p, PT_L1);
-  OUT *original_ptr = (void *)pa;
-
-  // now invalidate the virtual pages: we do this by overwriting the PTEs with a magic number, taking care that the PG_V bit is 0... this allows us to detect a dangling pointer attempted access if we hook into the pagefault interrupt
+// Invalidates a virtual page that was remapped with virtual_remap(), by marking its PTE as dead.
+// This allows us to detect a dangling pointer attempted access if we hook into the pagefault interrupt.
+static void virtual_invalidate_pte(pte_t *ppte) {
   *ppte = DEAD_PTE;
+}
+
+static bool virtual_invalidate(void *p, size_t npages, OUT void **original_ptr) {
+  if (!virtual_is_remapped(p, OUT original_ptr))
+    return false;
 
   size_t page;
-  for (page = 1; page < npages; page++) {
+  for (page = 0; page < npages; page++) {
     // TODO: this could be optimised, since usually we'll be touching adjecent PTEs
-    level = pt_walk((uint8_t *)p + (page * PGSIZE), PGWALK_FULL, OUT &ppte);
-    assert(level == PT_L1 && FLAG_ISSET(*ppte, PG_V));
+    pte_t *ppte;
+    enum pt_level level = pt_walk((uint8_t *)p + (page * PGSIZE), PGWALK_FULL, OUT &ppte);
+    assert(level == PT_L1);
+    assert(FLAG_ISSET(*ppte, PTE_V));
 
-    *ppte = DEAD_PTE;
+    virtual_invalidate_pte(ppte);
   }
 
   return true;
@@ -166,18 +146,10 @@ void dangless_free(void *p) {
   if (!p)
     return;
 
-  size_t npages = get_bmk_malloc_chunk_npages(p);
+  size_t npages = sysmalloc_usable_pages(p);
 
   void *original_ptr;
   virtual_invalidate(p, npages, OUT &original_ptr);
 
   sysfree(original_ptr);
 }
-
-// strong overrides of the libc memory allocation symbols
-// when this all gets moved to a library, --whole-archive will have to be used when linking against the library so that these symbols will get picked up instead of the libc one
-__strong_alias(malloc, dangless_malloc);
-__strong_alias(calloc, dangless_calloc);
-__strong_alias(realloc, dangless_realloc);
-__strong_alias(posix_memalign, dangless_posix_memalign);
-__strong_alias(free, dangless_free);

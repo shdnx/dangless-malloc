@@ -45,4 +45,7 @@
     __builtin_unreachable(); \
   } while (0)
 
+// TODO
+#define STATIC_ASSERT(EXPR, MSG) /* empty */
+
 #endif // COMMON_H
