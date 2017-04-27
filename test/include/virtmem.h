@@ -1,14 +1,9 @@
 #ifndef VIRTMEM_H
 #define VIRTMEM_H
 
-#include <stdio.h>
-
 #include "common.h"
 
 #include "platform/mem.h"
-
-// TODO: rumprun stuff, why do we need it?
-//#include <arch/amd64/include/pte.h>
 
 // x86-64 is assumed
 // we treat entries on all page levels the same way and call them PTEs for simplicity
@@ -18,23 +13,23 @@ typedef uint64_t pte_t;
 #define PT_NUM_ENTRIES (1uL << PT_BITS_PER_LEVEL)
 
 enum pte_flags {
-  PTE_V = 0x0, // valid
+  PTE_V = 0x1, // valid
   PTE_W = 0x2, // writable
   PTE_U = 0x4, // user accessible
-  PTE_PS = 0x80, // 2 MB page size (on PDE)
-  PTE_PAT = PTE_PS, // PAT (on PTE)
-  PTE_NX = 0x8000000000000000 // non-executable
+  PTE_PS = 0x80, // page size (everywhere but in PTL1)
+  PTE_PAT = 0x80, // PAT (on PTE)
+  PTE_NX = 0x8000000000000000uL // non-executable
 };
 
 enum {
-  PTE_FRAME = 0x000ffffffffff000,
+  PTE_FRAME = 0x000ffffffffff000uL,
   PTE_FRAME_4K = PTE_FRAME,
   PTE_FRAME_L1 = PTE_FRAME_4K,
 
-  PTE_FRAME_2M = 0x000fffffffe00000,
+  PTE_FRAME_2M = 0x000fffffffe00000uL,
   PTE_FRAME_L2 = PTE_FRAME_2M,
 
-  PTE_FRAME_1G = 0x000fffffc0000000,
+  PTE_FRAME_1G = 0x000fffffc0000000uL,
   PTE_FRAME_L3 = PTE_FRAME_1G
 };
 
@@ -59,7 +54,7 @@ static inline unsigned pt_level_shift(enum pt_level level) {
 }
 
 static inline size_t pt_level_offset(vaddr_t va, enum pt_level level) {
-  return (va >> pt_level_shift(level)) % PT_NUM_ENTRIES;
+  return (va >> pt_level_shift(level)) & (PT_NUM_ENTRIES - 1);
 }
 
 // Gets the offset of the specified address into a page mapped by the specified pagetable level.
@@ -70,8 +65,6 @@ static inline size_t get_page_offset(uintptr_t addr, enum pt_level pt_level) {
 
 // Reads the value of control register 3.
 uint64_t rcr3(void);
-
-void pte_dump(FILE *stream, pte_t pte, enum pt_level level);
 
 enum {
   PGWALK_FULL = PT_L1

@@ -18,26 +18,6 @@ uint64_t rcr3(void) {
   return val;
 }
 
-void pte_dump(FILE *stream, pte_t pte, enum pt_level level) {
-  fprintf(stream, "PTE addr = 0x%lx", pte & PTE_FRAME);
-
-#define HANDLE_BIT(BIT) if (pte & (BIT)) fprintf(stream, " " #BIT)
-
-  HANDLE_BIT(PTE_V);
-  HANDLE_BIT(PTE_W);
-  HANDLE_BIT(PTE_U);
-  HANDLE_BIT(PTE_NX);
-
-  if (level == PT_L1)
-    HANDLE_BIT(PTE_PAT);
-  else
-    HANDLE_BIT(PTE_PS);
-
-#undef HANDLE_BIT
-
-  fprintf(stream, " (raw: 0x%lx)\n", pte);
-}
-
 enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result_ppte) {
   vaddr_t va = (vaddr_t)p;
   paddr_t paddr = (paddr_t)rcr3();

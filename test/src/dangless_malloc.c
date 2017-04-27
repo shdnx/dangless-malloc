@@ -27,13 +27,13 @@ int dangless_dedicate_vmem(void *start, void *end) {
   return vp_free_region(start, end);
 }
 
-static void *virtual_remap(void *p, size_t size) {
+static bool virtual_remap(void *p, size_t size, OUT void **remapped_ptr) {
   assert(p);
 
   void *va = vp_alloc_one();
   if (!va) {
-    DPRINTF("could not allocate virtual memory page, falling back to just proxying bmk_memalloc\n");
-    return p;
+    DPRINTF("could not allocate virtual memory page to remap to\n");
+    return false;
   }
 
 #if DGLMALLOC_DEBUG
@@ -44,18 +44,22 @@ static void *virtual_remap(void *p, size_t size) {
   }
 #endif
 
+  // this assumes that an identity mapping exists between the physical and virtual memory
   paddr_t pa = vaddr2paddr(p);
   paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
+
+  // this assumes that the allocated virtual memory region is backed by a contiguous physical memory region
   int result;
   if ((result = pt_map_region(pa_page, (vaddr_t)va, ROUND_UP(size, PGSIZE), PTE_W | PTE_NX)) < 0) {
-    DPRINTF("could not map pa 0x%lx to va %p, code %d; falling back to proxying bmk_memalloc\n", pa_page, va, result);
+    DPRINTF("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free_one(va);
-    return p;
+    return false;
   }
 
-  return (uint8_t *)va + get_page_offset((uintptr_t)p, PT_4K);
+  OUT *remapped_ptr = (uint8_t *)va + get_page_offset((uintptr_t)p, PT_4K);
+  return true;
 }
 
 // TODO: this function is very rumprun-specific
@@ -65,7 +69,7 @@ bool virtual_is_remapped(void *p, OUT void **original_ptr) {
   enum pt_level level = pt_walk(p, PGWALK_FULL, OUT &ppte);
   assert(FLAG_ISSET(*ppte, PG_V));
 
-  // TODO: use instead one of the available PTE bits to note the fact that a page is dangless-remapped
+  // TODO: use instead one of the available PTE bits to note the fact that a page is dangless-remapped (unless somebody already uses those bits?)
   // currently this is only possible when we failed to allocate a dedicated virtual page for this allocation, and just falled back to proxying sysmalloc()
   if (level != PT_L1) {
     OUT *original_ptr = p;
@@ -81,22 +85,30 @@ bool virtual_is_remapped(void *p, OUT void **original_ptr) {
 
 void *dangless_malloc(size_t size) {
   void *p = sysmalloc(size);
-  if (!p) {
-    DPRINTF("bmk_memalloc() returned NULL!\n");
+  if (!p)
     return NULL;
-  }
 
-  return virtual_remap(p, size);
+  void *remapped_ptr;
+  if (virtual_remap(p, size, OUT &remapped_ptr)) {
+    return remapped_ptr;
+  } else {
+    DPRINTF("failed to remap sysmalloc's %p (size %zu); falling back to proxying\n", p, size);
+    return p;
+  }
 }
 
 void *dangless_calloc(size_t num, size_t size) {
   void *p = syscalloc(num, size);
-  if (!p) {
-    DPRINTF("bmk_memcalloc() returned NULL!\n");
+  if (!p)
     return NULL;
-  }
 
-  return virtual_remap(p, size);
+  void *remapped_ptr;
+  if (virtual_remap(p, size, OUT &remapped_ptr)) {
+    return remapped_ptr;
+  } else {
+    DPRINTF("failed to remap syscalloc's %p (size %zu); falling back to proxying\n", p, size);
+    return p;
+  }
 }
 
 void *dangless_realloc(void *p, size_t new_size) {
@@ -113,7 +125,10 @@ int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   if (result != 0)
     return result;
 
-  *pp = virtual_remap(*pp, size);
+  if (!virtual_remap(*pp, size, OUT pp)) {
+    DPRINTF("failed to remap sysmemalign's %p (size %zu); falling back to proxying\n", *pp, size);
+  }
+
   return 0;
 }
 
@@ -123,22 +138,25 @@ static void virtual_invalidate_pte(pte_t *ppte) {
   *ppte = DEAD_PTE;
 }
 
-static bool virtual_invalidate(void *p, size_t npages, OUT void **original_ptr) {
-  if (!virtual_is_remapped(p, OUT original_ptr))
-    return false;
-
-  size_t page;
-  for (page = 0; page < npages; page++) {
-    // TODO: this could be optimised, since usually we'll be touching adjecent PTEs
+static void virtual_invalidate(void *p, size_t npages) {
+  size_t page = 0;
+  while (page < npages) {
     pte_t *ppte;
-    enum pt_level level = pt_walk((uint8_t *)p + (page * PGSIZE), PGWALK_FULL, OUT &ppte);
+    enum pt_level level = pt_walk((uint8_t *)p + page * PGSIZE, PGWALK_FULL, OUT &ppte);
     assert(level == PT_L1);
     assert(FLAG_ISSET(*ppte, PTE_V));
 
-    virtual_invalidate_pte(ppte);
-  }
+    // optimised for invalidating adjecent PTEs in a PT
+    size_t pte_base_offset = pt_level_offset((vaddr_t)p, PT_L1);
+    size_t nptes = MIN(PT_NUM_ENTRIES - pte_base_offset, npages - page);
 
-  return true;
+    size_t pte_offset;
+    for (pte_offset = 0; pte_offset < nptes; pte_offset++) {
+      virtual_invalidate_pte(&ppte[pte_offset]);
+    }
+
+    page += nptes;
+  }
 }
 
 void dangless_free(void *p) {
@@ -149,7 +167,9 @@ void dangless_free(void *p) {
   size_t npages = sysmalloc_usable_pages(p);
 
   void *original_ptr;
-  virtual_invalidate(p, npages, OUT &original_ptr);
+  if (virtual_is_remapped(p, OUT &original_ptr)) {
+    virtual_invalidate(p, npages);
+  }
 
   sysfree(original_ptr);
 }

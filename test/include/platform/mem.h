@@ -15,4 +15,6 @@ typedef uintptr_t vaddr_t;
 void *paddr2vaddr(paddr_t pa);
 paddr_t vaddr2paddr(void *va);
 
+// For Dune: there's dune_va_to_pa() in dune.h, and also mmap_base and stack_base
+
 #endif // MEM_H

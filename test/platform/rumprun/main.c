@@ -2,126 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <arch/amd64/include/pte.h>
-
 #include "common.h"
 #include "virtmem.h"
 #include "dangless_malloc.h"
+#include "dump.h"
 
-#define PRINTF_INDENT(INDENT_LENGTH, FORMAT, ...) \
-  printf("%*s" FORMAT, (INDENT_LENGTH), "", __VA_ARGS__)
-
-// TODO: can do bigger jumps if the PTE in PTL4, 3 or 2 are non-existant
-static void dump_mappings(uintptr_t va_start, uintptr_t va_end) {
-  uintptr_t va;
-  paddr_t pa;
-  unsigned level;
-
-  bool mapped = false;
-  uintptr_t start = 0;
-
-  for (va = va_start; va < va_end; va += PGSIZE) {
-    pa = pt_resolve_page((void *)va, OUT &level);
-    if (pa) {
-      if (!mapped && start != 0) {
-        printf("Unmapped region 0x%lx - 0x%lx\n", start, va);
-        start = 0;
-      }
-
-      if (pa == va) {
-        mapped = true;
-        if (start == 0) {
-          start = va;
-        }
-      } else {
-        if (level == 2 && (va >> L2_SHIFT) == (pa >> L2_SHIFT)) {
-          // 2 MB large-page
-          mapped = true;
-          if (start == 0) {
-            start = va - PGSIZE;
-          }
-
-          va += 2 * MB - 2 * PGSIZE;
-          continue;
-        }
-
-        printf("Non-identity mapping: VA 0x%lx => PA 0x%lx\n", va, pa);
-      }
-    } else {
-      if (mapped && start != 0) {
-        printf("Identity-mapped region 0x%lx - 0x%lx\n", start, va);
-        start = 0;
-      }
-
-      mapped = false;
-      if (start == 0) {
-        start = va;
-      }
-    }
-  }
-
-  if (start != 0) {
-    printf("Final %s region 0x%lx - 0x%lx\n", mapped ? "identity-mapped" : "unmapped", start, va);
-  }
-}
-
-static void dump_pt(pte_t *pt, unsigned level) {
-  unsigned level_shift = get_level_shift(level);
-
-  size_t i;
-  for (i = 0; i < 512; i++) {
-    pte_t pte = pt[i];
-    if (pte) {
-      printf("Mapped: 0x%lx - 0x%lx by ", (uintptr_t)i << level_shift, (uintptr_t)(i + 1) << level_shift);
-      pte_dump(stdout, pte, level);
-    }
-  }
-}
-
-static void dump_pt_summary(pte_t *pt, unsigned level) {
-  unsigned level_shift = get_level_shift(level);
-
-  bool mapped = false;
-  size_t count = 0;
-
-  size_t i;
-  for (i = 0; i < 512; i++) {
-    pte_t pte = pt[i];
-    if (pte) {
-      if (!mapped && count > 0) {
-        printf("Unmapped: 0x%lx - 0x%lx [%zu entries]\n",
-          (uintptr_t)(i - count) << level_shift,
-          (uintptr_t)i << level_shift,
-          count);
-
-        count = 0;
-      }
-
-      mapped = true;
-      count++;
-    } else {
-      if (mapped && count > 0) {
-        printf("Mapped: 0x%lx - 0x%lx [%zu entries]\n",
-          (uintptr_t)(i - count) << level_shift,
-          (uintptr_t)i << level_shift,
-          count);
-
-        count = 0;
-      }
-
-      mapped = false;
-      count++;
-    }
-  }
-
-  if (count > 0) {
-    printf("%s: 0x%lx - 0x%lx [%zu entries]\n",
-      mapped ? "Mapped" : "Unmapped",
-      (uintptr_t)(i - count) << level_shift,
-      (uintptr_t)i << level_shift,
-      count);
-  }
-}
+#include "rumprun.h"
+RUMPRUN_DEF_FUNC(0xcac0, void, bmk_pgalloc_dumpstats, void);
 
 static void *scan_memory(void *start_, void *end_, uint8_t *pattern, size_t pattern_length, size_t pattern_align) {
   uint8_t *start = (uint8_t *)start_;
@@ -148,9 +35,6 @@ static void *scan_memory(void *start_, void *end_, uint8_t *pattern, size_t patt
 }
 
 static int global_var;
-
-#include "rumprun.h"
-RUMPRUN_DEF_FUNC(0xcac0, void, bmk_pgalloc_dumpstats, void);
 
 int main() {
   printf("Hello, Rumprun!\n");
