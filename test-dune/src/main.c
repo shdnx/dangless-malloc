@@ -115,7 +115,7 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
 
 #define WALK_LEVEL(LVL) \
     LOG("Level " #LVL "... paddr = 0x%lx; pte index = %zu\n", paddr, pt_level_offset(va, LVL)); \
-    ppte = &((pte_t *)paddr)[pt_level_offset(va, LVL)]; \
+    ppte = &((pte_t *)???(paddr))[pt_level_offset(va, LVL)]; \
     if (!FLAG_ISSET(*ppte, PTE_V) \
         || (LVL != PT_L1 && FLAG_ISSET(*ppte, PTE_PS)) \
         || requested_level == LVL) { \
@@ -136,6 +136,67 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
   return 1;
 }
 
+// TODO: nope, this mmap() approach won't work, since then later we have no way to turn a PA into a VA
+int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
+  assert(pa % PGSIZE == 0);
+  assert(va % PGSIZE == 0);
+
+  void *ptp;
+  pte_t *ppte;
+  enum pt_level level = pt_walk((void *)va, PT_L1, OUT &ppte);
+
+#define CREATE_LEVEL(LVL) \
+    LOG("mapping on level " #LVL "...\n"); \
+    ptp = mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); \
+    if (ptp == MAP_FAILED) { \
+      LOG("failed to allocate pagetable page"); \
+      /* TODO: clean-up */ \
+      return -1; \
+    } \
+    memset(ptp, 0, PGSIZE); \
+    *ppte = (pte_t)dune_va_to_pa(ptp) | flags | PTE_V; \
+    ppte = &((pte_t *)ptp)[pt_level_offset(va, LVL)]
+
+  switch (level) {
+  case PT_L4: CREATE_LEVEL(PT_L3);
+  case PT_L3: CREATE_LEVEL(PT_L2);
+  case PT_L2: CREATE_LEVEL(PT_L1);
+  }
+
+#undef CREATE_LEVEL
+
+  *ppte = pa | flags | PTE_V;
+  return 0;
+}
+
+int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
+  assert(pa % PGSIZE == 0);
+  assert(va % PGSIZE == 0);
+  assert(size % PGSIZE == 0);
+
+  // TODO: can use huge-page mapping transparently here if pa, va and size are all multiplies of 2 MB
+
+  // TODO: this could be optimized, since usually we'll likely be working with neighbouring PTEs
+  int result = 0;
+  size_t offset;
+  size_t max_offset;
+
+  for (offset = 0; offset < size; offset += PGSIZE) {
+    LOG("mapping pa 0x%lx to va 0x%lx\n", pa + offset, va + offset);
+    if ((result = pt_map_page(pa + offset, va + offset, flags)) < 0) {
+      LOG("could not map page offset 0x%lx\n", offset);
+      goto fail_unmap;
+    }
+  }
+
+  return 0;
+
+fail_unmap:
+  // no pt_unmap_page here right now
+
+  return -1;
+}
+
 static int idmap(void *base, paddr_t start, size_t len) {
   // I think this is necessary to update the EPT
   void *result = mmap(base, len, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
@@ -145,12 +206,13 @@ static int idmap(void *base, paddr_t start, size_t len) {
   }
 
   if (result != base) {
-    LOG("didn't get what expected: base = %p, result = %p\n", base, result);
+    LOG("didn't get expected: base = %p, result = %p\n", base, result);
     return 2;
   }
 
   // map the requested physical memory to it
-  return dune_vm_map_phys(pgroot, base, len, (void *)start, PERM_R | PERM_W);
+  //return dune_vm_map_phys(pgroot, base, len, (void *)start, PERM_R | PERM_W);
+  return pt_map_region(start, (vaddr_t)base, len, PTE_W);
 }
 
 static void fixpgmapping(void *p) {
@@ -161,7 +223,7 @@ static void fixpgmapping(void *p) {
   }
 
   if (result != p) {
-    LOG("didn't get what expected: p = %p, result = %p\n", p, result);
+    LOG("didn't get expected: p = %p, result = %p\n", p, result);
     return;
   }
 
@@ -230,6 +292,7 @@ int main_dump_pml4(int argc, const char **argv) {
   // NOTE: this also fails with the same pgfault as everything else, WHY THE FUCK
   // perhaps try with own pt_map() instead of Dune's shit?
   // or maybe when entering Dune, ask for map_full?
+  // TODO: try to do this the static way instead, what rumpkernel also uses? that should be possible...
   LOG("doing idmap...\n");
   idmap((void *)0xA000000000uL, 0, 1uL << 32);
   LOG("idmap done!\n");

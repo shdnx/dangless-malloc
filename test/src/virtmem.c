@@ -130,6 +130,8 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
     }
   }
 
+  return 0;
+
 fail_unmap:
   max_offset = offset;
   for (offset = 0; offset < max_offset; offset += PGSIZE) {
