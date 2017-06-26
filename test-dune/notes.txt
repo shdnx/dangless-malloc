@@ -1,0 +1,16 @@
+PML4:
+Mapped: 0x0 - 0x8000000000 by PTE addr = 0x2001ff000 PTE_V PTE_W PTE_U (raw: 0x2001ff027)
+Mapped: 0x7f8000000000 - 0x800000000000 by PTE addr = 0x2009fa000 PTE_V PTE_W PTE_U (raw: 0x2009fa027)
+Mapped: 0xff8000000000 - 0x1000000000000 by PTE addr = 0x2089b9000 PTE_V PTE_W PTE_U (raw: 0x2089b9027)
+
+PML4 seems to be identity-mapped, but PTL3 doesn't seem to be mapped???
+
+__setup_mappings_precise() in entry.c identity-maps 4 GB of memory to PAGEBASE (0x200000000)
+  __setup_mappings_cb() handles vdso, vvar and any other procmap regions
+
+__setup_mappings_full() in entry.c identity-maps the first 4 GB of memory to 0x0, then maps in the mmap and stack regions before setting up the vdso and vsyscall
+
+setup_mappings(bool full) calls these
+dune_init() takes map_full as parameter
+
+dune_page_init() in page.c mmap()-s a bunch of pages (initially 512, but in total I guess 4 GB's worth) to PAGEBASE
