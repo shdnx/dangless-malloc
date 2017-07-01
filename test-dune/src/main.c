@@ -33,19 +33,10 @@ int main_virtmemlimit(int argc, const char **argv) {
   return 0;
 }
 
-uint64_t rcr3(void) {
-  uint64_t val;
-  asm("movq %%cr3, %0" : "=r" (val));
-  return val;
-}
-
 typedef uint64_t pte_t;
 
 typedef uintptr_t paddr_t;
 typedef uintptr_t vaddr_t;
-
-//#define PGSHIFT 12
-//#define PGSIZE (1uL << PGSHIFT)
 
 #define PT_BITS_PER_LEVEL 9
 #define PT_NUM_ENTRIES (1uL << PT_BITS_PER_LEVEL)
@@ -107,6 +98,7 @@ void dump_pte(FILE *os, pte_t pte, enum pt_level level) {
   fprintf(os, " (raw: 0x%lx)\n", pte);
 }
 
+#if 0
 enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result_ppte) {
   LOG("page walking %p for level %u\n", p, requested_level);
   vaddr_t va = (vaddr_t)p;
@@ -135,106 +127,7 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
   OUT *result_ppte = ppte;
   return 1;
 }
-
-// TODO: nope, this mmap() approach won't work, since then later we have no way to turn a PA into a VA
-int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
-  assert(pa % PGSIZE == 0);
-  assert(va % PGSIZE == 0);
-
-  void *ptp;
-  pte_t *ppte;
-  enum pt_level level = pt_walk((void *)va, PT_L1, OUT &ppte);
-
-#define CREATE_LEVEL(LVL) \
-    LOG("mapping on level " #LVL "...\n"); \
-    ptp = mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); \
-    if (ptp == MAP_FAILED) { \
-      LOG("failed to allocate pagetable page"); \
-      /* TODO: clean-up */ \
-      return -1; \
-    } \
-    memset(ptp, 0, PGSIZE); \
-    *ppte = (pte_t)dune_va_to_pa(ptp) | flags | PTE_V; \
-    ppte = &((pte_t *)ptp)[pt_level_offset(va, LVL)]
-
-  switch (level) {
-  case PT_L4: CREATE_LEVEL(PT_L3);
-  case PT_L3: CREATE_LEVEL(PT_L2);
-  case PT_L2: CREATE_LEVEL(PT_L1);
-  }
-
-#undef CREATE_LEVEL
-
-  *ppte = pa | flags | PTE_V;
-  return 0;
-}
-
-int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
-  assert(pa % PGSIZE == 0);
-  assert(va % PGSIZE == 0);
-  assert(size % PGSIZE == 0);
-
-  // TODO: can use huge-page mapping transparently here if pa, va and size are all multiplies of 2 MB
-
-  // TODO: this could be optimized, since usually we'll likely be working with neighbouring PTEs
-  int result = 0;
-  size_t offset;
-  size_t max_offset;
-
-  for (offset = 0; offset < size; offset += PGSIZE) {
-    LOG("mapping pa 0x%lx to va 0x%lx\n", pa + offset, va + offset);
-    if ((result = pt_map_page(pa + offset, va + offset, flags)) < 0) {
-      LOG("could not map page offset 0x%lx\n", offset);
-      goto fail_unmap;
-    }
-  }
-
-  return 0;
-
-fail_unmap:
-  // no pt_unmap_page here right now
-
-  return -1;
-}
-
-static int idmap(void *base, paddr_t start, size_t len) {
-  // I think this is necessary to update the EPT
-  void *result = mmap(base, len, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  if (result == MAP_FAILED) {
-    LOG("failed for %p!\n", base);
-    return 1;
-  }
-
-  if (result != base) {
-    LOG("didn't get expected: base = %p, result = %p\n", base, result);
-    return 2;
-  }
-
-  // map the requested physical memory to it
-  //return dune_vm_map_phys(pgroot, base, len, (void *)start, PERM_R | PERM_W);
-  return pt_map_region(start, (vaddr_t)base, len, PTE_W);
-}
-
-static void fixpgmapping(void *p) {
-  void *result = mmap(p, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED, -1, 0);
-  if (result == MAP_FAILED) {
-    LOG("failed for %p!\n", p);
-    return;
-  }
-
-  if (result != p) {
-    LOG("didn't get expected: p = %p, result = %p\n", p, result);
-    return;
-  }
-
-  pte_t *ppte;
-  enum pt_level level = pt_walk(p, PT_L1, OUT &ppte);
-  LOG("Got level %u PPTE: %p\n", level, ppte);
-  LOG("PTE = 0x%lx\n", *ppte);
-
-  dune_vm_map_phys(pgroot, p, PGSIZE, (void *)dune_va_to_pa(p), PERM_R | PERM_W);
-  LOG("success for %p\n", p);
-}
+#endif
 
 void dump_pt(FILE *os, pte_t *pt, enum pt_level level) {
   unsigned level_shift = pt_level_shift(level);
@@ -243,21 +136,8 @@ void dump_pt(FILE *os, pte_t *pt, enum pt_level level) {
   for (i = 0; i < PT_NUM_ENTRIES; i++) {
     pte_t pte = pt[i];
     if (pte) {
-      fprintf(os, "Mapped: [%zu] 0x%lx - 0x%lx by ", i, (uintptr_t)i << level_shift, (uintptr_t)(i + 1) << level_shift);
+      fprintf(os, "[%zu] 0x%lx - 0x%lx by ", i, (uintptr_t)i << level_shift, (uintptr_t)(i + 1) << level_shift);
       dump_pte(os, pte, level);
-
-      if (level == PT_L4) {
-        // NOTE: causes EPT violation with - PAGEBASE; pagefault without the PAGEBASE, or with + PAGEBASE
-        uint64_t ptl3_pa = (pte & PTE_FRAME) - PAGEBASE;
-        ptl3_pa += 0xA000000000uL;
-        //fixpgmapping((void *)ptl3_pa);
-
-        //dune_vm_map_phys(pgroot, (void *)ptl3_pa, PGSIZE, (void *)dune_va_to_pa((void *)ptl3_pa), PERM_R | PERM_W);
-
-        fprintf(os, " --- PTL3 ---\n");
-        dump_pt(os, (pte_t *)ptl3_pa, PT_L3);
-        fprintf(os, " --- /PTL3 ---\n");
-      }
     }
   }
 }
@@ -265,10 +145,8 @@ void dump_pt(FILE *os, pte_t *pt, enum pt_level level) {
 static void pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf) {
   LOG("ERROR pagefault for addr = 0x%lx\n", addr);
 
-  //LOG("err = 0x%lx, rflags = 0x%lx\n", tf->err, tf->rflags);
-  // NOTE: attempting to dump the stack in dune_dump_trap_frame() causes a triplefault
-  //dune_dump_trap_frame(tf);
-  dune_procmap_dump();
+  //dune_procmap_dump();
+  dune_dump_trap_frame(tf);
 
   static uintptr_t s_last_addr = 0;
   if (s_last_addr == addr) {
@@ -278,28 +156,11 @@ static void pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf) {
 
   s_last_addr = addr;
 
-  // ---
-
-  ptent_t *pte;
+  // try to demand-page things - seems pointless currently
+  /*ptent_t *pte;
   int ret = dune_vm_lookup(pgroot, (void *) addr, CREATE_NORMAL, &pte);
   assert(!ret);
-  *pte = PTE_P | PTE_W | PTE_ADDR(dune_va_to_pa((void *) addr));
-}
-
-int main_dump_pml4(int argc, const char **argv) {
-  dune_register_pgflt_handler(&pgflt_handler);
-
-  // NOTE: this also fails with the same pgfault as everything else, WHY THE FUCK
-  // perhaps try with own pt_map() instead of Dune's shit?
-  // or maybe when entering Dune, ask for map_full?
-  // TODO: try to do this the static way instead, what rumpkernel also uses? that should be possible...
-  LOG("doing idmap...\n");
-  idmap((void *)0xA000000000uL, 0, 1uL << 32);
-  LOG("idmap done!\n");
-
-  LOG("pgroot (cr3/pml4) = %p\n", pgroot);
-  dump_pt(stderr, pgroot, PT_L4);
-  return 0;
+  *pte = PTE_P | PTE_W | PTE_ADDR(dune_va_to_pa((void *) addr));*/
 }
 
 static void *pgallocwrite() {
@@ -315,108 +176,85 @@ static void *pgallocwrite() {
   return p;
 }
 
-int main_dump_pgroot_region(int argc, const char **argv) {
+int main_info(int argc, const char **argv) {
   dune_register_pgflt_handler(&pgflt_handler);
 
-  LOG("pgroot (cr3/pml4) = %p\n", pgroot);
-
-  vaddr_t base = (vaddr_t)pgroot - PGSIZE;
-  size_t i;
-  for (i = 1; i < 35; i++) { // 35 max
-    LOG("--- Page %zu:\n", i);
-    dump_pt(stderr, (ptent_t *)(base + i * PGSIZE), PT_L4);
-  }
-
-  pgallocwrite();
-
-  LOG(" ------------------- AGAIN ----------------\n");
-
-  for (i = 1; i < 35; i++) { // 35 max
-    LOG("--- Page %zu:\n", i);
-    dump_pt(stderr, (ptent_t *)(base + i * PGSIZE), PT_L4);
-  }
+  LOG(" --- PML4 ---\n");
+  dump_pt(stderr, pgroot, PT_L4);
+  fprintf(stderr, "\n");
 
   dune_procmap_dump();
+  fprintf(stderr, "\n");
+
+  LOG("phys_limit = 0x%lx\n", phys_limit);
+  LOG("mmap_base  = 0x%lx\n", mmap_base);
+  LOG("stack_base = 0x%lx\n", stack_base);
+
+#if 0
+  unsigned level_shift = pt_level_shift(PT_L4);
+
+  size_t i;
+  for (i = 0; i < PT_NUM_ENTRIES; i++) {
+    pte_t pte = pgroot[i];
+    if (!pte)
+      continue;
+
+    /*const uintptr_t start_va = (uintptr_t)i << level_shift;
+    const uintptr_t end_va = (uintptr_t)(i + 1) << level_shift;
+
+    LOG("Mapped: [%zu] 0x%lx - 0x%lx by ", i, start_va, end_va);
+    dump_pte(stderr, pte, level);*/
+
+    paddr_t ptl3_pa = (pte & PTE_FRAME);
+    /*if (ptl3_pa >= GB4) {
+      LOG("PTL3 PA 0x%lx is above the 4 GB limit 0x%lx!\n", ptl3_pa, GB4);
+    } else{*/
+      pte_t *ptl3_va = (pte_t *)ptl3_pa;
+      dump_pt(stderr, ptl3_va, PT_L3);
+    //}
+  }
+#endif
+
   return 0;
 }
 
-int main_ptmapping(int argc, const char **argv) {
-  main_dump_pml4(argc, argv);
-
-  uint64_t *p = mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  ASSERT(p != MAP_FAILED, "mmap error\n");
-
+static void analyze_ptr(uint64_t *p) {
   LOG("p = %p\n", p);
-  *p = 0xDEADBEEF;
-  LOG("Wrote value: 0x%lx\n", *p);
+  LOG("dune_va_to_pa => 0x%lx\n", dune_va_to_pa((uintptr_t)p));
 
-  paddr_t ppa = dune_va_to_pa(p);
-  LOG("pa = 0x%lx\n", ppa);
-
-  pte_t *ppte;
-  enum pt_level level = pt_walk((void *)ppa, PT_L1, OUT &ppte);
-  LOG("Got level %u PPTE: %p\n", level, ppte);
-  LOG("PTE = 0x%lx\n", *ppte);
-
-  return 0;
-}
-
-int main2(int argc, const char **argv) {
-  int result;
-  uint64_t *p = mmap(NULL, 512, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  ASSERT(p != MAP_FAILED, "mmap error\n");
-
-  LOG("mmap addr: %p\n", p);
-
-  uintptr_t pa = dune_mmap_addr_to_pa(p);
-  LOG("dune_mmap_addr_to_pa: %lx\n", pa);
-
-  // int dune_vm_lookup(ptent_t *root, void *va, int create, ptent_t **pte_out)
-  ptent_t *pte = NULL;
-  if ((result = dune_vm_lookup(pgroot, p, 0, OUT &pte)) < 0) {
-    LOG("dune_vm_lookup failed (pte at %p)!\n", pte);
+  ptent_t *ppte;
+  if (dune_vm_lookup(pgroot, p, 0, &ppte) == 0) {
+    dump_pte(stderr, *ppte, PT_L1);
   } else {
-    LOG("dune_vm_lookup => pte at %p, value: 0x%lx\n", pte, *pte);
+    LOG("dune_vm_lookup failed!\n");
   }
 
-  *p = 0xBEEFBABEuL;
-  LOG("Wrote value: %lx\n", *p);
+  LOG("Has uninitialized value: 0x%lx\n", *p);
+  *p = 0xDEADBEEF;
+  LOG("Wrote value: 0x%lx\n", *p);
+}
 
-  pte = NULL;
-  /*if ((result = dune_vm_lookup(pgroot, p, 0, OUT &pte)) < 0) {
-    LOG("dune_vm_lookup2 failed (pte at %p)!\n", pte);
-  } else {
-    LOG("dune_vm_lookup2 => pte at %p, value: 0x%lx\n", pte, *pte);
-  }*/
+int main_malloc_test(int argc, const char **argv) {
+  main_info(argc, argv);
 
-  /*void *remap = mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-  ASSERT(remap, "mmap error on remap\n");
+  fprintf(stderr, "\n---- MALLOC ----\n\n");
 
-  uintptr_t pa2 = dune_mmap_addr_to_pa(remap);
-  LOG("mmap2: va = %p, pa = %lx\n", remap, pa2);*/
+  uint64_t *p = malloc(sizeof(uint64_t));
+  ASSERT(p, "malloc failed!\n");
 
-  /*for (int i = 0; i < 100; i++) {
-    void *ptr = dune_mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    if (ptr == MAP_FAILED) {
-      LOG("mmap %d failed!\n");
-      break;
-    }
+  analyze_ptr(p);
 
-    LOG("mmap %d => %p\n", i, ptr);
-    LOG("\tPA = 0x%lx\n", dune_mmap_addr_to_pa(ptr));
-  }*/
+  fprintf(stderr, "\n---- MMAP ----\n\n");
 
-  /*result = dune_vm_map_phys(pgroot, remap, PGSIZE, (void *)pa, PERM_R | PERM_W);
-  ASSERT(result == 0, "dune_vm_map_phys error!\n");
+  uint64_t *p2 = mmap(NULL, PGSIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+  ASSERT(p2 != MAP_FAILED, "mmap error\n");
 
-  uint64_t *remapped_p = (uint8_t *)remap + get_page_offset(p);
-  LOG("Reading remapped value...\n");
-  LOG("Read remapped value: %lx\n", *remapped_p);*/
+  analyze_ptr(p2);
 
   return 0;
 }
 
-#define EFFECTIVE_MAIN main_dump_pml4
+#define EFFECTIVE_MAIN main_malloc_test
 
 int main(int argc, const char **argv) {
   int result = dune_init_and_enter();

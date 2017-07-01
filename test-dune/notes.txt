@@ -1,16 +1,70 @@
-PML4:
-Mapped: 0x0 - 0x8000000000 by PTE addr = 0x2001ff000 PTE_V PTE_W PTE_U (raw: 0x2001ff027)
-Mapped: 0x7f8000000000 - 0x800000000000 by PTE addr = 0x2009fa000 PTE_V PTE_W PTE_U (raw: 0x2009fa027)
-Mapped: 0xff8000000000 - 0x1000000000000 by PTE addr = 0x2089b9000 PTE_V PTE_W PTE_U (raw: 0x2089b9027)
+The physical memory that Dune owns, and uses for e.g. pagetables starts at PAGEBASE. This is where the page allocator will return pages from. The page tables are also allocated from here, meaning that all pagetable addresses (with the apparent exception of pml4) are allocated via page_alloc(). In order for these pages to be accessible inside Dune, they have to be mapped to virtual memory, and specifically, Dune issues the mapping to be an identity mapping.
 
-PML4 seems to be identity-mapped, but PTL3 doesn't seem to be mapped???
+The initial mappings are set up by setup_mappings(), called by dune_init(). This code runs before dune_enter(), meaning that this code runs in the normal (host) Linux environment, giving it access to mmap(), malloc() and so on. This is where it sets up the initial pagetables.
 
-__setup_mappings_precise() in entry.c identity-maps 4 GB of memory to PAGEBASE (0x200000000)
-  __setup_mappings_cb() handles vdso, vvar and any other procmap regions
+Since the pagetables are allocated by the page allocator, they are barely above PAGEBASE. For them to be accessible, the pages allocated by the physical memory allocator have to be identity-mapped to virtual memory (i.e. to virtual address PAGEBASE). __setup_mappings_precise() already does this, but __setup_mappings_full() did not. I added the code for this.
 
-__setup_mappings_full() in entry.c identity-maps the first 4 GB of memory to 0x0, then maps in the mmap and stack regions before setting up the vdso and vsyscall
+-----------------------------------------------------------------
 
-setup_mappings(bool full) calls these
-dune_init() takes map_full as parameter
+--- PML4 ---
+[0] 0x0 - 0x8000000000 by PTE addr = 0x2001ff000 PTE_V PTE_W PTE_U (raw: 0x2001ff027)
+[254] 0x7f0000000000 - 0x7f8000000000 by PTE addr = 0x2009f6000 PTE_V PTE_W PTE_U (raw: 0x2009f6027)
+[255] 0x7f8000000000 - 0x800000000000 by PTE addr = 0x2087b6000 PTE_V PTE_W PTE_U (raw: 0x2087b6027)
+[511] 0xff8000000000 - 0x1000000000000 by PTE addr = 0x2089b4000 PTE_V PTE_W PTE_U (raw: 0x2089b4027)
 
-dune_page_init() in page.c mmap()-s a bunch of pages (initially 512, but in total I guess 4 GB's worth) to PAGEBASE
+--- Process Map Dump ---
+0x0000000000400000-0x0000000000409000 R-XP 00000000 /home/gabor/dev/vusec/thesis/test-dune/test-dune
+0x0000000000608000-0x0000000000609000 R-XP 00008000 /home/gabor/dev/vusec/thesis/test-dune/test-dune
+0x0000000000609000-0x000000000060c000 RWXP 00009000 /home/gabor/dev/vusec/thesis/test-dune/test-dune
+0x000000000060c000-0x000000000060e000 RWXP 00000000 
+0x000000000145b000-0x000000000147e000 RWXP 00000000 [heap]
+0x0000000200000000-0x0000000208a00000 RWXP 00000000 
+0x00007f6bd12ac000-0x00007f6bd22ad000 RWXP 00000000 
+0x00007f6bd22ad000-0x00007f6bd246c000 R-XP 00000000 /lib/x86_64-linux-gnu/libc-2.23.so
+0x00007f6bd246c000-0x00007f6bd266c000 ---P 001bf000 /lib/x86_64-linux-gnu/libc-2.23.so
+0x00007f6bd266c000-0x00007f6bd2670000 R-XP 001bf000 /lib/x86_64-linux-gnu/libc-2.23.so
+0x00007f6bd2670000-0x00007f6bd2672000 RWXP 001c3000 /lib/x86_64-linux-gnu/libc-2.23.so
+0x00007f6bd2672000-0x00007f6bd2676000 RWXP 00000000 
+0x00007f6bd2676000-0x00007f6bd269c000 R-XP 00000000 /lib/x86_64-linux-gnu/ld-2.23.so
+0x00007f6bd286d000-0x00007f6bd2870000 RWXP 00000000 
+0x00007f6bd2895000-0x00007f6bd289b000 RWXP 00000000 
+0x00007f6bd289b000-0x00007f6bd289c000 R-XP 00025000 /lib/x86_64-linux-gnu/ld-2.23.so
+0x00007f6bd289c000-0x00007f6bd289d000 RWXP 00026000 /lib/x86_64-linux-gnu/ld-2.23.so
+0x00007f6bd289d000-0x00007f6bd289e000 RWXP 00000000 
+0x00007ffcde341000-0x00007ffcde362000 RWXP 00000000 [stack]
+0x00007ffcde38a000-0x00007ffcde38c000 R--P 00000000 [vvar]
+0x00007ffcde38c000-0x00007ffcde38e000 R-XP 00000000 [vdso]
+0xffffffffff600000-0xffffffffff601000 R-XP 00000000 [vsyscall]
+
+--- Memory layout ---
+PAGEBASE   = 0x000200000000
+             0x008000000000 PML4[1]
+phys_limit = 0x008000000000 (512 GB)
+             0x7f0000000000 PML4[254]
+mmap_base  = 0x7f5c40000000
+             0x7f6c00000000 mmap_base + GPA_MAP_SIZE
+             0x7f8000000000 PML4[255]
+stack_base = 0x7ffcc0000000
+             0x7ffd00000000 stack_base + GPA_STACK_SIZE
+             0xff8000000000 PML4[511]
+
+GPA_STACK_SIZE = 1 GB
+GPA_MAP_SIZE   = 63 GB
+(from kern/dune.h)
+
+-----------------------------------------------------------------
+
+Physical page allocator: Dune's page allocator
+
+Virtual page allocator: can use the exact same code as before, simply give it the regions that are unmapped in PML4 at startup. This could be refined later, should it become necessary.
+
+Detecting whether a virtual address was remapped:
+ - Do a pagewalk on the virtual address (VA) and get the corresponding physical address (PA).
+ - An address is remapped if dune_va_to_pa(VA) != PA.
+
+Getting the original (before remapping) virtual address:
+ - The lowest physical address that mmap() yields is phys_limit - GPA_STACK_SIZE - GPA_MAP_SIZE = 512 GB - 1 GB - 63 GB = 448 GB.
+ Anything above this is mmap-ed address, and we can get back the original virtual address by reversing the operations of dune_mmap_addr_to_pa(). (That is, up until phys_limit - GPA_STACK_SIZE = 511 GB, which is the lowest physical address for the stack.)
+ Anything below this is can be assumed to be identity-mapped, i.e. original VA = PA.
+
+Getting sysmalloc, etc.: probably dlopen() and friends?
