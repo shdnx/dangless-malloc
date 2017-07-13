@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <string.h>
+#include <string.h> // memset.h
 #include <assert.h>
 
 #include "queue.h"
@@ -130,7 +130,8 @@ paddr_t pp_zalloc(size_t npages) {
   if (!pa)
     return 0;
 
-  void *va = paddr2vaddr(pa);
+  // NOTE: assumes identity-mapping
+  void *va = (void *)pa;
   memset(va, 0, npages * PGSIZE);
 
   return pa;

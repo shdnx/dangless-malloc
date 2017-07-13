@@ -1,4 +1,4 @@
-#include "sysmalloc.h"
+#include "platform/sysmalloc.h"
 #include "common.h"
 
 #include "rumprun.h"

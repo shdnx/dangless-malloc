@@ -27,6 +27,7 @@ int dangless_dedicate_vmem(void *start, void *end) {
   return vp_free_region(start, end);
 }
 
+// TODO: this only supports <= PAGESIZE allocation
 static bool virtual_remap(void *p, size_t size, OUT void **remapped_ptr) {
   assert(p);
 
@@ -45,7 +46,7 @@ static bool virtual_remap(void *p, size_t size, OUT void **remapped_ptr) {
 #endif
 
   // this assumes that an identity mapping exists between the physical and virtual memory
-  paddr_t pa = vaddr2paddr(p);
+  paddr_t pa = (paddr_t)p;
   paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
 
   // this assumes that the allocated virtual memory region is backed by a contiguous physical memory region

@@ -10,11 +10,7 @@ typedef uintptr_t vaddr_t;
 #define PGSHIFT 12
 #define PGSIZE (1uL << PGSHIFT)
 
-// If a virtual-to-physical identity mapping exists, these functions translate between the virtual and physical addresses.
-// TODO: what if not? Can that even happen?
-void *paddr2vaddr(paddr_t pa);
-paddr_t vaddr2paddr(void *va);
-
-// For Dune: there's dune_va_to_pa() in dune.h, and also mmap_base and stack_base
+// Given a physical address of a page table, gives the virtual address where that page table is mapped.
+void *pt_paddr2vaddr(paddr_t pa);
 
 #endif // MEM_H

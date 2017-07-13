@@ -97,7 +97,7 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
       return -1; \
     } \
     *ppte = (pte_t)ptpa | flags | PTE_V; \
-    ppte = &((pte_t *)paddr2vaddr(ptpa))[pt_level_offset(va, LVL)]
+    ppte = &((pte_t *)pt_paddr2vaddr(ptpa))[pt_level_offset(va, LVL)]
 
   switch (level) {
   case PT_L4: CREATE_LEVEL(PT_L3);
