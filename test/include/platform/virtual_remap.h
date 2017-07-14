@@ -1,8 +1,7 @@
 #ifndef VIRTUAL_REMAP_H
 #define VIRTUAL_REMAP_H
 
-#include <cstddef>
-
+#include "common.h"
 #include "platform/mem.h"
 
 // Given a pointer to a valid allocation and its size, re-maps the backing physical memory into a new virtual memory region, provided by the virtual memory allocator.

@@ -100,10 +100,12 @@ int main() {
   void *safemallocd1 = dangless_malloc(sizeof(void *));
   printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, pt_resolve(safemallocd1));
   dangless_free(safemallocd1);
+  printf("safemallocd1 freed!\n");
 
   void *safemallocd2 = malloc(sizeof(void *));
   printf("overriden safemallocd2 = %p, phys = 0x%lx\n", safemallocd2, pt_resolve(safemallocd2));
   free(safemallocd2);
+  printf("safemallocd2 freed!\n");
 
   // -------------
 

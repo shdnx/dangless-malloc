@@ -2,6 +2,7 @@
 
 #include "dangless_malloc.h"
 #include "virtmem.h"
+#include "virtmem_alloc.h"
 
 #include "platform/sysmalloc.h"
 #include "platform/virtual_remap.h"
@@ -110,15 +111,17 @@ void dangless_free(void *p) {
   if (!p)
     return;
 
-  void *original_ptr;
+  void *original_ptr = p;
   int result = vremap_resolve(p, OUT &original_ptr);
 
   if (result == 0) {
-    size_t npages = sysmalloc_usable_pages(p);
+    size_t npages = sysmalloc_usable_pages(original_ptr);
+    DPRINTF("invalidating %zu virtual pages starting at %p...\n", npages, p);
     virtual_invalidate(p, npages);
   } else if (result < 0) {
     DPRINTF("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
-    original_ptr = p;
+  } else {
+    DPRINTF("vremap_resolve returned %d, assume no remapping\n", result);
   }
 
   sysfree(original_ptr);

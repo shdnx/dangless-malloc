@@ -2,7 +2,7 @@
 #define VIRTMEM_ALLOC_H
 
 #include "common.h"
-#include "mem.h"
+#include "platform/mem.h"
 
 // This is a virtual 4K page allocator.
 // Initially, it doesn't own any memory, and any calls to vp_alloc() will fail. Assign memory to it by calling vp_free() or vp_free_region(): this is the memory that will be returned by subsequent vp_alloc() calls.

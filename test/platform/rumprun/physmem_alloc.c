@@ -1,12 +1,11 @@
-#include <stdio.h>
-#include <string.h> // memset.h
+#include <string.h> // memset()
 #include <assert.h>
 
 #include "queue.h"
-
-#include "physmem_alloc.h"
 #include "virtmem.h"
-#include "sysmalloc.h"
+
+#include "platform/physmem_alloc.h"
+#include "platform/sysmalloc.h"
 
 #include "rumprun.h"
 
@@ -83,7 +82,8 @@ static void physmem_free(struct pp_span *ps) {
 
   PHYSMEM_DPRINTF("Freeing physical memory pages 0x%x - 0x%x, pp_span %p\n", ps->begin, ps->end, ps);
 
-  void *p = paddr2vaddr(ppindex2pa(ps->begin));
+  // NOTE: using identity-mapping
+  void *p = (void *)(ppindex2pa(ps->begin));
   RUMPRUN_FUNC(bmk_pgfree)(p, BMK_PGALLOC_ORDER);
 
   LIST_REMOVE(ps, freelist);

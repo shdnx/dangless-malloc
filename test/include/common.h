@@ -3,8 +3,10 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h> // for dprintf(), etc.
+#include <signal.h> // for ASSERT()
 
-#include "sysmalloc.h"
+#include "platform/sysmalloc.h"
 
 // Used to indicate function parameters
 #define OUT /* empty */
@@ -36,6 +38,15 @@
   do { \
     dprintf("[%s:%d] %s: ", __FILE__, __LINE__, __func__); \
     dprintf(__VA_ARGS__); \
+  } while (0)
+
+#define ASSERT(COND, ...) \
+  do { \
+    if (!(COND)) { \
+      vdprintf("Assertion failed: " #COND "\n"); \
+      dprintf(__VA_ARGS__); \
+      raise(SIGINT); \
+    } \
   } while (0)
 
 #define UNREACHABLE(...) \

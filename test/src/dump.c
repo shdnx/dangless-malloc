@@ -76,10 +76,11 @@ void dump_pte(FILE *os, pte_t pte, enum pt_level level) {
   HANDLE_BIT(PTE_U);
   HANDLE_BIT(PTE_NX);
 
-  if (level == PT_L1)
+  if (level == PT_L1) {
     HANDLE_BIT(PTE_PAT);
-  else
+  } else {
     HANDLE_BIT(PTE_PS);
+  }
 
 #undef HANDLE_BIT
 
@@ -87,7 +88,7 @@ void dump_pte(FILE *os, pte_t pte, enum pt_level level) {
 }
 
 void dump_pt(FILE *os, pte_t *pt, enum pt_level level) {
-  unsigned level_shift = get_level_shift(level);
+  unsigned level_shift = pt_level_shift(level);
 
   size_t i;
   for (i = 0; i < PT_NUM_ENTRIES; i++) {
@@ -100,7 +101,7 @@ void dump_pt(FILE *os, pte_t *pt, enum pt_level level) {
 }
 
 void dump_pt_summary(FILE *os, pte_t *pt, enum pt_level level) {
-  unsigned level_shift = get_level_shift(level);
+  unsigned level_shift = pt_level_shift(level);
 
   bool mapped = false;
   size_t count = 0;

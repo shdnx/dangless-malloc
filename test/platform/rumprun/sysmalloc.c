@@ -3,6 +3,14 @@
 
 #include "rumprun.h"
 
+#define SYSMALLOC_DEBUG 1
+
+#if SYSMALLOC_DEBUG
+  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+#else
+  #define DPRINTF(...) /* empty */
+#endif
+
 // bmk-core/memalloc.h
 enum {
   BMK_MEMALLOC_WHO = 2, // = BMK_MEMWHO_USER in bmk-core/memalloc.h

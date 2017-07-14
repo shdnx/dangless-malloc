@@ -1,3 +1,7 @@
+#if 0
+
+#include <malloc.h>
+
 #include "dangless_malloc.h"
 
 // strong overrides of the libc memory allocation symbols
@@ -7,3 +11,5 @@ __strong_alias(calloc, dangless_calloc);
 __strong_alias(realloc, dangless_realloc);
 __strong_alias(posix_memalign, dangless_posix_memalign);
 __strong_alias(free, dangless_free);
+
+#endif

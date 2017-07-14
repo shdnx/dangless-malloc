@@ -1,48 +1,56 @@
-CC = x86_64-rumprun-netbsd-gcc
-RUMPRUN_BAKE = rumprun-bake
-RUMPRUN_CONFIG = hw_generic
-RUMPRUN_RUN = rumprun
-RUMPRUN_PLATFORM = kvm
-RUMPRUN_ROOT = ../rumprun
-RUMPRUN_OBJ_PATH = $(RUMPRUN_ROOT)/obj-amd64-hw
+ifndef PLATFORM
+$(error PLATFORM is not set)
+endif
 
-INCLUDES = -Iinclude -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/src-netbsd/sys
+CC = gcc
+INCLUDES = -Iinclude
 CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG
-# $(RUMPRUN_OBJ_PATH)/lib/librumprun_base/librumprun_base.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_core/libbmk_core.a $(RUMPRUN_OBJ_PATH)/lib/libbmk_rumpuser/libbmk_rumpuser.a
-#LDFLAGS = -Wl,-whole-archive $(RUMPRUN_OBJ_PATH)/rumprun.o -Wl,-no-whole-archive
-LDFLAGS = 
-BIN = bin/testrump
-IMG = bin/testrump.img
+LDFLAGS =
 
-#SRCS = $(shell find src/ -type f -name '*.c')
-SRCS = $(wildcard src/*.c) $(wildcard platform/rumprun/*.c)
-OBJS = $(patsubst %.c,obj/%.o,$(SRCS))
+# the PLATFORM variable should be supplied by the user
+BIN_DIR = bin/$(PLATFORM)
+BIN = $(BIN_DIR)/dangless
+
+BASE_OBJS_DIR = obj/$(PLATFORM)
+
+CORE_SRCS_DIR = src
+CORE_SRCS = $(wildcard src/*.c)
+CORE_OBJS_DIR = $(BASE_OBJS_DIR)/core
+CORE_OBJS = $(patsubst $(CORE_SRCS_DIR)/%.c,$(CORE_OBJS_DIR)/%.o,$(CORE_SRCS))
+
+PLATFORM_SRCS_DIR = platform/$(PLATFORM)
+PLATFORM_SRCS = $(wildcard $(PLATFORM_SRCS_DIR)/*.c)
+PLATFORM_OBJS_DIR = $(BASE_OBJS_DIR)/platform/$(PLATFORM)
+PLATFORM_OBJS = $(patsubst $(PLATFORM_SRCS_DIR)/%.c,$(PLATFORM_OBJS_DIR)/%.o,$(PLATFORM_SRCS))
+
+SRCS = $(CORE_SRCS) $(PLATFORM_SRCS)
+OBJS = $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: clean directories run
+.PHONY: all clean directories platform_bin platform_clean
 
-all: directories $(IMG)
+all: $(BIN)
+
+-include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
 directories:
-	mkdir -p obj
-	mkdir -p bin
+	mkdir -p $(CORE_OBJS_DIR)
+	mkdir -p $(PLATFORM_OBJS_DIR)
+	mkdir -p $(BIN_DIR)
 
-obj/%.o: %.c
-	mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+$(CORE_OBJS_DIR)/%.o: src/%.c
+	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(BIN): $(OBJS)
-	$(CC) $(LDFLAGS) $^ -o $@
+$(PLATFORM_OBJS_DIR)/%.o: platform/$(PLATFORM)/%.c
+	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(IMG): $(BIN)
-	$(RUMPRUN_BAKE) $(RUMPRUN_CONFIG) $@ $<
+$(BIN): directories platform_bin
 
-run: $(IMG)
-	$(RUMPRUN_RUN) $(RUMPRUN_PLATFORM) -i $<
-
-clean:
+clean: platform_clean
 	rm -f $(OBJS)
 	rm -f $(DEPS)
-	rm -f $(BIN) $(IMG)
+	rm -f $(BIN)
+
+print-%  : ; @echo $* = $($*)
 
 -include $(DEPS)
