@@ -1,5 +1,14 @@
+MKLASTCONFIG = bin/last-platform-config.mk
+
+# the PLATFORM variable should be supplied by the user
+# if it's not specified, the last configuration is used, if any
+ifndef PLATFORM
+-include $(MKLASTCONFIG)
+
 ifndef PLATFORM
 $(error PLATFORM is not set)
+endif
+
 endif
 
 CC = gcc
@@ -10,10 +19,13 @@ INCLUDES = -Iinclude
 CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG
 LDFLAGS =
 
-# the PLATFORM variable should be supplied by the user
 BIN_DIR = bin/$(PLATFORM)
 BIN = $(BIN_DIR)/libdangless.a
 MKCONFIG = $(BIN_DIR)/config.mk
+
+define MKLASTCONFIG_DATA :=
+-include $(realpath $(MKCONFIG))
+endef
 
 BASE_OBJS_DIR = obj/$(PLATFORM)
 
@@ -45,10 +57,13 @@ directories:
 -include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
 define MKCONFIG_DATA :=
-DANGLESS_PLATFORM = $(PLATFORM)
+PLATFORM = $(PLATFORM)
 
 $(PLATFORM_MKCONFIG_DATA)
 endef
+
+$(MKLASTCONFIG): always
+	$(file > $@,$(MKLASTCONFIG_DATA))
 
 $(MKCONFIG): always
 	$(file > $@,$(MKCONFIG_DATA))
@@ -59,13 +74,13 @@ $(CORE_OBJS_DIR)/%.o: src/%.c
 $(PLATFORM_OBJS_DIR)/%.o: platform/$(PLATFORM)/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(BIN): directories $(MKCONFIG) platform_bin
+$(BIN): directories $(MKCONFIG) $(MKLASTCONFIG) platform_bin
 
 clean: platform_clean
 	rm -f $(OBJS)
 	rm -f $(DEPS)
 	rm -f $(BIN)
-	rm -f $(MKCONFIG)
+	rm -f $(MKCONFIG) $(MKLASTCONFIG)
 
 print-%  : ; @echo $* = $($*)
 

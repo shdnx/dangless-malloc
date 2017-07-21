@@ -67,4 +67,6 @@ Getting the original (before remapping) virtual address:
  Anything above this is mmap-ed address, and we can get back the original virtual address by reversing the operations of dune_mmap_addr_to_pa(). (That is, up until phys_limit - GPA_STACK_SIZE = 511 GB, which is the lowest physical address for the stack.)
  Anything below this is can be assumed to be identity-mapped, i.e. original VA = PA.
 
-Getting sysmalloc, etc.: probably dlopen() and friends?
+Getting sysmalloc, etc.: dlsym() and RTLD_NEXT
+
+-----------------------------------------------------------------

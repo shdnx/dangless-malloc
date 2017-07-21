@@ -33,6 +33,9 @@ enum {
   EVREM_NO_PHYS_BACK = -3
 };
 
+// We have to know when the first remap has happened. There's usually quite a lot of malloc() action going on before the application even really starts, i.e. even before we enter Dune mode. Before entering Dune mode, vremap_resolve() cannot do pt_resolve(), because that needs access to cr3 that we do not have. The assumption is that dangless_dedicate_vmem() is called only once it's safe to do remapping action, i.e. we're inside Dune mode.
+static bool g_has_remap_occured = false;
+
 // TODO: this is basically the same code as for rumprunm, except for dune_va_to_pa() call - refactor
 // TODO: this only supports <= PAGESIZE allocation
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
@@ -67,10 +70,17 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   }
 
   OUT *remapped_ptr = (uint8_t *)va + get_page_offset((uintptr_t)ptr, PT_4K);
+  g_has_remap_occured = true;
   return VREM_OK;
 }
 
 int vremap_resolve(void *ptr, OUT void **original_ptr) {
+  if (!g_has_remap_occured) {
+    // If no remapping has happened as of yet, it's both pointless and dangerous to do to pt_resolve(): see the comments at g_has_remap_occured.
+    OUT *original_ptr = ptr;
+    return VREM_NOT_REMAPPED;
+  }
+
   // Detecting whether a virtual address was remapped:
   // - Do a pagewalk on the virtual address (VA) and get the corresponding physical address (PA).
   // - An address is remapped if dune_va_to_pa(VA) != PA.

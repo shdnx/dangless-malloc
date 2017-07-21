@@ -32,9 +32,8 @@ clean:
 obj/%.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-# -Wl,-whole-archive -ldangless -Wl,-no-whole-archive ?? or something?
 $(BIN): $(OBJS)
-	$(CC) $(LDFLAGS) $^ -o $@ -L$(DANGLESS_BIN_DIR) -ldangless -L$(DUNE_ROOT)/libdune -ldune -ldl
+	$(CC) $(LDFLAGS) $^ -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -L$(DUNE_ROOT)/libdune -ldune -ldl
 
 # debug
 print-%  : ; @echo $* = $($*)

@@ -7,37 +7,16 @@
 #include "virtmem.h"
 #include "dangless_malloc.h"
 #include "dump.h"
-
-static void *scan_memory(void *start_, void *end_, uint8_t *pattern, size_t pattern_length, size_t pattern_align) {
-  uint8_t *start = (uint8_t *)start_;
-  uint8_t *end = (uint8_t *)end_;
-  size_t length = end - start;
-
-  fprintf(stderr, "Scanning memory from %p to %p...\n", start, end);
-
-  unsigned prev_percent = 0;
-
-  uint8_t *p;
-  for (p = start; p != end; p += pattern_align) {
-    if (memcmp(p, pattern, pattern_length) == 0)
-      return p;
-
-    unsigned curr_percent = (unsigned)(((double)(p - start)) / ((double)length) * 100);
-    if (prev_percent != curr_percent) {
-      prev_percent = curr_percent;
-      fprintf(stderr, "%u%%... ", curr_percent);
-    }
-  }
-
-  return NULL;
-}
+#include "platform/sysmalloc.h"
 
 static int global_var;
 
 int main() {
   printf("Hello, Rumprun!\n");
 
-  uint64_t cr3 = rcr3();
+  printf("&malloc = %p, &dangless_malloc = %p\n", &malloc, &dangless_malloc);
+
+  /*uint64_t cr3 = rcr3();
   printf("cr3 = 0x%lx\n", cr3);
 
   pte_t *pml4 = (pte_t *)cr3;
@@ -45,7 +24,7 @@ int main() {
   printf("pml4 = %p, phys = 0x%lx\n", pml4, pt_resolve(pml4));
   printf("&pml4 = %p, phys = 0x%lx\n", &pml4, pt_resolve(&pml4));
   printf("&main = %p, phys = 0x%lx\n", &main, pt_resolve(&main));
-  printf("&global_var = %p, phys = 0x%lx\n", &global_var, pt_resolve(&global_var));
+  printf("&global_var = %p, phys = 0x%lx\n", &global_var, pt_resolve(&global_var));*/
 
   void *mallocd = MALLOC(void *);
   printf("mallocd = %p, phys = 0x%lx\n", mallocd, pt_resolve(mallocd));

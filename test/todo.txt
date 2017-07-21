@@ -1,26 +1,18 @@
-Dune:
- - what to do about vaddr2paddr() and paddr2vaddr()? The main question is: knowing the physical address of a pagetable page, how do we manipulate it? (Everything else is just rumprun-specific and does not need to be solved generally)
-  + the vaddr2paddr() call in virtual_remap(), but that should probably be made platform-specific as well
-
-Platforms:
- - Finish making dangless_malloc.c platform-independent: the main problem is virtual_is_remapped() - how to implement this outside of Rumprun? We can easily determine whether memory is reallocated by using one of the available bits of the PTE (assuming Dune or the Linux kernel doesn't use it already!), but how do you determine the original virtual address, in order to free it?
-    1) add sizeof(void *) to the beginning of each user allocation, and store the original VA there -- this is probably fine for proof-of-concept, but means a HUGE memory overhead
-    2) don't forward the call to sysmalloc() et al, instead modify tcmalloc -- looots of work
- - Dune implemenetation!
-
 General:
  - implement realloc()
  - make the virtual page allocator thread-safe
  - make the physical page allocator thread-safe
+ - Automatically call dangless_dedicate_vmem() as soon as it's safe. I guess just take all available PML4 entries?
+ - __attribute__((malloc))?
+ - span merging in the physical/virtual page allocator
+ - design the garbage collector
+ - create regression test framework
+ - aligned_alloc()? rumprun doesn't implement it
 
 Rumprun:
  - mirror output to disk; look into how the rumprun tests do this
 
  - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries
- - span merging in the physical/virtual page allocator
- - design the garbage collector
- - create regression test framework
- - aligned_alloc()? rumprun doesn't implement it
 
 Low-priority:
  - for huge allocations (that are >= 2 MB), we could use hugepages

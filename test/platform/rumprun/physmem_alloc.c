@@ -1,5 +1,4 @@
 #include <string.h> // memset()
-#include <assert.h>
 
 #include "queue.h"
 #include "virtmem.h"
@@ -58,8 +57,8 @@ static struct pp_span *physmem_acquire(void) {
 
   enum pt_level level;
   paddr_t pa = pt_resolve_page(p, OUT &level);
-  assert(pa && "bmk_pgalloc_align() returned a page not backed by physical memory!");
-  assert(level == PT_2M && "bmk_pgalloc_align() returned virtual memory not backed by a 2M hugepage!");
+  ASSERT(pa, "bmk_pgalloc_align() returned a page not backed by physical memory!");
+  ASSERT(level == PT_2M, "bmk_pgalloc_align() returned virtual memory not backed by a 2M hugepage!");
 
   struct pp_span *ps = MALLOC(struct pp_span);
   if (!ps) {
@@ -77,8 +76,8 @@ static struct pp_span *physmem_acquire(void) {
 }
 
 static void physmem_free(struct pp_span *ps) {
-  assert(ps->begin % (BMK_PGALLOC_ALIGN / PGSIZE) == 0 && "pp_span doesn't begin at an alignment boundary!");
-  assert((ps->end - ps->begin) == BMK_PGALLOC_NPAGES && "pp_span is incomplete!");
+  ASSERT(ps->begin % (BMK_PGALLOC_ALIGN / PGSIZE) == 0, "pp_span doesn't begin at an alignment boundary!");
+  ASSERT((ps->end - ps->begin) == BMK_PGALLOC_NPAGES, "pp_span is incomplete!");
 
   PHYSMEM_DPRINTF("Freeing physical memory pages 0x%x - 0x%x, pp_span %p\n", ps->begin, ps->end, ps);
 
@@ -92,7 +91,7 @@ static void physmem_free(struct pp_span *ps) {
 
 paddr_t pp_alloc(size_t npages) {
   // cannot use this to allocate more than 512 pages, i.e. 2 MB
-  assert(npages < BMK_PGALLOC_NPAGES);
+  ASSERT(npages < BMK_PGALLOC_NPAGES, "Cannot allocate more than 511 pages: cannot reach 2 MB!");
 
   struct pp_span *ps;
   LIST_FOREACH(ps, &ppspan_freelist, freelist) {
@@ -110,7 +109,7 @@ paddr_t pp_alloc(size_t npages) {
     }
   }
 
-  assert(ps);
+  ASSERT0(ps);
   paddr_t pa = ppindex2pa(ps->begin);
   ps->begin += npages;
 
@@ -138,13 +137,13 @@ paddr_t pp_zalloc(size_t npages) {
 }
 
 void pp_free(paddr_t pa, size_t npages) {
-  assert(pa % PGSIZE == 0);
-  assert(0 < npages && npages < BMK_PGALLOC_NPAGES);
+  ASSERT0(pa % PGSIZE == 0);
+  ASSERT0(0 < npages && npages < BMK_PGALLOC_NPAGES);
 
   // TODO: it's a paradox situation that we need to allocate memory in order to free memory, and it's not very nice, should be fixed
   // it's okay for now, since memory allocated via this module will very often never be freed
   struct pp_span *ps = MALLOC(struct pp_span);
-  assert(ps);
+  ASSERT0(ps);
 
   ps->begin = pa2ppindex(pa);
   ps->end = ps->begin + npages;

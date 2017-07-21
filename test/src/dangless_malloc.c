@@ -1,5 +1,6 @@
 #include <assert.h>
 
+#include "config.h"
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
@@ -19,7 +20,7 @@ enum {
   DEAD_PTE = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
 };
 
-STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!!!");
+STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 
 int dangless_dedicate_vmem(void *start, void *end) {
   DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
@@ -126,3 +127,16 @@ void dangless_free(void *p) {
 
   sysfree(original_ptr);
 }
+
+// strong overrides of the glibc memory allocation symbols
+// --whole-archive has to be used when linking against the library so that these symbols will get picked up instead of the glibc ones
+#if DANGLESS_OVERRIDE_SYMBOLS
+  #define STRONG_ALIAS(ALIASNAME, OVERRIDENAME) \
+    extern __typeof(OVERRIDENAME) ALIASNAME __attribute__((alias(#OVERRIDENAME)))
+
+  STRONG_ALIAS(malloc, dangless_malloc);
+  STRONG_ALIAS(calloc, dangless_calloc);
+  STRONG_ALIAS(realloc, dangless_realloc);
+  STRONG_ALIAS(posix_memalign, dangless_posix_memalign);
+  STRONG_ALIAS(free, dangless_free);
+#endif

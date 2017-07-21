@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <assert.h>
 
 #include "queue.h"
 #include "virtmem_alloc.h"
 
 #include "platform/mem.h"
+#include "platform/sysmalloc.h"
 
 #define VMALLOC_DEBUG 1
 
@@ -44,7 +44,7 @@ void *vp_alloc(size_t npages) {
     return NULL;
   }
 
-  assert(span);
+  ASSERT0(span);
   vaddr_t va = span->start;
   span->start += npages * PGSIZE;
 
@@ -60,8 +60,8 @@ void *vp_alloc(size_t npages) {
 }
 
 int vp_free(void *p, size_t npages) {
-  assert((vaddr_t)p % PGSIZE == 0);
-  assert(npages > 0);
+  ASSERT0((vaddr_t)p % PGSIZE == 0);
+  ASSERT0(npages > 0);
 
   vaddr_t start = (vaddr_t)p;
   vaddr_t end = start + npages * PGSIZE;

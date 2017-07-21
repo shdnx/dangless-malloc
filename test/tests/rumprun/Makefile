@@ -41,7 +41,7 @@ obj/%.o: %.c
 
 # -Wl,-whole-archive -ldangless -Wl,-no-whole-archive ?? or something?
 $(UNBAKED_BIN): directories $(OBJS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -ldangless
+	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive
 
 $(BIN): $(UNBAKED_BIN)
 	$(RUMPRUN_BAKE) $(RUMPRUN_BAKE_CONFIG) $@ $<

@@ -1,11 +1,11 @@
 #define _GNU_SOURCE
-#define SYMBOLS_OVERRIDEN 0
 
 #include <dlfcn.h> // dlsym(), RTLD_NEXT, RTLD_DEFAULT
 #include <assert.h>
 #include <malloc.h> // malloc_usable_size()
 
 #include "common.h"
+#include "config.h"
 #include "platform/mem.h"
 #include "platform/sysmalloc.h"
 
@@ -26,7 +26,7 @@ static void(*addr_sysfree)(void *) = NULL;
 static void populate_addrs() {
   void *h;
 
-#if SYMBOLS_OVERRIDEN
+#if DANGLESS_OVERRIDE_SYMBOLS
   h = RTLD_NEXT;
 #else
   h = RTLD_DEFAULT;

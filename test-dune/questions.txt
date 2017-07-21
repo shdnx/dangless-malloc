@@ -52,5 +52,3 @@ PTE addr = 0x1222000 PTE_V PTE_W PTE_U (raw: 0x1222067)
 PTE addr = 0x7f9b779000 PTE_V PTE_W PTE_U (raw: 0x7f9b779007)
 [src/main.c:232] analyze_ptr: Has uninitialized value: 0x0
 [src/main.c:234] analyze_ptr: Wrote value: 0xdeadbeef
-
- - Would dlopen() and its friends work on Dune, to find the stock malloc(), etc. functions?

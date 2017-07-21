@@ -13,6 +13,8 @@ int main() {
   int result = dune_init_and_enter();
   ASSERT(result == 0, "Failed to enter Dune!\n");
 
+  printf("&malloc = %p, &dangless_malloc = %p\n", &malloc, &dangless_malloc);
+
   void *mallocd = MALLOC(void *);
   printf("mallocd = %p, phys = 0x%lx\n", mallocd, pt_resolve(mallocd));
   FREE(mallocd);
