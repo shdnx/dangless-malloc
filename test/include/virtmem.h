@@ -61,6 +61,11 @@ enum pt_level {
   PT_512G = PT_L4
 };
 
+// Calculates the number of 4K pages mapped by an entry at the given pagetable level.
+static inline size_t pt_num_mapped_pages(enum pt_level level) {
+  return 1uL << ((level - 1) * PT_BITS_PER_LEVEL);
+}
+
 static inline unsigned pt_level_shift(enum pt_level level) {
   return PGSHIFT + (level - 1) * PT_BITS_PER_LEVEL;
 }

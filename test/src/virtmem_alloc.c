@@ -31,21 +31,25 @@ static inline bool span_empty(struct vp_span *span) {
   return span->start == span->end;
 }
 
-static LIST_HEAD(, vp_span) vp_freelist = LIST_HEAD_INITIALIZER(&vp_freelist);
+//typedef LIST_HEAD(, vp_span) vp_freelist_t;
 
-// TODO: is this needed? simple compare-and-exchange? how about span merging?
-//static LIST_HEAD(, vp_span) vp_freelist2;
+// Two freelists: the main one and the one containing the spans that the GC freed. Spans are moved from the second to the first freelist only on-demand, i.e. when the first freelist doesn't have an eligible span for an allocation.
+// The main freelist can have any number of users, but the gcd freelist will only ever have one user, the GC thread itself.
+static LIST_HEAD(vp_freelist, vp_span)
+  vp_freelist_main = LIST_HEAD_INITIALIZER(&vp_freelist_main),
+  vp_freelist_gcd = LIST_HEAD_INITIALIZER(&vp_freelist_gcd);
 
-//static pthread_mutex_t vp_migration_mutex = PTHREAD_MUTEX_INITIALIZER;
+// This mutex has to be held to modify vp_freelist_gcd.
+static pthread_mutex_t vp_freelist_gcd_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void *vp_alloc(size_t npages) {
   struct vp_span *span;
-  LIST_FOREACH(span, &vp_freelist, freelist) {
+  LIST_FOREACH(span, &vp_freelist_main, freelist) {
     if (span_pages(span) >= npages)
       break;
   }
 
-  if (UNLIKELY(span == LIST_END(&vp_freelist))) {
+  if (UNLIKELY(span == LIST_END(&vp_freelist_main))) {
     DPRINTF("vp_alloc: could not allocate %zu pages: freelist empty\n", npages);
     return NULL;
   }
@@ -86,6 +90,6 @@ int vp_free(void *p, size_t npages) {
   DPRINTF("vp_free: new span %p: 0x%lx - 0x%lx (%zu pages)\n", span, span->start, span->end, span_pages(span));
 
   // insert the new span to the head of the freelist: we want to re-use previously used locations as soon as possible, since we won't need to allocate new page tables
-  LIST_INSERT_HEAD(&vp_freelist, span, freelist);
+  LIST_INSERT_HEAD(&vp_freelist_main, span, freelist);
   return 0;
 }

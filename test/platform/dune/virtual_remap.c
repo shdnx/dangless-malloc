@@ -33,29 +33,35 @@ enum {
 
 // TODO: this is basically the same code as for rumprunm (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
-  ASSERT0(ptr);
+  ASSERT0(ptr && size);
   ASSERT(in_kernel_mode(), "Virtual remapping is impossible outside of kernel mode!");
 
-  size_t npages = ROUND_UP(size, PGSIZE) / PGSIZE;
+  // have to take into account the offset of the data inside the 4K page, since we're going to be allocating virtual 4K pages
+  const size_t inpage_offset = get_page_offset((uintptr_t)ptr, PT_L1);
+  const size_t npages = ROUND_UP(inpage_offset + size, PGSIZE) / PGSIZE;
 
   // this assumes that the physical memory backing 'ptr' is contiguous and predictable
   paddr_t pa = dune_va_to_pa(ptr);
   paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
 
 #if VIRTREMAP_DEBUG
-  // verify that 'ptr' is backed by contigous physical memory in the expected way
+  // verify that 'ptr' is backed by contigous physical memory in the expected way (regardless of whether it's mapped with hugepages or not)
   {
     enum pt_level base_level;
-    paddr_t base_pa = pt_resolve_page(ptr, OUT &base_level);
-    ASSERT(base_pa, "attempted to remap ptr %p that has no physical memory backing!", ptr);
-    ASSERT(base_pa == pa_page, "attempted to remap ptr %p that is not mapped predictably: expected PA = 0x%lx, actual PA = 0x%lx", ptr, pa_page, base_pa);
+    paddr_t base_pa_page = pt_resolve_page(ptr, OUT &base_level);
+    ASSERT(base_pa_page, "attempted to remap ptr %p that has no physical memory backing!", ptr);
+
+    paddr_t base_pa = base_pa_page + get_page_offset((uintptr_t)ptr, base_level);
+    ASSERT(base_pa == pa, "attempted to remap ptr %p that is not mapped predictably: expected PA = 0x%lx, actual PA = 0x%lx (level %u)", ptr, pa, base_pa, base_level);
+
+    size_t npages_per_mapping = pt_num_mapped_pages(base_level);
 
     size_t i;
-    for (i = 1; i < npages; i++) {
+    for (i = npages_per_mapping; i < npages; i += npages_per_mapping) {
       enum pt_level actual_level;
       paddr_t actual_pa = pt_resolve_page(PG_OFFSET(ptr, i), OUT &actual_level);
 
-      paddr_t expected_pa = PG_OFFSET(base_pa, i);
+      paddr_t expected_pa = PG_OFFSET(base_pa_page, i);
       ASSERT(
         actual_level == base_level && expected_pa == actual_pa,
         "attempted to remap ptr %p whose physical memory backing is not contiguous: at page offset %zu, expected PA 0x%lx (level %u), actual PA 0x%lx (level %u)!",
@@ -93,7 +99,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
     return EVREM_VIRT_MAP;
   }
 
-  OUT *remapped_ptr = (uint8_t *)va + get_page_offset((uintptr_t)ptr, PT_4K);
+  OUT *remapped_ptr = (u8 *)va + inpage_offset;
   return VREM_OK;
 }
 
