@@ -7,7 +7,7 @@ PLATFORM_INCLUDES = -I$(DUNE_ROOT)/libdune
 PLATFORM_CFLAGS =
 
 define PLATFORM_MKCONFIG_DATA :=
-DUNE_ROOT = $(realpath $(DUNE_ROOT))
+DUNE_ROOT ?= $(realpath $(DUNE_ROOT))
 endef
 
 platform_bin: $(OBJS)

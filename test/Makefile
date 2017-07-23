@@ -1,8 +1,14 @@
 MKLASTCONFIG = bin/last-platform-config.mk
 
+BIN_DIR = bin/$(PLATFORM)
+MKCONFIG = $(BIN_DIR)/config.mk
+
 # the PLATFORM variable should be supplied by the user
 # if it's not specified, the last configuration is used, if any
-ifndef PLATFORM
+ifdef PLATFORM
+-include $(MKCONFIG)
+
+else
 -include $(MKLASTCONFIG)
 
 ifndef PLATFORM
@@ -18,10 +24,7 @@ RANLIB = ranlib
 INCLUDES = -Iinclude
 CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG
 LDFLAGS =
-
-BIN_DIR = bin/$(PLATFORM)
 BIN = $(BIN_DIR)/libdangless.a
-MKCONFIG = $(BIN_DIR)/config.mk
 
 define MKLASTCONFIG_DATA :=
 -include $(realpath $(MKCONFIG))
@@ -57,7 +60,8 @@ directories:
 -include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
 define MKCONFIG_DATA :=
-PLATFORM = $(PLATFORM)
+PLATFORM ?= $(PLATFORM)
+DANGLESS_BIN = $(realpath $(BIN))
 
 $(PLATFORM_MKCONFIG_DATA)
 endef

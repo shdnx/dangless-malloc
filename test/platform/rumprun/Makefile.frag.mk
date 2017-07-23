@@ -18,9 +18,9 @@ PLATFORM_CFLAGS =
 PLATFORM_LDFLAGS =
 
 define PLATFORM_MKCONFIG_DATA :=
-RUMPRUN_ROOT = $(realpath $(RUMPRUN_ROOT))
-RUMPRUN_BIN_DIR = $(realpath $(RUMPRUN_BIN_DIR))
-RUMPRUN_OBJ_DIR = $(realpath $(RUMPRUN_ROOT)/obj-amd64-hw)
+RUMPRUN_ROOT ?= $(realpath $(RUMPRUN_ROOT))
+RUMPRUN_BIN_DIR ?= $(realpath $(RUMPRUN_BIN_DIR))
+RUMPRUN_OBJ_DIR ?= $(realpath $(RUMPRUN_ROOT)/obj-amd64-hw)
 
 CC = $(realpath $(CC))
 AR = $(realpath $(AR))

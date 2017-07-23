@@ -64,9 +64,9 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 }
 
 int vremap_resolve(void *ptr, OUT void **original_ptr) {
-  pte_t *ppte;
-  enum pt_level level = pt_walk(ptr, PGWALK_FULL, OUT &ppte);
-  assert(FLAG_ISSET(*ppte, PTE_V));
+  enum pt_level level;
+  paddr_t pa_page = pt_resolve_page(ptr, OUT &level);
+  ASSERT0(pa_page);
 
   // TODO: use instead one of the available PTE bits to note the fact that a page is dangless-remapped (unless somebody already uses those bits?)
   // currently this is only possible when we failed to allocate a dedicated virtual page for this allocation, and just falled back to proxying sysmalloc()
@@ -77,7 +77,7 @@ int vremap_resolve(void *ptr, OUT void **original_ptr) {
 
   // since the original virtual address == physical address, we can just get the physical address and pretend it's a virtual address: specifically, it's the original virtual address, before we remapped it with virtual_remap()
   // this trickery allows us to get away with not maintaining mappings from the remapped virtual addresses to the original ones
-  paddr_t pa = (paddr_t)(*ppte & PTE_FRAME_L1) + get_page_offset((uintptr_t)ptr, PT_L1);
+  paddr_t pa = pa_page + get_page_offset((uintptr_t)ptr, PT_L1);
   OUT *original_ptr = (void *)pa;
   return VREM_OK;
 }

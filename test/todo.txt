@@ -1,18 +1,22 @@
 General:
- - implement realloc()
+ - implement dangless_realloc()
  - make the virtual page allocator thread-safe
- - make the physical page allocator thread-safe
  - Automatically call dangless_dedicate_vmem() as soon as it's safe. I guess just take all available PML4 entries?
- - __attribute__((malloc))?
- - span merging in the physical/virtual page allocator
- - design the garbage collector
- - create regression test framework
- - aligned_alloc()? rumprun doesn't implement it
+ - __attribute__((malloc)) on dangless_malloc() and dangless_calloc()?
+ - span merging in the virtual page allocator
 
 Rumprun:
- - mirror output to disk; look into how the rumprun tests do this
+ - fix the problem that rumprun also strong_alias-es malloc et al
+ - refactor/unite the platform-specific virtual_remap.c files, or at least inherit the enchancements from the Dune version
+ - make the physical page allocator thread-safe
+ - span merging in the physical page allocator
 
- - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries
-
-Low-priority:
+Low-priority general:
  - for huge allocations (that are >= 2 MB), we could use hugepages
+ - create regression test framework
+ - design the garbage collector
+ - aligned_alloc()? rumprun doesn't implement it
+
+Low-priority Rumprun:
+ - mirror output to disk; look into how the rumprun tests do this
+ - look into Cristiano's suggestion with the pre-linking to get rid of the rumprun offsets; or, if that's not an option, automate getting the offsets from the rumprun binaries

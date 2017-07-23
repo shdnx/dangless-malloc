@@ -32,6 +32,9 @@ void *dangless_malloc(size_t size) {
   if (!p)
     return NULL;
 
+  if (UNLIKELY(!in_kernel_mode()))
+    return p;
+
   int result;
   void *remapped_ptr;
 
@@ -47,6 +50,9 @@ void *dangless_calloc(size_t num, size_t size) {
   void *p = syscalloc(num, size);
   if (!p)
     return NULL;
+
+  if (UNLIKELY(!in_kernel_mode()))
+    return p;
 
   int result;
   void *remapped_ptr;
@@ -64,6 +70,9 @@ void *dangless_realloc(void *p, size_t new_size) {
   if (!newp)
     return NULL;
 
+  if (UNLIKELY(!in_kernel_mode()))
+    return newp;
+
   // TODO
   UNREACHABLE("Unimplemented!\n");
 }
@@ -71,6 +80,9 @@ void *dangless_realloc(void *p, size_t new_size) {
 int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   int result = sysmemalign(pp, align, size);
   if (result != 0)
+    return result;
+
+  if (UNLIKELY(!in_kernel_mode()))
     return result;
 
   if ((result = vremap_map(*pp, size, OUT pp)) < 0) {
@@ -90,9 +102,9 @@ static void virtual_invalidate(void *p, size_t npages) {
   size_t page = 0;
   while (page < npages) {
     pte_t *ppte;
-    enum pt_level level = pt_walk((uint8_t *)p + page * PGSIZE, PGWALK_FULL, OUT &ppte);
-    assert(level == PT_L1);
-    assert(FLAG_ISSET(*ppte, PTE_V));
+    enum pt_level level = pt_walk(PG_OFFSET(p, page), PGWALK_FULL, OUT &ppte);
+    ASSERT0(level == PT_L1);
+    ASSERT0(FLAG_ISSET(*ppte, PTE_V));
 
     // optimised for invalidating adjecent PTEs in a PT
     size_t pte_base_offset = pt_level_offset((vaddr_t)p, PT_L1);
@@ -101,6 +113,7 @@ static void virtual_invalidate(void *p, size_t npages) {
     size_t pte_offset;
     for (pte_offset = 0; pte_offset < nptes; pte_offset++) {
       virtual_invalidate_pte(&ppte[pte_offset]);
+      tlb_flush_one(PG_OFFSET(p, page + pte_offset));
     }
 
     page += nptes;
@@ -108,6 +121,11 @@ static void virtual_invalidate(void *p, size_t npages) {
 }
 
 void dangless_free(void *p) {
+  if (UNLIKELY(!in_kernel_mode())) {
+    sysfree(p);
+    return;
+  }
+
   // compatibility with the libc free()
   if (!p)
     return;

@@ -5,9 +5,21 @@
 
 #include "platform/mem.h"
 
-// x86-64 is assumed
+enum {
+  RING_KERNEL = 0x0,
+  RING_USER = 0x3,
+  RING_MASK = 0x3
+};
+
+// Determines whether we're currently in kernel (ring 0) mode.
+static inline bool in_kernel_mode(void) {
+  u16 cs;
+  asm("mov %%cs, %0" : "=r" (cs));
+  return (cs & RING_MASK) == RING_KERNEL;
+}
+
 // we treat entries on all page levels the same way and call them PTEs for simplicity
-typedef uint64_t pte_t;
+typedef u64 pte_t;
 
 #define PT_BITS_PER_LEVEL 9
 #define PT_NUM_ENTRIES (1uL << PT_BITS_PER_LEVEL)
@@ -63,8 +75,12 @@ static inline size_t get_page_offset(uintptr_t addr, enum pt_level pt_level) {
   return (size_t)(addr & page_offset_mask);
 }
 
-// Reads the value of control register 3.
-uint64_t rcr3(void);
+// Reads the value of control register 3, i.e. the root of the page table hierarchy (the physical address of the currently active PML4).
+static inline u64 rcr3(void) {
+  u64 cr3;
+  asm("movq %%cr3, %0" : "=r" (cr3));
+  return cr3;
+}
 
 enum {
   PGWALK_FULL = PT_L1
@@ -86,5 +102,15 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, pte_t flags);
 
 // Unmap the given virtual page from the current address space at the specified level.
 int pt_unmap_page(vaddr_t va, enum pt_level on_level);
+
+// Blatantly stolen from ix-dune/libdune/dune.h, except renamed
+static inline void tlb_flush_one(void *addr) {
+  asm ("invlpg (%0)" :: "r" (addr) : "memory");
+}
+
+static inline void tlb_flush_all(void) {
+  asm ("mov %%cr3, %%rax\n"
+       "mov %%rax, %%cr3\n" ::: "rax");
+}
 
 #endif // VIRTMEM_H

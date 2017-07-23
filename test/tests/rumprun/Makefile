@@ -40,7 +40,7 @@ obj/%.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 # -Wl,-whole-archive -ldangless -Wl,-no-whole-archive ?? or something?
-$(UNBAKED_BIN): directories $(OBJS)
+$(UNBAKED_BIN): directories $(OBJS) $(DANGLESS_BIN)
 	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive
 
 $(BIN): $(UNBAKED_BIN)

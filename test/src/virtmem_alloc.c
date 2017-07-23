@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #include "queue.h"
 #include "virtmem_alloc.h"
@@ -32,6 +33,11 @@ static inline bool span_empty(struct vp_span *span) {
 
 static LIST_HEAD(, vp_span) vp_freelist = LIST_HEAD_INITIALIZER(&vp_freelist);
 
+// TODO: is this needed? simple compare-and-exchange? how about span merging?
+//static LIST_HEAD(, vp_span) vp_freelist2;
+
+//static pthread_mutex_t vp_migration_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 void *vp_alloc(size_t npages) {
   struct vp_span *span;
   LIST_FOREACH(span, &vp_freelist, freelist) {
@@ -39,7 +45,7 @@ void *vp_alloc(size_t npages) {
       break;
   }
 
-  if (span == LIST_END(&vp_freelist)) {
+  if (UNLIKELY(span == LIST_END(&vp_freelist))) {
     DPRINTF("vp_alloc: could not allocate %zu pages: freelist empty\n", npages);
     return NULL;
   }
@@ -69,7 +75,7 @@ int vp_free(void *p, size_t npages) {
   // TODO: try merging with other free spans
 
   struct vp_span *span = MALLOC(struct vp_span);
-  if (!span) {
+  if (UNLIKELY(!span)) {
     DPRINTF("vp_free: could not allocate vp_span: out of memory?\n");
     return -1;
   }

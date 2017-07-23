@@ -12,12 +12,6 @@
   #define DPRINTF(...) /* empty */
 #endif
 
-uint64_t rcr3(void) {
-  uint64_t val;
-  asm("movq %%cr3, %0" : "=r" (val));
-  return val;
-}
-
 enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result_ppte) {
   vaddr_t va = (vaddr_t)p;
   paddr_t paddr = (paddr_t)rcr3();
@@ -54,7 +48,6 @@ paddr_t pt_resolve_page(void *p, OUT enum pt_level *page_level) {
   if (page_level)
     OUT *page_level = level;
 
-  paddr_t pa;
   switch (level) {
   case PT_4K:
     return (*ppte & PTE_FRAME_4K);
@@ -67,9 +60,10 @@ paddr_t pt_resolve_page(void *p, OUT enum pt_level *page_level) {
   case PT_1G:
     assert(FLAG_ISSET(*ppte, PTE_PS));
     return (*ppte & PTE_FRAME_1G);
-  }
 
-  UNREACHABLE("Unhandled pt_level value!\n");
+  default:
+    UNREACHABLE("Unhandled pt_level value!\n");
+  }
 }
 
 paddr_t pt_resolve(void *p) {
@@ -149,6 +143,11 @@ int pt_unmap_page(vaddr_t va, enum pt_level on_level) {
     return -1;
   }
 
+  pte_t old_pte = *ppte;
   *ppte = 0;
+
+  if (FLAG_ISSET(old_pte, PTE_V))
+    tlb_flush_one((void *)va);
+
   return 0;
 }

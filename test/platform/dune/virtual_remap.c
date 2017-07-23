@@ -1,5 +1,3 @@
-#include <assert.h>
-
 #include "common.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
@@ -33,53 +31,74 @@ enum {
   EVREM_NO_PHYS_BACK = -3
 };
 
-// We have to know when the first remap has happened. There's usually quite a lot of malloc() action going on before the application even really starts, i.e. even before we enter Dune mode. Before entering Dune mode, vremap_resolve() cannot do pt_resolve(), because that needs access to cr3 that we do not have. The assumption is that dangless_dedicate_vmem() is called only once it's safe to do remapping action, i.e. we're inside Dune mode.
-static bool g_has_remap_occured = false;
-
-// TODO: this is basically the same code as for rumprunm, except for dune_va_to_pa() call - refactor
-// TODO: this only supports <= PAGESIZE allocation
+// TODO: this is basically the same code as for rumprunm (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
-  assert(ptr);
+  ASSERT0(ptr);
+  ASSERT(in_kernel_mode(), "Virtual remapping is impossible outside of kernel mode!");
 
-  void *va = vp_alloc_one();
+  size_t npages = ROUND_UP(size, PGSIZE) / PGSIZE;
+
+  // this assumes that the physical memory backing 'ptr' is contiguous and predictable
+  paddr_t pa = dune_va_to_pa(ptr);
+  paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
+
+#if VIRTREMAP_DEBUG
+  // verify that 'ptr' is backed by contigous physical memory in the expected way
+  {
+    enum pt_level base_level;
+    paddr_t base_pa = pt_resolve_page(ptr, OUT &base_level);
+    ASSERT(base_pa, "attempted to remap ptr %p that has no physical memory backing!", ptr);
+    ASSERT(base_pa == pa_page, "attempted to remap ptr %p that is not mapped predictably: expected PA = 0x%lx, actual PA = 0x%lx", ptr, pa_page, base_pa);
+
+    size_t i;
+    for (i = 1; i < npages; i++) {
+      enum pt_level actual_level;
+      paddr_t actual_pa = pt_resolve_page(PG_OFFSET(ptr, i), OUT &actual_level);
+
+      paddr_t expected_pa = PG_OFFSET(base_pa, i);
+      ASSERT(
+        actual_level == base_level && expected_pa == actual_pa,
+        "attempted to remap ptr %p whose physical memory backing is not contiguous: at page offset %zu, expected PA 0x%lx (level %u), actual PA 0x%lx (level %u)!",
+        ptr, i, expected_pa, base_level, actual_pa, actual_level);
+    }
+  }
+#endif
+
+  void *va = vp_alloc(npages);
   if (!va) {
-    DPRINTF("could not allocate virtual memory page to remap to\n");
+    DPRINTF("could not allocate virtual memory region of %zu pages to remap to\n", npages);
     return EVREM_NO_VM;
   }
 
 #if VIRTREMAP_DEBUG
+  // verify that the allocated virtual memory region is not yet backed by any physical memory
   {
-    enum pt_level level;
-    paddr_t pa = pt_resolve_page(va, OUT &level);
-    assert(!pa && "Allocated virtual page is already mapped to a physical address!");
+    size_t i;
+    for (i = 0; i < npages; i++) {
+      enum pt_level level;
+      paddr_t pa = pt_resolve_page(PG_OFFSET(va, i), OUT &level);
+
+      ASSERT(!pa, "Allocated virtual page %p (page offset %zu) is already mapped to a physical address (0x%lx at level %u)!", PG_OFFSET(va, i), i, pa, level);
+    }
   }
 #endif
 
-  // this assumes that the physical memory backing 'ptr' is contiguous
-  paddr_t pa = dune_va_to_pa(ptr);
-  paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
-
-  // this assumes that the allocated virtual memory region is backed by a contiguous physical memory region
+  // this assumes that 'ptr' is backed by a contiguous physical memory region
   int result;
   if ((result = pt_map_region(pa_page, (vaddr_t)va, ROUND_UP(size, PGSIZE), PTE_W | PTE_NX)) < 0) {
     DPRINTF("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
-    vp_free_one(va);
+    vp_free(va, npages);
     return EVREM_VIRT_MAP;
   }
 
   OUT *remapped_ptr = (uint8_t *)va + get_page_offset((uintptr_t)ptr, PT_4K);
-  g_has_remap_occured = true;
   return VREM_OK;
 }
 
 int vremap_resolve(void *ptr, OUT void **original_ptr) {
-  if (!g_has_remap_occured) {
-    // If no remapping has happened as of yet, it's both pointless and dangerous to do to pt_resolve(): see the comments at g_has_remap_occured.
-    OUT *original_ptr = ptr;
-    return VREM_NOT_REMAPPED;
-  }
+  ASSERT0(in_kernel_mode());
 
   // Detecting whether a virtual address was remapped:
   // - Do a pagewalk on the virtual address (VA) and get the corresponding physical address (PA).
