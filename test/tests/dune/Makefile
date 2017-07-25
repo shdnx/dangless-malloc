@@ -17,23 +17,26 @@ SRCS = $(wildcard *.c)
 OBJS = $(patsubst %.c,obj/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: all directories clean run
+.PHONY: all clean run
 
-all: directories $(BIN)
+all: $(BIN)
 
-directories:
-	mkdir -p bin
-	mkdir -p obj
+bin:
+	mkdir -p $@
+
+obj:
+	mkdir -p $@
 
 clean:
 	rm -rf bin
 	rm -rf obj
 
-obj/%.o: %.c
+obj/%.o: %.c obj
 	$(CC) $(CFLAGS) $(DANGLESS_USER_CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(BIN): $(OBJS) $(DANGLESS_BIN)
-	$(CC) $(LDFLAGS) $(OBJS) -o $@ $(DANGLESS_USER_LDFLAGS)
+$(BIN): $(OBJS) $(DANGLESS_BIN) bin
+	#$(CC) $(LDFLAGS) $(OBJS) -o $@ $(DANGLESS_USER_LDFLAGS)
+	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -L$(DUNE_ROOT)/libdune -ldune -ldl
 
 # debug
 print-%  : ; @echo $* = $($*)

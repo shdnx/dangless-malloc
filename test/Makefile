@@ -30,8 +30,7 @@ define MKLASTCONFIG_DATA :=
 -include $(realpath $(MKCONFIG))
 endef
 
-OBJ_DIR = obj
-BASE_OBJS_DIR = $(OBJ_DIR)/$(PLATFORM)
+BASE_OBJS_DIR = obj/$(PLATFORM)
 
 CORE_SRCS_DIR = src
 CORE_SRCS = $(wildcard src/*.c)
@@ -47,16 +46,11 @@ SRCS = $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS = $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: all clean directories platform_bin platform_clean always
+.PHONY: all clean always platform_bin platform_clean
 
 all: $(BIN)
 
 always:;
-
-directories:
-	mkdir -p $(CORE_OBJS_DIR)
-	mkdir -p $(PLATFORM_OBJS_DIR)
-	mkdir -p $(BIN_DIR)
 
 -include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
@@ -70,19 +64,28 @@ DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangles
 $(PLATFORM_MKCONFIG_DATA)
 endef
 
-$(MKLASTCONFIG): always
+$(BIN_DIR):
+	mkdir -p $@
+
+$(CORE_OBJS_DIR):
+	mkdir -p $@
+
+$(PLATFORM_OBJS_DIR):
+	mkdir -p $@
+
+$(MKLASTCONFIG): $(BIN_DIR) always
 	$(file > $@,$(MKLASTCONFIG_DATA))
 
-$(MKCONFIG): always
+$(MKCONFIG): $(BIN_DIR) always
 	$(file > $@,$(MKCONFIG_DATA))
 
-$(CORE_OBJS_DIR)/%.o: src/%.c
+$(CORE_OBJS_DIR)/%.o: src/%.c $(CORE_OBJS_DIR)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(PLATFORM_OBJS_DIR)/%.o: platform/$(PLATFORM)/%.c
+$(PLATFORM_OBJS_DIR)/%.o: platform/$(PLATFORM)/%.c $(PLATFORM_OBJS_DIR)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(BIN): directories $(MKCONFIG) $(MKLASTCONFIG) platform_bin
+$(BIN): $(BIN_DIR) $(MKCONFIG) $(MKLASTCONFIG) platform_bin
 
 clean: platform_clean
 	rm -f $(OBJS)
@@ -91,8 +94,8 @@ clean: platform_clean
 	rm -f $(MKCONFIG) $(MKLASTCONFIG)
 
 clean_all:
-	rm -rf $(BIN_DIR)
-	rm -rf $(OBJ_DIR)
+	rm -rf bin
+	rm -rf obj
 
 print-%  : ; @echo $* = $($*)
 

@@ -1,4 +1,7 @@
-#include <pthread.h>
+//#include <pthread.h>
+
+#define pthread_mutex_lock(...)
+#define pthread_mutex_unlock(...)
 
 #include "common.h"
 #include "config.h"
@@ -33,7 +36,7 @@ static inline bool span_empty(struct vp_span *span) {
 
 struct vp_freelist {
   LIST_HEAD(, vp_span) items;
-  pthread_mutex_t mutex;
+  //pthread_mutex_t mutex;
 
   // only used if VMALLOC_STATS == 1
   size_t nallocs;
@@ -41,7 +44,7 @@ struct vp_freelist {
 
 #define VP_FREELIST_INIT(PTR) { \
     LIST_HEAD_INITIALIZER(&(PTR)->items), \
-    PTHREAD_MUTEX_INITIALIZER, \
+    /*PTHREAD_MUTEX_INITIALIZER,*/ \
     0 \
   }
 

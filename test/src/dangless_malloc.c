@@ -1,4 +1,6 @@
-#include <pthread.h>
+//#include <pthread.h>
+
+#define pthread_once(x, f) f()
 
 #include "config.h"
 #include "dangless_malloc.h"
@@ -21,7 +23,7 @@ enum {
 STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 
 static bool g_initialized = false;
-static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+//static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -50,8 +52,8 @@ static void auto_dedicate_vmem(void) {
     if (result == 0) {
       nentries_dedicated++;
 
-      if (nentries_dedicated > DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
-        DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", nentries_dedicated);
+      if (nentries_dedicated >= DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
+        DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", DANGLESS_AUTO_DEDICATE_MAX_PML4ES);
         break;
       }
     }
