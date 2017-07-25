@@ -30,7 +30,8 @@ define MKLASTCONFIG_DATA :=
 -include $(realpath $(MKCONFIG))
 endef
 
-BASE_OBJS_DIR = obj/$(PLATFORM)
+OBJ_DIR = obj
+BASE_OBJS_DIR = $(OBJ_DIR)/$(PLATFORM)
 
 CORE_SRCS_DIR = src
 CORE_SRCS = $(wildcard src/*.c)
@@ -61,7 +62,10 @@ directories:
 
 define MKCONFIG_DATA :=
 PLATFORM ?= $(PLATFORM)
-DANGLESS_BIN = $(realpath $(BIN))
+DANGLESS_BIN := $(realpath $(BIN))
+
+DANGLESS_USER_CFLAGS := $(PLATFORM_USER_CFLAGS)
+DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -lpthread $(PLATFORM_USER_LDFLAGS)
 
 $(PLATFORM_MKCONFIG_DATA)
 endef
@@ -85,6 +89,10 @@ clean: platform_clean
 	rm -f $(DEPS)
 	rm -f $(BIN)
 	rm -f $(MKCONFIG) $(MKLASTCONFIG)
+
+clean_all:
+	rm -rf $(BIN_DIR)
+	rm -rf $(OBJ_DIR)
 
 print-%  : ; @echo $* = $($*)
 

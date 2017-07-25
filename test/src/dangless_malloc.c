@@ -1,4 +1,4 @@
-#include <assert.h>
+#include <pthread.h>
 
 #include "config.h"
 #include "dangless_malloc.h"
@@ -7,8 +7,6 @@
 
 #include "platform/sysmalloc.h"
 #include "platform/virtual_remap.h"
-
-#define DGLMALLOC_DEBUG 1
 
 #if DGLMALLOC_DEBUG
   #define DPRINTF(...) vdprintf(__VA_ARGS__)
@@ -22,47 +20,77 @@ enum {
 
 STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 
+static bool g_initialized = false;
+static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+
 int dangless_dedicate_vmem(void *start, void *end) {
-  DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
+  g_initialized = true;
+
+  DPRINTF("dedicating virtual memory: " FMT_PTR " - " FMT_PTR "\n", start, end);
   return vp_free_region(start, end);
 }
 
-void *dangless_malloc(size_t size) {
-  void *p = sysmalloc(size);
+// TODO: make this platform-specific
+static void auto_dedicate_vmem(void) {
+  const size_t pte_addr_mult = 1uL << pt_level_shift(PT_L4);
+  pte_t *ptroot = pt_root();
+
+  size_t nentries_dedicated = 0;
+
+  size_t i;
+  for (i = 0; i < PT_NUM_ENTRIES; i++) {
+    if (ptroot[i])
+      continue;
+
+    int result = dangless_dedicate_vmem(
+      (void *)(i * pte_addr_mult),
+      (void *)((i + 1) * pte_addr_mult)
+    );
+
+    if (result == 0) {
+      nentries_dedicated++;
+
+      if (nentries_dedicated > DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
+        DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", nentries_dedicated);
+        break;
+      }
+    }
+  }
+
+  DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
+}
+
+static void *do_vremap(void *p, size_t sz, char *func_name) {
   if (!p)
     return NULL;
 
   if (UNLIKELY(!in_kernel_mode()))
     return p;
 
-  int result;
   void *remapped_ptr;
+  int result = vremap_map(p, sz, OUT &remapped_ptr);
 
-  if ((result = vremap_map(p, size, OUT &remapped_ptr)) < 0) {
-    DPRINTF("failed to remap sysmalloc's %p (size %zu); falling back to proxying (result %d)\n", p, size, result);
+  if (UNLIKELY(result == EVREM_NO_VM && !g_initialized)) {
+    DPRINTF("auto-dedicating available virtual memory to dangless...\n");
+
+    pthread_once(&g_auto_dedicate_once, auto_dedicate_vmem);
+
+    DPRINTF("re-trying vremap...\n");
+    return do_vremap(p, sz, func_name);
+  } else if (result < 0) {
+    DPRINTF("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, sz, result);
     return p;
   }
 
   return remapped_ptr;
 }
 
+void *dangless_malloc(size_t size) {
+  return do_vremap(sysmalloc(size), size, "malloc");
+}
+
 void *dangless_calloc(size_t num, size_t size) {
-  void *p = syscalloc(num, size);
-  if (!p)
-    return NULL;
-
-  if (UNLIKELY(!in_kernel_mode()))
-    return p;
-
-  int result;
-  void *remapped_ptr;
-
-  if ((result = vremap_map(p, size, OUT &remapped_ptr)) < 0) {
-    DPRINTF("failed to remap syscalloc's %p (size %zu); falling back to proxying (result %d)\n", p, size, result);
-    return p;
-  }
-
-  return remapped_ptr;
+  return do_vremap(syscalloc(num, size), num * size, "calloc");
 }
 
 void *dangless_realloc(void *p, size_t new_size) {
@@ -82,13 +110,7 @@ int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   if (result != 0)
     return result;
 
-  if (UNLIKELY(!in_kernel_mode()))
-    return result;
-
-  if ((result = vremap_map(*pp, size, OUT pp)) < 0) {
-    DPRINTF("failed to remap sysmemalign's %p (size %zu); falling back to proxying (result %d)\n", *pp, size, result);
-  }
-
+  *pp = do_vremap(*pp, size, "posix_memalign");
   return 0;
 }
 

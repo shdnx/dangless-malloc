@@ -18,7 +18,7 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
   pte_t *ppte;
 
 #define WALK_LEVEL(LVL) \
-    ppte = &((pte_t *)paddr)[pt_level_offset(va, LVL)]; \
+    ppte = &((pte_t *)pt_paddr2vaddr(paddr))[pt_level_offset(va, LVL)]; \
     if (!FLAG_ISSET(*ppte, PTE_V) \
         || (LVL != PT_L1 && FLAG_ISSET(*ppte, PTE_PS)) \
         || requested_level == LVL) { \

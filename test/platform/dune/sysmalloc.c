@@ -1,7 +1,6 @@
 #define _GNU_SOURCE
 
 #include <dlfcn.h> // dlsym(), RTLD_NEXT, RTLD_DEFAULT
-#include <assert.h>
 #include <malloc.h> // malloc_usable_size()
 
 #include "common.h"
@@ -32,11 +31,19 @@ static void populate_addrs() {
   h = RTLD_DEFAULT;
 #endif
 
-  addr_sysmalloc = dlsym(h, "malloc");
-  addr_syscalloc = dlsym(h, "calloc");
-  addr_sysrealloc = dlsym(h, "realloc");
-  addr_sysmemalign = dlsym(h, "memalign");
-  addr_sysfree = dlsym(h, "free");
+  char *err;
+
+#define HANDLE_SYM(FN) \
+  addr_sys##FN = dlsym(h, #FN); \
+  ASSERT(!(err = dlerror()), "Could not get symbol address for %s: dlerror: %s", #FN, err)
+
+  HANDLE_SYM(malloc);
+  HANDLE_SYM(calloc);
+  HANDLE_SYM(realloc);
+  HANDLE_SYM(memalign);
+  HANDLE_SYM(free);
+
+#undef HANDLE_SYM
 }
 
 void *sysmalloc(size_t sz) {

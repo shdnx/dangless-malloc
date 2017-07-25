@@ -20,7 +20,7 @@ int main() {
   FREE(mallocd);
 
   // pml4[1]
-  dangless_dedicate_vmem((void *)0x8000000000uL, (void *)(0x8000000000uL * 2));
+  //dangless_dedicate_vmem((void *)0x8000000000uL, (void *)(0x8000000000uL * 2));
 
   void *safemallocd1 = dangless_malloc(sizeof(void *));
   printf("safemallocd1 = %p, phys = 0x%lx\n", safemallocd1, pt_resolve(safemallocd1));

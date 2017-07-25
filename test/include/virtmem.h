@@ -87,6 +87,10 @@ static inline u64 rcr3(void) {
   return cr3;
 }
 
+static inline pte_t *pt_root(void) {
+  return (pte_t *)pt_paddr2vaddr(rcr3());
+}
+
 enum {
   PGWALK_FULL = PT_L1
 };

@@ -5,26 +5,11 @@
 #include "virtmem_alloc.h"
 #include "platform/virtual_remap.h"
 
-#define VIRTREMAP_DEBUG 1
-
 #if VIRTREMAP_DEBUG
   #define DPRINTF(...) vdprintf(__VA_ARGS__)
 #else
   #define DPRINTF(...) /* empty */
 #endif
-
-enum {
-  VREM_OK = 0,
-
-  // given pointer is not remapped
-  VREM_NOT_REMAPPED = 1,
-
-  // out of virtual memory
-  EVREM_NO_VM = -1,
-
-  // failed to map virtual memory
-  EVREM_VIRT_MAP = -2
-};
 
 // TODO: this only supports <= PAGESIZE allocation
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {

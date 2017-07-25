@@ -30,10 +30,10 @@ clean:
 	rm -rf obj
 
 obj/%.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
+	$(CC) $(CFLAGS) $(DANGLESS_USER_CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BIN): $(OBJS) $(DANGLESS_BIN)
-	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -L$(DUNE_ROOT)/libdune -ldune -ldl
+	$(CC) $(LDFLAGS) $(OBJS) -o $@ $(DANGLESS_USER_LDFLAGS)
 
 # debug
 print-%  : ; @echo $* = $($*)

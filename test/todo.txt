@@ -1,7 +1,5 @@
 General:
  - implement dangless_realloc()
- - make the virtual page allocator thread-safe
- - Automatically call dangless_dedicate_vmem() as soon as it's safe. I guess just take all available PML4 entries?
  - __attribute__((malloc)) on dangless_malloc() and dangless_calloc()?
  - span merging in the virtual page allocator
 

@@ -7,29 +7,11 @@
 
 #include "dune.h"
 
-#define VIRTREMAP_DEBUG 1
-
 #if VIRTREMAP_DEBUG
   #define DPRINTF(...) vdprintf(__VA_ARGS__)
 #else
   #define DPRINTF(...) /* empty */
 #endif
-
-enum {
-  VREM_OK = 0,
-
-  // given pointer is not remapped
-  VREM_NOT_REMAPPED = 1,
-
-  // out of virtual memory
-  EVREM_NO_VM = -1,
-
-  // failed to map virtual memory
-  EVREM_VIRT_MAP = -2,
-
-  // cannot resolve, because there's no physical memory backing
-  EVREM_NO_PHYS_BACK = -3
-};
 
 // TODO: this is basically the same code as for rumprunm (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
