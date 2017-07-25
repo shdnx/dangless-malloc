@@ -59,7 +59,7 @@ PLATFORM ?= $(PLATFORM)
 DANGLESS_BIN := $(realpath $(BIN))
 
 DANGLESS_USER_CFLAGS := $(PLATFORM_USER_CFLAGS)
-DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -lpthread $(PLATFORM_USER_LDFLAGS)
+DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive $(PLATFORM_USER_LDFLAGS)
 
 $(PLATFORM_MKCONFIG_DATA)
 endef

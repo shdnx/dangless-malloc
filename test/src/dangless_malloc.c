@@ -1,8 +1,11 @@
-//#include <pthread.h>
-
-#define pthread_once(x, f) f()
-
 #include "config.h"
+
+#if DANGLESS_USE_PTHREADS
+  #include <pthread.h>
+#else
+  #include "pthread_mock.h"
+#endif
+
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
@@ -23,7 +26,7 @@ enum {
 STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 
 static bool g_initialized = false;
-//static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -95,18 +98,6 @@ void *dangless_calloc(size_t num, size_t size) {
   return do_vremap(syscalloc(num, size), num * size, "calloc");
 }
 
-void *dangless_realloc(void *p, size_t new_size) {
-  void *newp = sysrealloc(p, new_size);
-  if (!newp)
-    return NULL;
-
-  if (UNLIKELY(!in_kernel_mode()))
-    return newp;
-
-  // TODO
-  UNREACHABLE("Unimplemented!\n");
-}
-
 int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   int result = sysmemalign(pp, align, size);
   if (result != 0)
@@ -123,6 +114,8 @@ static void virtual_invalidate_pte(pte_t *ppte) {
 }
 
 static void virtual_invalidate(void *p, size_t npages) {
+  DPRINTF("invalidating %zu virtual pages starting at %p...\n", npages, p);
+
   size_t page = 0;
   while (page < npages) {
     pte_t *ppte;
@@ -159,7 +152,6 @@ void dangless_free(void *p) {
 
   if (result == 0) {
     size_t npages = sysmalloc_usable_pages(original_ptr);
-    DPRINTF("invalidating %zu virtual pages starting at %p...\n", npages, p);
     virtual_invalidate(p, npages);
   } else if (result < 0) {
     DPRINTF("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
@@ -168,6 +160,53 @@ void dangless_free(void *p) {
   }
 
   sysfree(original_ptr);
+}
+
+void *dangless_realloc(void *p, size_t new_size) {
+  void *original_ptr = p;
+  bool was_remapped = false;
+
+  if (p) {
+    int result = vremap_resolve(p, OUT &original_ptr);
+
+    if (result == 0) {
+      was_remapped = true;
+    } else if (result < 0) {
+      DPRINTF("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
+    } else {
+      DPRINTF("vremap_resolve returned %d, assume no remapping\n", result);
+    }
+  }
+
+  if (!was_remapped) {
+    // either realloc() was called with NULL, or the original pointer was not remapped, so we get to treat this as a new allocation
+    return do_vremap(sysrealloc(p, new_size), new_size, "realloc");
+  }
+
+  const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
+  const size_t old_npages = sysmalloc_usable_pages(p);
+
+  void *newp = sysrealloc(original_ptr, new_size);
+  if (!newp)
+    return NULL;
+
+  if (newp == original_ptr && new_npages == old_npages) {
+    // no change in terms of location or in terms of size: nothing to do, just return the original pointer
+    return p;
+  }
+
+  if (UNLIKELY(!in_kernel_mode()))
+    return newp;
+
+  if (p == newp && new_npages < old_npages) {
+    // shrink in-place: only invalidate the pages at the end
+    virtual_invalidate(PG_OFFSET(p, new_npages), old_npages - new_npages);
+    return p;
+  } else {
+    // either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
+    virtual_invalidate(p, old_npages);
+    return do_vremap(newp, new_size, "realloc");
+  }
 }
 
 // strong overrides of the glibc memory allocation symbols

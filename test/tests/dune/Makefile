@@ -35,8 +35,7 @@ obj/%.o: %.c obj
 	$(CC) $(CFLAGS) $(DANGLESS_USER_CFLAGS) $(INCLUDES) -c $< -o $@
 
 $(BIN): $(OBJS) $(DANGLESS_BIN) bin
-	#$(CC) $(LDFLAGS) $(OBJS) -o $@ $(DANGLESS_USER_LDFLAGS)
-	$(CC) $(LDFLAGS) $(OBJS) -o $@ -L$(DANGLESS_BIN_DIR) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -L$(DUNE_ROOT)/libdune -ldune -ldl
+	$(CC) $(LDFLAGS) $(OBJS) -o $@ $(DANGLESS_USER_LDFLAGS)
 
 # debug
 print-%  : ; @echo $* = $($*)
