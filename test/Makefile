@@ -22,8 +22,7 @@ AR = ar
 RANLIB = ranlib
 
 INCLUDES = -Iinclude
-CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG
-LDFLAGS =
+CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG -pthread
 BIN = $(BIN_DIR)/libdangless.a
 
 define MKLASTCONFIG_DATA :=
@@ -37,7 +36,7 @@ CORE_SRCS = $(wildcard src/*.c)
 CORE_OBJS_DIR = $(BASE_OBJS_DIR)/core
 CORE_OBJS = $(patsubst $(CORE_SRCS_DIR)/%.c,$(CORE_OBJS_DIR)/%.o,$(CORE_SRCS))
 
-PLATFORM_SRCS_DIR = platform/$(PLATFORM)
+PLATFORM_SRCS_DIR = src/platform/$(PLATFORM)
 PLATFORM_SRCS = $(wildcard $(PLATFORM_SRCS_DIR)/*.c)
 PLATFORM_OBJS_DIR = $(BASE_OBJS_DIR)/platform/$(PLATFORM)
 PLATFORM_OBJS = $(patsubst $(PLATFORM_SRCS_DIR)/%.c,$(PLATFORM_OBJS_DIR)/%.o,$(PLATFORM_SRCS))
@@ -58,19 +57,13 @@ define MKCONFIG_DATA :=
 PLATFORM ?= $(PLATFORM)
 DANGLESS_BIN := $(realpath $(BIN))
 
-DANGLESS_USER_CFLAGS := $(PLATFORM_USER_CFLAGS)
-DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive $(PLATFORM_USER_LDFLAGS)
+DANGLESS_USER_CFLAGS := -pthread $(PLATFORM_USER_CFLAGS)
+DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -pthread $(PLATFORM_USER_LDFLAGS)
 
 $(PLATFORM_MKCONFIG_DATA)
 endef
 
-$(BIN_DIR):
-	mkdir -p $@
-
-$(CORE_OBJS_DIR):
-	mkdir -p $@
-
-$(PLATFORM_OBJS_DIR):
+$(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
 
 $(MKLASTCONFIG): $(BIN_DIR) always
@@ -82,7 +75,7 @@ $(MKCONFIG): $(BIN_DIR) always
 $(CORE_OBJS_DIR)/%.o: src/%.c $(CORE_OBJS_DIR)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(PLATFORM_OBJS_DIR)/%.o: platform/$(PLATFORM)/%.c $(PLATFORM_OBJS_DIR)
+$(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c $(PLATFORM_OBJS_DIR)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
 $(BIN): $(BIN_DIR) $(MKCONFIG) $(MKLASTCONFIG) platform_bin

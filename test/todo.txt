@@ -1,6 +1,7 @@
 General:
  - anything else in dangless_malloc.c that needs to be made thread-safe? e.g. access to pagetables?
  - __attribute__((malloc)) on dangless_malloc() and dangless_calloc()?
+ - memalign(), valloc()
  - span merging in the virtual page allocator
 
 Rumprun:

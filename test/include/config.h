@@ -10,16 +10,16 @@
   #define DANGLESS_AUTO_DEDICATE_MAX_PML4ES 1uL
 #endif
 
-// Whether to use pthreads or just mock it.
-#ifndef DANGLESS_USE_PTHREADS
-  #define DANGLESS_USE_PTHREADS 0
-#endif
+#define DANGLESS_CALLOC_SPECIAL_BUFSIZE 256
 
 // dangless_malloc.c
 #define DGLMALLOC_DEBUG 1
 
 // platform/virtual_remap.c
 #define VIRTREMAP_DEBUG 1
+
+// platform/sysmalloc.c
+#define SYSMALLOC_DEBUG 1
 
 // virtmem_alloc.c
 #define VMALLOC_DEBUG 1

@@ -13,4 +13,7 @@ void *dangless_realloc(void *p, size_t new_size);
 int dangless_posix_memalign(void **pp, size_t align, size_t size);
 void dangless_free(void *p);
 
+// Whether a dangless hook is currently being processed on the calling thread.
+bool dangless_hook_running(void);
+
 #endif // DANGLESS_MALLOC_H

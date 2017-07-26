@@ -1,12 +1,7 @@
-#include "config.h"
-
-#if DANGLESS_USE_PTHREADS
-  #include <pthread.h>
-#else
-  #include "pthread_mock.h"
-#endif
+#include <pthread.h>
 
 #include "common.h"
+#include "config.h"
 #include "queue.h"
 #include "virtmem_alloc.h"
 

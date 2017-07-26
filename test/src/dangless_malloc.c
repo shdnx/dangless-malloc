@@ -1,11 +1,6 @@
+#include <pthread.h>
+
 #include "config.h"
-
-#if DANGLESS_USE_PTHREADS
-  #include <pthread.h>
-#else
-  #include "pthread_mock.h"
-#endif
-
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
@@ -27,6 +22,13 @@ STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+
+// Set to true while the hooks themselves are running and any calls just have to be proxied.
+static __thread bool g_hook_running = false;
+
+bool dangless_hook_running(void) {
+  return g_hook_running;
+}
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -65,12 +67,29 @@ static void auto_dedicate_vmem(void) {
   DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
 }
 
-static void *do_vremap(void *p, size_t sz, char *func_name) {
-  if (!p)
-    return NULL;
+static bool hook_enter(void) {
+  if (g_hook_running || UNLIKELY(!in_kernel_mode()))
+    return false;
 
-  if (UNLIKELY(!in_kernel_mode()))
-    return p;
+  g_hook_running = true;
+  return true;
+}
+
+static void hook_exit(void) {
+  g_hook_running = false;
+}
+
+#define HOOK_RETURN(V) \
+  do { \
+    __typeof((V)) __hook_result = (V); \
+    hook_exit(); \
+    return __hook_result; \
+  } while (0)
+
+static void *do_vremap(void *p, size_t sz, char *func_name) {
+  // "If size is zero, the behavior is implementation defined (null pointer may be returned, or some non-null pointer may be returned that may not be used to access storage, but has to be passed to free)." (http://en.cppreference.com/w/c/memory/malloc)
+  if (!p || !sz)
+    return NULL;
 
   void *remapped_ptr;
   int result = vremap_map(p, sz, OUT &remapped_ptr);
@@ -91,20 +110,29 @@ static void *do_vremap(void *p, size_t sz, char *func_name) {
 }
 
 void *dangless_malloc(size_t size) {
-  return do_vremap(sysmalloc(size), size, "malloc");
+  void *p = sysmalloc(size);
+  if (!hook_enter())
+    return p;
+
+  HOOK_RETURN(do_vremap(p, size, "malloc"));
 }
 
 void *dangless_calloc(size_t num, size_t size) {
-  return do_vremap(syscalloc(num, size), num * size, "calloc");
+  void *p = syscalloc(num, size);
+  if (!hook_enter())
+    return p;
+
+  // TODO: "Due to the alignment requirements, the number of allocated bytes is not necessarily equal to num*size." (http://en.cppreference.com/w/c/memory/calloc)
+  HOOK_RETURN(do_vremap(p, num * size, "calloc"));
 }
 
 int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   int result = sysmemalign(pp, align, size);
-  if (result != 0)
+  if (result != 0 || !hook_enter())
     return result;
 
   *pp = do_vremap(*pp, size, "posix_memalign");
-  return 0;
+  HOOK_RETURN(0);
 }
 
 // Invalidates a virtual page that was remapped with virtual_remap(), by marking its PTE as dead.
@@ -138,14 +166,14 @@ static void virtual_invalidate(void *p, size_t npages) {
 }
 
 void dangless_free(void *p) {
-  if (UNLIKELY(!in_kernel_mode())) {
-    sysfree(p);
-    return;
-  }
-
   // compatibility with the libc free()
   if (!p)
     return;
+
+  if (!hook_enter()) {
+    sysfree(p);
+    return;
+  }
 
   void *original_ptr = p;
   int result = vremap_resolve(p, OUT &original_ptr);
@@ -160,9 +188,14 @@ void dangless_free(void *p) {
   }
 
   sysfree(original_ptr);
+
+  hook_exit();
 }
 
 void *dangless_realloc(void *p, size_t new_size) {
+  if (!hook_enter())
+    return sysrealloc(p, new_size);
+
   void *original_ptr = p;
   bool was_remapped = false;
 
@@ -179,8 +212,8 @@ void *dangless_realloc(void *p, size_t new_size) {
   }
 
   if (!was_remapped) {
-    // either realloc() was called with NULL, or the original pointer was not remapped, so we get to treat this as a new allocation
-    return do_vremap(sysrealloc(p, new_size), new_size, "realloc");
+    // either realloc() was called with NULL, or the original pointer was not remaped, so we get to treat this as a new allocation
+    HOOK_RETURN(do_vremap(sysrealloc(p, new_size), new_size, "realloc"));
   }
 
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
@@ -188,24 +221,21 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
-    return NULL;
+    HOOK_RETURN(NULL);
 
   if (newp == original_ptr && new_npages == old_npages) {
     // no change in terms of location or in terms of size: nothing to do, just return the original pointer
-    return p;
+    HOOK_RETURN(p);
   }
-
-  if (UNLIKELY(!in_kernel_mode()))
-    return newp;
 
   if (p == newp && new_npages < old_npages) {
     // shrink in-place: only invalidate the pages at the end
     virtual_invalidate(PG_OFFSET(p, new_npages), old_npages - new_npages);
-    return p;
+    HOOK_RETURN(p);
   } else {
     // either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
     virtual_invalidate(p, old_npages);
-    return do_vremap(newp, new_size, "realloc");
+    HOOK_RETURN(do_vremap(newp, new_size, "realloc"));
   }
 }
 
