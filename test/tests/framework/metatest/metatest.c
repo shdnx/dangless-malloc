@@ -20,6 +20,8 @@ TEST_SUITE("Metatest suite") {
 
   TEST("String equality") {
     char *s = "potato";
-    ASSERT_EQUALS(s, "hello");
+    ASSERT_EQUALS_STR(s, "hello");
   }
+
+  fprintf(stderr, "Metatest suite is over!\n");
 }

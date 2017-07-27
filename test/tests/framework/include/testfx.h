@@ -1,11 +1,17 @@
 #ifndef TESTFX_H
 #define TESTFX_H
 
-#include <stdio.h>
-#include <string.h> // strdup
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdio.h> // snprintf
+#include <string.h> // strdup, strcmp
 #include <stdlib.h> // free
 
-#include "common.h"
+#define __DO_CONCAT2(A, B) A##B
+#define CONCAT2(A, B) __DO_CONCAT2(A, B)
+
+#define __DO_CONCAT3(A, B, C) A##B##C
+#define CONCAT3(A, B, C) __DO_CONCAT3(A, B, C)
 
 struct test_suite;
 struct test_case;
@@ -158,13 +164,30 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
     } \
   }
 
-#define _COND_EQ(AV, BV) ((AV) == (BV))
+#define _COND_TRUE(V) (!!(V))
+#define _COND_FALSE(V) (!(V))
+#define _COND_NULL(V) ((V) == NULL)
 #define _COND_NOT_NULL(V) ((V) != NULL)
+
+#define _COND_EQ(AV, BV) ((AV) == (BV))
+#define _COND_EQ_STR(AV, BV) (strcmp((AV), (BV)) == 0)
+
+#define ASSERT_TRUE(A) \
+  _ASSERT1(A, _COND_TRUE, "expected " #A " to be true");
+
+#define ASSERT_FALSE(A) \
+  _ASSERT1(A, _COND_FALSE, "expected " #A " to be false");
+
+#define ASSERT_NULL(A) \
+  _ASSERT1(A, _COND_NULL, "expected " #A " to be null");
+
+#define ASSERT_NOT_NULL(A) \
+  _ASSERT1(A, _COND_NOT_NULL, "expected " #A " to be non-null");
 
 #define ASSERT_EQUALS(A, B) \
   _ASSERT2(A, B, _COND_EQ, "expected " #A " to equal " #B)
 
-#define ASSERT_NOT_NULL(A) \
-  _ASSERT1(A, _COND_NOT_NULL, "expected " #A " to be non-null");
+#define ASSERT_EQUALS_STR(A, B) \
+  _ASSERT2(A, B, _COND_EQ_STR, "expected string " #A " to equal " #B)
 
 #endif

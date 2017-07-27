@@ -1,7 +1,12 @@
 CC = gcc
-CFLAGS = -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG -Iinclude
-LDFLAGS =
-BIN = bin/metatest
+AR = ar
+RANLIB = ranlib
+
+CFLAGS = -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG
+INCLUDES = -Iinclude
+
+BIN = bin/libtestfx.a
+MKCONFIG = bin/testfx.mk
 
 SRCS = $(wildcard src/*.c)
 OBJS = $(patsubst src/%.c,obj/%.o,$(SRCS))
@@ -11,19 +16,28 @@ DEPS = $(OBJS:.o=.d)
 
 all: $(BIN)
 
-bin obj preproc:
+bin obj:
 	mkdir -p $@
 
 obj/%.o: src/%.c obj
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-preproc/%.c: src/%.c preproc
-	$(CC) $(CFLAGS) -E $< -o $@
+$(BIN): $(OBJS) $(MKCONFIG) bin
+	$(AR) rcs $@ $(OBJS)
+	$(RANLIB) $@
 
-$(BIN): $(OBJS) bin
-	$(CC) $(LDFLAGS) $(OBJS) -o $@
+define MKCONFIG_DATA :=
+TESTFX_ROOT := $(CURDIR)
+
+TESTFX_USER_CC = gcc
+TESTFX_USER_CFLAGS = -std=gnu11 -O0 -ggdb -DDEBUG -Wno-unused-parameter -I$$(TESTFX_ROOT)/include
+TESTFX_USER_LDFLAGS = -L$$(TESTFX_ROOT)/bin -ltestfx
+endef
+
+$(MKCONFIG): bin
+	$(file > $@,$(MKCONFIG_DATA))
 
 clean:
 	rm -f $(OBJS)
 	rm -f $(DEPS)
-	rm -f $(BIN)
+	rm -f $(BIN) $(MKCONFIG)
