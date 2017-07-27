@@ -10,6 +10,8 @@
 #include "libdune/dune.h"
 
 int main() {
+  printf("Hello world!\n");
+
   int result = dune_init_and_enter();
   ASSERT(result == 0, "Failed to enter Dune!\n");
 
