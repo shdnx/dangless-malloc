@@ -26,6 +26,8 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   paddr_t pa = dune_va_to_pa(ptr);
   paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
 
+  DPRINTF("inpage_offset = %zu, npages = %zu, pa = 0x%lx, pa_page = 0x%lx\n", inpage_offset, npages, pa, pa_page);
+
 #if VIRTREMAP_DEBUG
   // verify that 'ptr' is backed by contigous physical memory in the expected way (regardless of whether it's mapped with hugepages or not)
   {
@@ -36,7 +38,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
     paddr_t base_pa = base_pa_page + get_page_offset((uintptr_t)ptr, base_level);
     ASSERT(base_pa == pa, "attempted to remap ptr %p that is not mapped predictably: expected PA = 0x%lx, actual PA = 0x%lx (level %u)", ptr, pa, base_pa, base_level);
 
-    size_t npages_per_mapping = pt_num_mapped_pages(base_level);
+    const size_t npages_per_mapping = pt_num_mapped_pages(base_level);
 
     size_t i;
     for (i = npages_per_mapping; i < npages; i += npages_per_mapping) {
@@ -57,6 +59,8 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
     DPRINTF("could not allocate virtual memory region of %zu pages to remap to\n", npages);
     return EVREM_NO_VM;
   }
+
+  DPRINTF("got va to remap to: %p\n", va);
 
 #if VIRTREMAP_DEBUG
   // verify that the allocated virtual memory region is not yet backed by any physical memory

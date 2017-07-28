@@ -116,6 +116,7 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
 
 #define _FMT(V) \
   _Generic((V), \
+    bool: "%d", \
     char: "%c", \
     unsigned char: "%hhu", \
     short: "%hd", \
@@ -127,7 +128,8 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
     unsigned long: "%lu", \
     unsigned long long: "%llu", \
     char *: "\"%s\"", \
-    void *: "%p" \
+    void *: "%p", \
+    void (*)(): "%p" \
   )
 
 #define SPRINTF(...) \
@@ -171,6 +173,8 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
 
 #define _COND_EQ(AV, BV) ((AV) == (BV))
 #define _COND_EQ_STR(AV, BV) (strcmp((AV), (BV)) == 0)
+#define _COND_NEQ(AV, BV) (!_COND_EQ(AV, BV))
+#define _COND_NEQ_STR(AV, BV) (!_COND_EQ_STR(AV, BV))
 
 #define ASSERT_TRUE(A) \
   _ASSERT1(A, _COND_TRUE, "expected " #A " to be true");
@@ -189,5 +193,17 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
 
 #define ASSERT_EQUALS_STR(A, B) \
   _ASSERT2(A, B, _COND_EQ_STR, "expected string " #A " to equal " #B)
+
+#define ASSERT_EQUALS_PTR(A, B) \
+  _ASSERT2((void *)(A), (void *)(B), _COND_EQ, "expected pointer " #A " to equal " #B)
+
+#define ASSERT_NOT_EQUALS(A, B) \
+  _ASSERT2(A, B, _COND_NEQ, "expected " #A " to NOT equal " #B)
+
+#define ASSERT_NOT_EQUALS_STR(A, B) \
+  _ASSERT2(A, B, _COND_NEQ_STR, "expected string " #A " to NOT equal " #B)
+
+#define ASSERT_NOT_EQUALS_PTR(A, B) \
+  _ASSERT2((void *)(A), (void *)(B), _COND_NEQ, "expected pointer " #A " to NOT equal " #B)
 
 #endif

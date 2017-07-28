@@ -56,6 +56,7 @@ always:;
 define MKCONFIG_DATA :=
 PLATFORM ?= $(PLATFORM)
 DANGLESS_BIN := $(realpath $(BIN))
+DANGLESS_INCLUDE_DIR := $(realpath include)
 
 DANGLESS_USER_CFLAGS := -pthread $(PLATFORM_USER_CFLAGS)
 DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -pthread $(PLATFORM_USER_LDFLAGS)

@@ -42,9 +42,15 @@ typedef uint64_t u64;
 #define ROUND_UP(A, N) ((A) + (N) - (A) % (N))
 
 #define dprintf(...) fprintf(stderr, __VA_ARGS__)
+
+void _print_caller_info(const char *file, const char *func, int line);
+
+#define _PRINT_CALLER_INFO() \
+  _print_caller_info(__FILE__, __func__, __LINE__)
+
 #define vdprintf(...) \
   do { \
-    dprintf("[%s:%d] %s: ", __FILE__, __LINE__, __func__); \
+    _PRINT_CALLER_INFO(); \
     dprintf(__VA_ARGS__); \
   } while (0)
 

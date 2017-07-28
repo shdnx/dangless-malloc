@@ -9,7 +9,7 @@
 // dune stuff
 #include "libdune/dune.h"
 
-int main() {
+int main_old() {
   printf("Hello world!\n");
 
   int result = dune_init_and_enter();

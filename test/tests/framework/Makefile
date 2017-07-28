@@ -28,6 +28,8 @@ $(BIN): $(OBJS) $(MKCONFIG) bin
 
 define MKCONFIG_DATA :=
 TESTFX_ROOT := $(CURDIR)
+TESTFX_BIN_DIR := $$(TESTFX_ROOT)/bin
+TESTFX_INCLUDE_DIR := $$(TESTFX_ROOT)/include
 
 TESTFX_USER_CC = gcc
 TESTFX_USER_CFLAGS = -std=gnu11 -O0 -ggdb -DDEBUG -Wno-unused-parameter -I$$(TESTFX_ROOT)/include

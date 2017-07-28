@@ -23,13 +23,6 @@ STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
-// Set to true while the hooks themselves are running and any calls just have to be proxied.
-static __thread bool g_hook_running = false;
-
-bool dangless_hook_running(void) {
-  return g_hook_running;
-}
-
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
 
@@ -67,29 +60,55 @@ static void auto_dedicate_vmem(void) {
   DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
 }
 
-static bool hook_enter(void) {
-  if (g_hook_running || UNLIKELY(!in_kernel_mode()))
-    return false;
+static __thread int g_hook_depth = 0;
 
-  g_hook_running = true;
+bool dangless_hook_running(void) {
+  return g_hook_depth > 0;
+}
+
+static bool do_hook_enter(const char *func_name) {
+  DPRINTF("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
+  if (g_hook_depth > 0) {
+    DPRINTF("failed to enter, already in hook\n");
+    return false;
+  }
+
+  if (UNLIKELY(!in_kernel_mode())) {
+    DPRINTF("failed to enter, not in kernel mode!\n");
+    return false;
+  }
+
+  //if (g_hook_depth > 0 || UNLIKELY(!in_kernel_mode()))
+  //  return false;
+
+  g_hook_depth++;
+
+  DPRINTF("entered hook!\n");
   return true;
 }
 
-static void hook_exit(void) {
-  g_hook_running = false;
+static void do_hook_exit(const char *func_name) {
+  g_hook_depth--;
+
+  DPRINTF("exited hook from %s (new depth: %d)\n", func_name, g_hook_depth);
 }
+
+#define HOOK_ENTER() do_hook_enter(__func__)
+#define HOOK_EXIT() do_hook_exit(__func__)
 
 #define HOOK_RETURN(V) \
   do { \
     __typeof((V)) __hook_result = (V); \
-    hook_exit(); \
+    HOOK_EXIT(); \
     return __hook_result; \
   } while (0)
 
-static void *do_vremap(void *p, size_t sz, char *func_name) {
+static void *do_vremap(void *p, size_t sz, const char *func_name) {
   // "If size is zero, the behavior is implementation defined (null pointer may be returned, or some non-null pointer may be returned that may not be used to access storage, but has to be passed to free)." (http://en.cppreference.com/w/c/memory/malloc)
   if (!p || !sz)
     return NULL;
+
+  DPRINTF("starting to remap %p of size %zu (required by func %s)...\n", p, sz, func_name);
 
   void *remapped_ptr;
   int result = vremap_map(p, sz, OUT &remapped_ptr);
@@ -111,15 +130,25 @@ static void *do_vremap(void *p, size_t sz, char *func_name) {
 
 void *dangless_malloc(size_t size) {
   void *p = sysmalloc(size);
-  if (!hook_enter())
+  if (!HOOK_ENTER())
     return p;
 
   HOOK_RETURN(do_vremap(p, size, "malloc"));
 }
 
 void *dangless_calloc(size_t num, size_t size) {
+  static bool s_first = true;
+
   void *p = syscalloc(num, size);
-  if (!hook_enter())
+
+  if (UNLIKELY(s_first)) {
+    // TODO: ugly hack to solve the special_calloc() issue: notably we don't want to vremap the result fo special_calloc()!
+    DPRINTF("first calloc call, just returning the result of syscalloc_special: %p\n", p);
+    s_first = false;
+    return p;
+  }
+
+  if (!HOOK_ENTER())
     return p;
 
   // TODO: "Due to the alignment requirements, the number of allocated bytes is not necessarily equal to num*size." (http://en.cppreference.com/w/c/memory/calloc)
@@ -128,7 +157,7 @@ void *dangless_calloc(size_t num, size_t size) {
 
 int dangless_posix_memalign(void **pp, size_t align, size_t size) {
   int result = sysmemalign(pp, align, size);
-  if (result != 0 || !hook_enter())
+  if (result != 0 || !HOOK_ENTER())
     return result;
 
   *pp = do_vremap(*pp, size, "posix_memalign");
@@ -170,7 +199,7 @@ void dangless_free(void *p) {
   if (!p)
     return;
 
-  if (!hook_enter()) {
+  if (!HOOK_ENTER()) {
     sysfree(p);
     return;
   }
@@ -189,11 +218,11 @@ void dangless_free(void *p) {
 
   sysfree(original_ptr);
 
-  hook_exit();
+  HOOK_EXIT();
 }
 
 void *dangless_realloc(void *p, size_t new_size) {
-  if (!hook_enter())
+  if (!HOOK_ENTER())
     return sysrealloc(p, new_size);
 
   void *original_ptr = p;
