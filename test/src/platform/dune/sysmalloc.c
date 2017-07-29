@@ -9,7 +9,7 @@
 #include "platform/sysmalloc.h"
 
 #if SYSMALLOC_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define DPRINTF(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define DPRINTF(...) /* empty */
 #endif

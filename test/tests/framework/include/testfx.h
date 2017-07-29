@@ -47,8 +47,21 @@ struct test_suite {
   struct test_suite *next_suite;
 };
 
+struct test_case_result *testcase_result_alloc(void);
+
 void testsuite_register(struct test_suite *tsuite);
-void testcase_run(struct test_suite *tsuite, struct test_case *tcase);
+
+bool testcase_prepare_run(
+  struct test_suite *tsuite,
+  struct test_case *tcase,
+  /*OUT*/ struct test_case_result **presult
+);
+
+void testcase_register_run(
+  struct test_suite *tsuite,
+  struct test_case *tcase,
+  struct test_case_result *result
+);
 
 #define _TEST_SUITE_REGISTER(FNAME) \
   __attribute__((constructor)) \
@@ -100,11 +113,17 @@ void testcase_run(struct test_suite *tsuite, struct test_case *tcase);
 
 #define _TEST_CASE_IMPL(NAME, FNAME) \
   auto _TEST_CASE_DECL(FNAME); \
-  struct test_case _TEST_CASE_VARNAME(FNAME) = { \
-    /*name=*/NAME, \
-    /*func=*/&FNAME \
-  }; \
-  testcase_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME)); \
+  { \
+    struct test_case _TEST_CASE_VARNAME(FNAME) = { \
+      /*name=*/NAME, \
+      /*func=*/&FNAME \
+    }; \
+    struct test_case_result *_result = NULL; \
+    if (testcase_prepare_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), &_result)) { \
+      FNAME(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), _result); \
+      testcase_register_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), _result); \
+    } \
+  } \
   _TEST_CASE_DECL(FNAME)
 
 #define TEST(NAME) \

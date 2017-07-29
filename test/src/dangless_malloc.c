@@ -10,8 +10,10 @@
 
 #if DGLMALLOC_DEBUG
   #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define DPRINTF_NOMALLOC(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define DPRINTF(...) /* empty */
+  #define DPRINTF_NOMALLOC(...) /* empty */
 #endif
 
 enum {
@@ -67,14 +69,14 @@ bool dangless_hook_running(void) {
 }
 
 static bool do_hook_enter(const char *func_name) {
-  //DPRINTF("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
+  //DPRINTF_NOMALLOC("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
 
   if (g_hook_depth > 0 || UNLIKELY(!in_kernel_mode()))
     return false;
 
   g_hook_depth++;
 
-  //DPRINTF("entered hook!\n");
+  //DPRINTF_NOMALLOC("entered hook!\n");
   return true;
 }
 

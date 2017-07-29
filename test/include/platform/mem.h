@@ -11,7 +11,8 @@ typedef uintptr_t vaddr_t;
 #define PGSIZE (1uL << PGSHIFT)
 
 // Format string for pointers. This will cause a bunch of -Wformat warnings, but unfortunately, %016p is not valid.
-#define FMT_PTR "0x%016lx"
+//#define FMT_PTR "0x%016lx"
+#define FMT_PTR "%p"
 
 // Offsets a physical or virtual memory address by a given integer number of pages.
 #define PG_OFFSET(BASE, NPAGES) \

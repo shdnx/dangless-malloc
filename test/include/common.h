@@ -1,16 +1,14 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define DANGLESS_USE_NOMALLOC_PRINTF 1
-
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h> // for stderr, fprintf()
 #include <signal.h> // for use by ASSERT()
 
-#if DANGLESS_USE_NOMALLOC_PRINTF
-  #include "nomalloc_printf.h"
-#endif
+// libc's printf() et al MAY allocate memory using malloc() et al. In practice, printing only to stderr using glibc this doesn't seem to ever happen, but I want to be sure.
+// Even if such a call would result in an allocation, we're fine so long as the call occurs during a hook execution AFTER a HOOK_ENTER() call is successful. For all printing and logging purposes, code that may run before or during HOOK_ENTER() MUST use the functions from printf_nomalloc.h.
+#include "printf_nomalloc.h"
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -47,25 +45,32 @@ typedef uint64_t u64;
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
 #define ROUND_UP(A, N) ((A) + (N) - (A) % (N))
 
-//#define dprintf(...) fprintf(stderr, __VA_ARGS__)
-#define dprintf(...) nomalloc_fprintf(stderr, __VA_ARGS__)
+#define dprintf(...) fprintf(stderr, __VA_ARGS__)
+#define dprintf_nomalloc(...) fprintf_nomalloc(stderr, __VA_ARGS__)
 
 void _print_caller_info(const char *file, const char *func, int line);
+void _print_caller_info_nomalloc(const char *file, const char *func, int line);
 
-#define _PRINT_CALLER_INFO() \
-  _print_caller_info(__FILE__, __func__, __LINE__)
+#define _CALLER_INFO_ARGS \
+  __FILE__, __func__, __LINE__
 
 #define vdprintf(...) \
   do { \
-    _PRINT_CALLER_INFO(); \
+    _print_caller_info(_CALLER_INFO_ARGS); \
     dprintf(__VA_ARGS__); \
+  } while (0)
+
+#define vdprintf_nomalloc(...) \
+  do { \
+    _print_caller_info_nomalloc(_CALLER_INFO_ARGS); \
+    dprintf_nomalloc(__VA_ARGS__); \
   } while (0)
 
 #define ASSERT(COND, ...) \
   do { \
     if (!(COND)) { \
-      vdprintf("Assertion failed: %s\n", #COND); \
-      dprintf(__VA_ARGS__); \
+      vdprintf_nomalloc("Assertion failed: %s\n", #COND); \
+      dprintf_nomalloc(__VA_ARGS__); \
       raise(SIGINT); \
     } \
   } while (0)
@@ -75,8 +80,8 @@ void _print_caller_info(const char *file, const char *func, int line);
 
 #define UNREACHABLE(...) \
   do { \
-    dprintf("Unreachable reached in %s at %s:%d: ", __func__, __FILE__, __LINE__); \
-    dprintf(__VA_ARGS__); \
+    dprintf_nomalloc("Unreachable reached in %s at %s:%d: ", __func__, __FILE__, __LINE__); \
+    dprintf_nomalloc(__VA_ARGS__); \
     __builtin_unreachable(); \
   } while (0)
 

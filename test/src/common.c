@@ -12,3 +12,8 @@ void _print_caller_info(const char *file, const char *func, int line) {
   pid_t thread_id = syscall(SYS_gettid);
   dprintf("[%s:%d]{T %d} %s: ", file, line, thread_id, func);
 }
+
+void _print_caller_info_nomalloc(const char *file, const char *func, int line) {
+  pid_t thread_id = syscall(SYS_gettid);
+  dprintf_nomalloc("[%s:%d]{T %d} %s: ", file, line, thread_id, func);
+}

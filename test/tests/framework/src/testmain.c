@@ -10,6 +10,8 @@ static size_t g_num_testcases_failed = 0;
 
 static struct test_suite *g_testsuites = NULL;
 
+#define LOG(...) fprintf(stderr, __VA_ARGS__)
+
 void testsuite_register(struct test_suite *suite) {
   if (!g_testsuites) {
     g_testsuites = suite;
@@ -18,6 +20,7 @@ void testsuite_register(struct test_suite *suite) {
     g_testsuites = suite;
   }
 
+  LOG("Registered test suite: %s\n", suite->name);
   g_num_testsuites++;
 }
 
@@ -28,48 +31,64 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
 }
 
 static void testsuite_run(struct test_suite *tsuite) {
-  fprintf(stderr, "Running suite: \"%s\"\n", tsuite->name);
+  LOG("Running suite: \"%s\"\n", tsuite->name);
 
   tsuite->func(tsuite);
 }
 
-void testcase_run(struct test_suite *tsuite, struct test_case *tcase) {
-  tsuite->num_cases++;
-
-  // TODO: check if test case should be run (filtering)
-
-  g_num_testcases_total++;
-  tsuite->num_case_results++;
-
-  fprintf(stderr, "\t%s... ", tcase->name);
-
-  // prepare the result
+struct test_case_result *testcase_result_alloc(void) {
   struct test_case_result *result = malloc(sizeof(struct test_case_result));
-  result->case_name = tcase->name;
+  result->case_name = NULL;
   result->pass = true;
   result->message = NULL;
   result->line = 0;
   result->next_result = NULL;
+  return result;
+}
 
-  // run the test case
-  tcase->func(tsuite, tcase, result);
+bool testcase_prepare_run(struct test_suite *tsuite, struct test_case *tcase, /*OUT*/ struct test_case_result **presult) {
+  LOG("Running testcase: \"%s\"\n", tcase->name);
 
-  // record the result
+  tsuite->num_cases++;
+
+  // TODO: check if test case should be run (filtering) - return false if it shouldn't
+
+  g_num_testcases_total++;
+  tsuite->num_case_results++;
+
+  //LOG("\t%s... ", tcase->name);
+
+  // prepare the result
+  struct test_case_result *result = testcase_result_alloc();
+  result->case_name = tcase->name;
+
+  /*OUT*/ *presult = result;
+  return true;
+}
+
+static void testsuite_register_result(struct test_suite *tsuite, struct test_case_result *result) {
   if (tsuite->case_results) {
     result->next_result = tsuite->case_results;
     tsuite->case_results = result;
   } else {
     tsuite->case_results = result;
   }
+}
+
+void testcase_register_run(struct test_suite *tsuite, struct test_case *tcase, struct test_case_result *result) {
+  // record the result
+  testsuite_register_result(tsuite, result);
 
   // summary
   if (result->pass) {
-    fprintf(stderr, "pass\n");
+    //LOG("pass\n");
+    LOG("Test case %s passed!\n", tcase->name);
   } else {
     g_num_testcases_failed++;
     tsuite->num_failed_cases++;
 
-    fprintf(stderr, "FAIL\n");
+    //LOG("FAIL\n");
+    LOG("Test case %s failed!\n", tcase->name);
   }
 }
 
@@ -80,23 +99,25 @@ int main(int argc, const char **argv) {
     testsuite_run(ts);
   }
 
-  // TODO: verbose
-  fprintf(stderr, "\nFailure details:\n");
+  if (g_num_testcases_failed > 0) {
+    // TODO: only in verbose
+    fprintf(stderr, "\nFailure details:\n");
 
-  for (ts = g_testsuites; ts != NULL; ts = ts->next_suite) {
-    if (ts->num_failed_cases == 0)
-      continue;
-
-    fprintf(stderr, "\nTest suite \"%s\" (%zu failures out of %zu):\n", ts->name, ts->num_failed_cases, ts->num_case_results);
-
-    struct test_case_result *tcr;
-    for (tcr = ts->case_results;
-         tcr != NULL;
-         tcr = tcr->next_result) {
-      if (tcr->pass)
+    for (ts = g_testsuites; ts != NULL; ts = ts->next_suite) {
+      if (ts->num_failed_cases == 0)
         continue;
 
-      fprintf(stderr, " - In \"%s\" at %s:%d: %s\n", tcr->case_name, ts->file, tcr->line, tcr->message);
+      fprintf(stderr, "\nTest suite \"%s\" (%zu failures out of %zu):\n", ts->name, ts->num_failed_cases, ts->num_case_results);
+
+      struct test_case_result *tcr;
+      for (tcr = ts->case_results;
+           tcr != NULL;
+           tcr = tcr->next_result) {
+        if (tcr->pass)
+          continue;
+
+        fprintf(stderr, " - In \"%s\" at %s:%d: %s\n", tcr->case_name, ts->file, tcr->line, tcr->message);
+      }
     }
   }
 
