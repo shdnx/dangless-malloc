@@ -1,10 +1,16 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define DANGLESS_USE_NOMALLOC_PRINTF 1
+
 #include <stdint.h>
 #include <stdbool.h>
-#include <stdio.h> // for dprintf(), etc.
-#include <signal.h> // for ASSERT()
+#include <stdio.h> // for stderr, fprintf()
+#include <signal.h> // for use by ASSERT()
+
+#if DANGLESS_USE_NOMALLOC_PRINTF
+  #include "nomalloc_printf.h"
+#endif
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -41,7 +47,8 @@ typedef uint64_t u64;
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
 #define ROUND_UP(A, N) ((A) + (N) - (A) % (N))
 
-#define dprintf(...) fprintf(stderr, __VA_ARGS__)
+//#define dprintf(...) fprintf(stderr, __VA_ARGS__)
+#define dprintf(...) nomalloc_fprintf(stderr, __VA_ARGS__)
 
 void _print_caller_info(const char *file, const char *func, int line);
 

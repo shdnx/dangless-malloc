@@ -18,9 +18,12 @@
   })
 
 TEST_SUITE("Dune basics") {
+  return;
+
+  // TODO: testfx should provide something like LOG(), whose output is only shown in verbose mode
   fprintf(stderr, "Entering Dune...\n");
 
-  if (!dune_init_and_enter()) {
+  if (dune_init_and_enter() != 0) {
     // TODO: a more elegant solution to this
     fprintf(stderr, "Failed to enter Dune mode!\n");
     abort();
@@ -32,7 +35,7 @@ TEST_SUITE("Dune basics") {
     ASSERT_TRUE(in_kernel_mode());
   }
 
-  TEST("Symbol override") {
+  /*TEST("Symbol override") {
     ASSERT_EQUALS_PTR(&malloc, &dangless_malloc);
     ASSERT_EQUALS_PTR(&calloc, &dangless_calloc);
     ASSERT_EQUALS_PTR(&free, &dangless_free);
@@ -62,5 +65,5 @@ TEST_SUITE("Dune basics") {
     ASSERT_EQUALS(pa1, pa2);
 
     free(p2);
-  }
+  }*/
 }

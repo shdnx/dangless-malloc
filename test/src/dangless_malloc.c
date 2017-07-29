@@ -60,37 +60,30 @@ static void auto_dedicate_vmem(void) {
   DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
 }
 
-static __thread int g_hook_depth = 0;
+static __thread unsigned g_hook_depth = 0;
 
 bool dangless_hook_running(void) {
   return g_hook_depth > 0;
 }
 
 static bool do_hook_enter(const char *func_name) {
-  DPRINTF("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
-  if (g_hook_depth > 0) {
-    DPRINTF("failed to enter, already in hook\n");
-    return false;
-  }
+  //DPRINTF("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
 
-  if (UNLIKELY(!in_kernel_mode())) {
-    DPRINTF("failed to enter, not in kernel mode!\n");
+  if (g_hook_depth > 0 || UNLIKELY(!in_kernel_mode()))
     return false;
-  }
-
-  //if (g_hook_depth > 0 || UNLIKELY(!in_kernel_mode()))
-  //  return false;
 
   g_hook_depth++;
 
-  DPRINTF("entered hook!\n");
+  //DPRINTF("entered hook!\n");
   return true;
 }
 
 static void do_hook_exit(const char *func_name) {
+  ASSERT(g_hook_depth > 0, "Unbalanced HOOK_ENTER/HOOK_EXIT?!");
+
   g_hook_depth--;
 
-  DPRINTF("exited hook from %s (new depth: %d)\n", func_name, g_hook_depth);
+  //DPRINTF("exited hook from %s (new depth: %d)\n", func_name, g_hook_depth);
 }
 
 #define HOOK_ENTER() do_hook_enter(__func__)
@@ -107,8 +100,6 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
   // "If size is zero, the behavior is implementation defined (null pointer may be returned, or some non-null pointer may be returned that may not be used to access storage, but has to be passed to free)." (http://en.cppreference.com/w/c/memory/malloc)
   if (!p || !sz)
     return NULL;
-
-  DPRINTF("starting to remap %p of size %zu (required by func %s)...\n", p, sz, func_name);
 
   void *remapped_ptr;
   int result = vremap_map(p, sz, OUT &remapped_ptr);
@@ -137,17 +128,7 @@ void *dangless_malloc(size_t size) {
 }
 
 void *dangless_calloc(size_t num, size_t size) {
-  static bool s_first = true;
-
   void *p = syscalloc(num, size);
-
-  if (UNLIKELY(s_first)) {
-    // TODO: ugly hack to solve the special_calloc() issue: notably we don't want to vremap the result fo special_calloc()!
-    DPRINTF("first calloc call, just returning the result of syscalloc_special: %p\n", p);
-    s_first = false;
-    return p;
-  }
-
   if (!HOOK_ENTER())
     return p;
 
