@@ -6,29 +6,33 @@
 #include "dunetest.h"
 
 TEST_SUITE("Dune basics") {
+  // enter Dune, etc.
   dunetest_init();
 
+  // reset the virtual page allocator
+  vp_reset();
+
   TEST("free(NULL)") {
-    free(NULL);
+    dangless_free(NULL);
   }
 
   TEST("Simple malloc-free") {
     // this is basically TMALLOC(), used later
-    void *p = malloc(sizeof(void *));
+    void *p = dangless_malloc(sizeof(void *));
     ASSERT_VALID_ALLOC(p, sizeof(void *));
 
     paddr_t pa = pt_resolve(p);
     ASSERT_NOT_EQUALS(pa, 0);
 
     ASSERT_NOT_EQUALS((uintptr_t)p, (uintptr_t)pa);
-    free(p);
+    dangless_free(p);
   }
 
   TEST("Simple no va-reuse") {
     void *p1 = TMALLOC(void *);
     paddr_t pa1 = pt_resolve(p1);
 
-    free(p1);
+    TFREE(p1);
 
     void *p2 = TMALLOC(void *);
     paddr_t pa2 = pt_resolve(p2);
@@ -36,21 +40,21 @@ TEST_SUITE("Dune basics") {
     ASSERT_NOT_EQUALS(p1, p2);
     ASSERT_EQUALS(pa1, pa2);
 
-    free(p2);
+    TFREE(p2);
   }
 
   TEST("Simple calloc-free") {
     void *p = TCALLOC(64, void *);
-    free(p);
+    TFREE(p);
   }
 
   TEST("Page allocation") {
     void *p = TMALLOC(char[PGSIZE]);
-    free(p);
+    TFREE(p);
   }
 
   TEST("Many small allocations") {
-    const size_t N = 10000;
+    const size_t N = 1000;
 
     size_t i;
     void *prev = NULL;
@@ -64,7 +68,7 @@ TEST_SUITE("Dune basics") {
     void *curr, *next;
     for (curr = prev; curr; curr = next) {
       next = *(void **)curr;
-      free(curr);
+      TFREE(curr);
     }
   }
 }

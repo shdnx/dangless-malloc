@@ -1,7 +1,6 @@
 General:
- - anything else in dangless_malloc.c that needs to be made thread-safe? e.g. access to pagetables?
+ - garbage collector
  - memalign(), valloc()
- - span merging in the virtual page allocator
 
 Test framework:
  - strong override fprintf() and printf(): only print test output if verbose mode is on
@@ -9,6 +8,7 @@ Test framework:
 
 Optimisations:
  - virtual page allocator: have thread-local regions, e.g. split them up per PML4 entry or so
+    is it worth optimising for using as little virtual memory as possible, so that we don't need that many page tables, and maybe it's better for the TLB as well?
  - pt_map_page(): similarly to the virtual page allocator, have a separate mutex for each e.g. PML4 entry, to let unrelated (re)mappings proceed in parallel
  - for big enough remappings, we could use hugepages
  - replace mutexes with spinlocks at most places

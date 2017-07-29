@@ -32,7 +32,9 @@ static inline bool span_empty(struct vp_span *span) {
 // TODO: buckets, initially just have 3: 1-page, 2-page (because of the offset thing) and larger
 
 struct vp_freelist {
+  // Singly-linked list of vp_span objects, ordered by span->end in ascending order.
   LIST_HEAD(, vp_span) items;
+
   pthread_mutex_t mutex;
 
   // only used if VMALLOC_STATS == 1
@@ -82,6 +84,22 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   return (void *)va;
 }
 
+static struct vp_span *try_merge_spans(struct vp_span *left, struct vp_span *right) {
+  ASSERT0(left->end <= right->start);
+
+  if (left->end != right->start)
+    return NULL;
+
+  DPRINTF("merging span %p (%p - %p) with span %p (%p - %p)\n", left, (void *)left->start, (void *)left->end, right, (void *)right->start, (void *)right->end);
+
+  // merge 'right' into 'left'
+  left->end = right->end;
+  LIST_REMOVE(right, freelist);
+  FREE(right);
+
+  return left;
+}
+
 static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
   ASSERT0((vaddr_t)p % PGSIZE == 0);
   ASSERT0(npages > 0);
@@ -89,26 +107,83 @@ static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
   vaddr_t start = (vaddr_t)p;
   vaddr_t end = PG_OFFSET(start, npages);
 
-  // TODO: try merging with other free spans
+  pthread_mutex_lock(&list->mutex);
 
+  // find the two spans between which the new span would go
+  struct vp_span *prev_span = NULL, *next_span;
+  LIST_FOREACH(next_span, &list->items, freelist) {
+    if (next_span->start >= end)
+      break;
+
+    prev_span = next_span;
+  }
+
+  // try merging with prev_span
+  if (prev_span != NULL && prev_span->end == start) {
+    DPRINTF("merging freed range %p - %p into prev span %p (%p - %p)\n", (void *)start, (void *)end, prev_span, (void *)prev_span->start, (void *)prev_span->end);
+
+    prev_span->end = end;
+
+    // try merging prev_span with next_span
+    if (next_span != LIST_END(&list->items))
+      try_merge_spans(prev_span, next_span);
+
+    pthread_mutex_unlock(&list->mutex);
+    return 0;
+  }
+
+  // try merging with next_span
+  if (next_span != LIST_END(&list->items) && next_span->start == end) {
+    DPRINTF("merging freed range %p - %p into next span %p (%p - %p)\n", (void *)start, (void *)end, next_span, (void *)next_span->start, (void *)next_span->end);
+
+    next_span->start = start;
+
+    // try merging prev_span with next_span
+    if (prev_span)
+      try_merge_spans(prev_span, next_span);
+
+    pthread_mutex_unlock(&list->mutex);
+    return 0;
+  }
+
+  // failed to merge into existing spans, so we'll have to create a new span
   struct vp_span *span = MALLOC(struct vp_span);
   if (UNLIKELY(!span)) {
     DPRINTF("could not allocate vp_span: out of memory?\n");
+    pthread_mutex_unlock(&list->mutex);
     return -1;
   }
 
   span->start = start;
   span->end = end;
 
-  DPRINTF("new span %p: 0x%lx - 0x%lx (%zu pages)\n", span, span->start, span->end, span_num_pages(span));
+  DPRINTF("new span %p: %p - %p (%zu pages)\n", span, (void *)span->start, (void *)span->end, span_num_pages(span));
 
-  pthread_mutex_lock(&list->mutex);
-
-  // insert the new span to the head of the freelist: we want to re-use previously used locations as soon as possible, since we won't need to allocate new page tables
-  LIST_INSERT_HEAD(&list->items, span, freelist);
+  // insert the new span
+  if (prev_span) {
+    LIST_INSERT_AFTER(prev_span, span, freelist);
+  } else if (next_span != LIST_END(&list->items)) {
+    LIST_INSERT_BEFORE(next_span, span, freelist);
+  } else {
+    LIST_INSERT_HEAD(&list->items, span, freelist);
+  }
 
   pthread_mutex_unlock(&list->mutex);
   return 0;
+}
+
+static void freelist_reset(struct vp_freelist *list) {
+  pthread_mutex_lock(&list->mutex);
+
+  struct vp_span *span, *tmp;
+  LIST_FOREACH_SAFE(span, &list->items, freelist, tmp) {
+    LIST_REMOVE(span, freelist);
+    FREE(span);
+  }
+
+  list->nallocs = 0;
+
+  pthread_mutex_unlock(&list->mutex);
 }
 
 void *vp_alloc(size_t npages) {
@@ -117,4 +192,8 @@ void *vp_alloc(size_t npages) {
 
 int vp_free(void *p, size_t npages) {
   return freelist_free(&g_freelist_main, p, npages);
+}
+
+void vp_reset(void) {
+  freelist_reset(&g_freelist_main);
 }

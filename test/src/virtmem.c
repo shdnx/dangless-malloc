@@ -90,7 +90,7 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
 
-  ASSERT(!FLAG_ISSET(*ppte, PTE_V), "Attempted to replace a hugepage mapping for VA %p at %p (PTE: 0x%lx) with a 4K page mapping to %p!", (void *)va, *ppte, (void *)pa);
+  ASSERT(!FLAG_ISSET(*ppte, PTE_V), "Attempted to replace a hugepage mapping for VA %p at %p (PTE: 0x%lx) with a 4K page mapping to %p!", (void *)va, ppte, *ppte, (void *)pa);
 
 #define CREATE_LEVEL(LVL) \
     ptpa = pp_zalloc_one(); \

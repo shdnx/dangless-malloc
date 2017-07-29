@@ -11,6 +11,7 @@ RANLIB = $(RUMPRUN_BIN_DIR)/x86_64-rumprun-netbsd-ranlib
 
 # stuff used by the main Makefile
 PLATFORM_INCLUDES = -I$(RUMPRUN_ROOT)/include -I$(RUMPRUN_ROOT)/src-netbsd/sys
+PLATOFORM_DEFINES =
 PLATFORM_CFLAGS =
 
 PLATFORM_USER_CFLAGS =

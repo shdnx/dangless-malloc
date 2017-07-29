@@ -24,16 +24,18 @@ void dunetest_init(void);
 
 #define TMALLOC(TYPE) \
   ({ \
-    void *tmalloc_ptr = malloc(sizeof(TYPE)); \
+    void *tmalloc_ptr = dangless_malloc(sizeof(TYPE)); \
     ASSERT_VALID_ALLOC(tmalloc_ptr, sizeof(TYPE)); \
     tmalloc_ptr; \
   })
 
 #define TCALLOC(NUM, TYPE) \
  ({ \
-    void *tcalloc_ptr = calloc((NUM), sizeof(TYPE)); \
+    void *tcalloc_ptr = dangless_calloc((NUM), sizeof(TYPE)); \
     ASSERT_VALID_ALLOC(tcalloc_ptr, (NUM) * sizeof(TYPE)); \
     tcalloc_ptr; \
  })
+
+#define TFREE(PTR) dangless_free((PTR))
 
 #endif

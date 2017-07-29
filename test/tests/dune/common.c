@@ -10,9 +10,9 @@ TEST_SUITE("Dune common") {
     ASSERT_TRUE(in_kernel_mode());
   }
 
-  TEST("Symbol override") {
-    ASSERT_EQUALS_PTR(&malloc, &dangless_malloc);
-    ASSERT_EQUALS_PTR(&calloc, &dangless_calloc);
-    ASSERT_EQUALS_PTR(&free, &dangless_free);
+  TEST("Symbol override inactive") {
+    ASSERT_NOT_EQUALS_PTR(&malloc, &dangless_malloc);
+    ASSERT_NOT_EQUALS_PTR(&calloc, &dangless_calloc);
+    ASSERT_NOT_EQUALS_PTR(&free, &dangless_free);
   }
 }
