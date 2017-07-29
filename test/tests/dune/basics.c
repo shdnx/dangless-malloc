@@ -1,47 +1,21 @@
-#include <stdlib.h>
-
 // TODO: dangless prefix
 // TODO: also create a header file for distribution, that doesn't expose e.g. common.h
 #include "virtmem.h"
 #include "dangless_malloc.h"
-#include "platform/sysmalloc.h"
 
-#include "testfx.h"
-
-#include "libdune/dune.h"
-
-#define TMALLOC(TYPE) \
-  ({ \
-    void *tmalloc_ptr = malloc(sizeof(TYPE)); \
-    ASSERT_NOT_NULL(tmalloc_ptr); \
-    tmalloc_ptr; \
-  })
+#include "dunetest.h"
 
 TEST_SUITE("Dune basics") {
-  // TODO: testfx should provide something like LOG(), whose output is only shown in verbose mode
-  fprintf(stderr, "Entering Dune...\n");
+  dunetest_init();
 
-  if (dune_init_and_enter() != 0) {
-    // TODO: a more elegant solution to this
-    fprintf(stderr, "Failed to enter Dune mode!\n");
-    abort();
-  }
-
-  fprintf(stderr, "Now in Dune, starting test suite...\n");
-
-  TEST("Dune is in kernel mode") {
-    ASSERT_TRUE(in_kernel_mode());
-  }
-
-  TEST("Symbol override") {
-    ASSERT_EQUALS_PTR(&malloc, &dangless_malloc);
-    ASSERT_EQUALS_PTR(&calloc, &dangless_calloc);
-    ASSERT_EQUALS_PTR(&free, &dangless_free);
+  TEST("free(NULL)") {
+    free(NULL);
   }
 
   TEST("Simple malloc-free") {
+    // this is basically TMALLOC(), used later
     void *p = malloc(sizeof(void *));
-    ASSERT_NOT_NULL(p);
+    ASSERT_VALID_ALLOC(p, sizeof(void *));
 
     paddr_t pa = pt_resolve(p);
     ASSERT_NOT_EQUALS(pa, 0);
@@ -63,5 +37,34 @@ TEST_SUITE("Dune basics") {
     ASSERT_EQUALS(pa1, pa2);
 
     free(p2);
+  }
+
+  TEST("Simple calloc-free") {
+    void *p = TCALLOC(64, void *);
+    free(p);
+  }
+
+  TEST("Page allocation") {
+    void *p = TMALLOC(char[PGSIZE]);
+    free(p);
+  }
+
+  TEST("Many small allocations") {
+    const size_t N = 10000;
+
+    size_t i;
+    void *prev = NULL;
+    for (i = 0; i < N; i++) {
+      void **p = TMALLOC(void **);
+      *p = prev;
+
+      prev = p;
+    }
+
+    void *curr, *next;
+    for (curr = prev; curr; curr = next) {
+      next = *(void **)curr;
+      free(curr);
+    }
   }
 }
