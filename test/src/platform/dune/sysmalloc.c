@@ -21,7 +21,8 @@ static void*(*addr_sysrealloc)(void *, size_t) = NULL;
 static int(*addr_sysmemalign)(void **, size_t, size_t) = NULL;
 static void(*addr_sysfree)(void *) = NULL;
 
-static void populate_addrs() {
+// This function will only run once, during the first allocation. Since that will happen well before main(), there's no need for any syncronization around here.
+static void populate_addrs(void) {
   ASSERT(!g_populating, "Recursive populate_addrs() call!");
 
   g_populating = true;
@@ -73,8 +74,8 @@ static void *syscalloc_special(size_t num, size_t size) {
 }
 
 void *syscalloc(size_t num, size_t size) {
-  if (!addr_syscalloc) {
-    if (UNLIKELY(g_populating)) {
+  if (UNLIKELY(!addr_syscalloc)) {
+    if (g_populating) {
       // This is only possible when dlsym() was called for the first time, i.e. upon the very first allocation: it calls calloc(). We obviously cannot call populate_addrs(), because that'd cause an infinite recursion. This calloc() has to be implemented manually.
       // Since the first memory allocation happens well before main(), we don't have to bother with multi-threading here (thank god for that, it'd be awkward).
       // Sources:
@@ -94,21 +95,21 @@ void *syscalloc(size_t num, size_t size) {
 }
 
 void *sysrealloc(void *p, size_t sz) {
-  if (!addr_sysrealloc)
+  if (UNLIKELY(!addr_sysrealloc))
     populate_addrs();
 
   return addr_sysrealloc(p, sz);
 }
 
 int sysmemalign(void **pp, size_t align, size_t sz) {
-  if (!addr_sysmemalign)
+  if (UNLIKELY(!addr_sysmemalign))
     populate_addrs();
 
   return addr_sysmemalign(pp, align, sz);
 }
 
 void sysfree(void *p) {
-  if (!addr_sysfree)
+  if (UNLIKELY(!addr_sysfree))
     populate_addrs();
 
   return addr_sysfree(p);

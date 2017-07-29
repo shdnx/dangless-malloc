@@ -42,7 +42,7 @@ struct vp_freelist {
 #define VP_FREELIST_INIT(PTR) { \
     LIST_HEAD_INITIALIZER(&(PTR)->items), \
     PTHREAD_MUTEX_INITIALIZER, \
-    0 \
+    /*nallocs=*/0 \
   }
 
 static struct vp_freelist g_freelist_main = VP_FREELIST_INIT(&vp_freelist_main);

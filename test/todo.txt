@@ -7,6 +7,14 @@ Test framework:
  - strong override fprintf() and printf(): only print test output if verbose mode is on
  - auto-indentation of output?
 
+Optimisations:
+ - virtual page allocator: have thread-local regions, e.g. split them up per PML4 entry or so
+ - pt_map_page(): similarly to the virtual page allocator, have a separate mutex for each e.g. PML4 entry, to let unrelated (re)mappings proceed in parallel
+ - for big enough remappings, we could use hugepages
+ - replace mutexes with spinlocks at most places
+
+------------------------------------------------
+
 Rumprun:
  - fix the problem that rumprun also strong_alias-es malloc et al
  - refactor/unite the platform-specific virtual_remap.c files, or at least inherit the enchancements from the Dune version
@@ -15,7 +23,6 @@ Rumprun:
 
 Low-priority general:
  - for huge allocations (that are >= 2 MB), we could use hugepages
- - create regression test framework
  - design the garbage collector
  - aligned_alloc()? rumprun doesn't implement it
 

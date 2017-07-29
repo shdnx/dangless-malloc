@@ -1,5 +1,4 @@
-#include <stdio.h>
-#include <assert.h>
+#include <pthread.h>
 
 #include "common.h"
 #include "virtmem.h"
@@ -11,6 +10,8 @@
 #else
   #define DPRINTF(...) /* empty */
 #endif
+
+static pthread_mutex_t g_pt_mapping_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result_ppte) {
   vaddr_t va = (vaddr_t)p;
@@ -53,12 +54,12 @@ paddr_t pt_resolve_page(void *p, OUT enum pt_level *page_level) {
     return (*ppte & PTE_FRAME_4K);
 
   case PT_2M:
-    assert(FLAG_ISSET(*ppte, PTE_PS));
+    ASSERT0(FLAG_ISSET(*ppte, PTE_PS));
     return (*ppte & PTE_FRAME_2M);
 
   // TODO: does this make sense?
   case PT_1G:
-    assert(FLAG_ISSET(*ppte, PTE_PS));
+    ASSERT0(FLAG_ISSET(*ppte, PTE_PS));
     return (*ppte & PTE_FRAME_1G);
 
   default:
@@ -76,19 +77,26 @@ paddr_t pt_resolve(void *p) {
 }
 
 int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
-  assert(pa % PGSIZE == 0);
-  assert(va % PGSIZE == 0);
+  ASSERT0(pa % PGSIZE == 0);
+  ASSERT0(va % PGSIZE == 0);
+
+  // NOTE: ideally, we would do some more fine-grained locking that would allow unrelated mappings to happen in parallel
+  // this would be especially important with having thread-local virtual memory regions dedicated to threads that they can use for remapping
+  // for instance, each PML4 entry could have its own mutex
+  // actually, a spinlock would probably work better
+  pthread_mutex_lock(&g_pt_mapping_mutex);
 
   paddr_t ptpa;
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
 
+  ASSERT(!FLAG_ISSET(*ppte, PTE_V), "Attempted to replace a hugepage mapping for VA %p at %p (PTE: 0x%lx) with a 4K page mapping to %p!", (void *)va, *ppte, (void *)pa);
+
 #define CREATE_LEVEL(LVL) \
     ptpa = pp_zalloc_one(); \
     if (!ptpa) { \
-      DPRINTF("failed to allocate pagetable page"); \
-      /* TODO: clean-up */ \
-      return -1; \
+      DPRINTF("failed to allocate pagetable page!\n"); \
+      goto fail_cleanup; \
     } \
     *ppte = (pte_t)ptpa | flags | PTE_V; \
     ppte = &((pte_t *)pt_paddr2vaddr(ptpa))[pt_level_offset(va, LVL)]
@@ -102,13 +110,20 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
 #undef CREATE_LEVEL
 
   *ppte = pa | flags | PTE_V;
+
+  pthread_mutex_unlock(&g_pt_mapping_mutex);
   return 0;
+
+fail_cleanup:
+  // TODO: clean-up
+  pthread_mutex_unlock(&g_pt_mapping_mutex);
+  return -1;
 }
 
 int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
-  assert(pa % PGSIZE == 0);
-  assert(va % PGSIZE == 0);
-  assert(size % PGSIZE == 0);
+  ASSERT0(pa % PGSIZE == 0);
+  ASSERT0(va % PGSIZE == 0);
+  ASSERT0(size % PGSIZE == 0);
 
   // TODO: can use huge-page mapping transparently here if pa, va and size are all multiplies of 2 MB
 
@@ -129,7 +144,8 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
 fail_unmap:
   max_offset = offset;
   for (offset = 0; offset < max_offset; offset += PGSIZE) {
-    assert(pt_unmap_page(va + offset, PT_4K) == 0);
+    // an error may occur here, but we can't do anything about that, so we'll just ignore it
+    pt_unmap_page(va + offset, PT_4K);
   }
 
   return -1;
