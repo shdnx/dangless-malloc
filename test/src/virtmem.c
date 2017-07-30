@@ -109,6 +109,11 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
 
 #undef CREATE_LEVEL
 
+  // flush the TLB entry if we're overwriting an entry
+  if (FLAG_ISSET(*ppte, PTE_V)) {
+    tlb_flush_one((void *)va);
+  }
+
   *ppte = pa | flags | PTE_V;
 
   pthread_mutex_unlock(&g_pt_mapping_mutex);

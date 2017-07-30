@@ -228,27 +228,39 @@ void *dangless_realloc(void *p, size_t new_size) {
     HOOK_RETURN(do_vremap(sysrealloc(p, new_size), new_size, "realloc"));
   }
 
+  // TODO: this is imprecise, there's also the malloc header to consider!
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
   const size_t old_npages = sysmalloc_usable_pages(p);
+  DPRINTF("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
     HOOK_RETURN(NULL);
 
-  if (newp == original_ptr && new_npages == old_npages) {
-    // no change in terms of location or in terms of size: nothing to do, just return the original pointer
-    HOOK_RETURN(p);
+  if (newp == original_ptr) {
+    // we can potentially do it in-place
+
+#if DGLMALLOC_DEBUG
+    // verify that the physical page also didn't change
+    paddr_t old_pa_page = pt_resolve_page(original_ptr, NULL);
+    paddr_t new_pa_page = pt_resolve_page(newp, NULL);
+    ASSERT(old_pa_page == new_pa_page, "sysrealloc() performed virtual reallocation in-place, but not the physical reallocation! original_ptr = newp = %p, but old_pa = %p != new_pa = %p", newp, (void *)old_pa_page, (void *)new_pa_page);
+#endif
+
+    if (new_npages == old_npages) {
+      // no change in terms of location or in terms of size: nothing to do, just return the original pointer
+      HOOK_RETURN(p);
+    } else if (new_npages < old_npages) {
+      // shrink in-place: only invalidate the pages at the end
+      virtual_invalidate(PG_OFFSET(p, new_npages), old_npages - new_npages);
+      HOOK_RETURN(p);
+    }
   }
 
-  if (p == newp && new_npages < old_npages) {
-    // shrink in-place: only invalidate the pages at the end
-    virtual_invalidate(PG_OFFSET(p, new_npages), old_npages - new_npages);
-    HOOK_RETURN(p);
-  } else {
-    // either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
-    virtual_invalidate(p, old_npages);
-    HOOK_RETURN(do_vremap(newp, new_size, "realloc"));
-  }
+  // there's no in-place reallocation possible: either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
+  // NOTE that it's possible that we'll still end up with result == p, if the virtual memory region after p is free and can be used to accommodate new_size - old_size
+  virtual_invalidate(p, old_npages);
+  HOOK_RETURN(do_vremap(newp, new_size, "realloc"));
 }
 
 // strong overrides of the glibc memory allocation symbols

@@ -1,4 +1,7 @@
 General:
+ - dangless_realloc() should take into account the size of the malloc header, otherwise it cannot well calculate the number of pages needed
+ - each unit test case should start with a clean slate: vp_reset() and the dangless_dedicate_vmem() to always the same location (probably also unmap the pages)
+    this will need a TEST_SETUP() and TEST_CLEANUP() or something similar
  - garbage collector
  - memalign(), valloc()
 
