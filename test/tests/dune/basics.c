@@ -10,8 +10,13 @@ TEST_SUITE("Dune basics") {
   // enter Dune, etc.
   dunetest_init();
 
-  // reset the virtual page allocator
-  vp_reset();
+  TEST_SETUP() {
+    // reset the virtual page allocator
+    vp_reset();
+
+    // dedicate PML4[2]
+    // TODO
+  }
 
 #if 0
   TEST("free(NULL)") {

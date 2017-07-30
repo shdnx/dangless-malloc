@@ -51,6 +51,14 @@ struct test_case_result *testcase_result_alloc(void);
 
 void testsuite_register(struct test_suite *tsuite);
 
+// Setup and teardown hooks: these hooks run before and after each test case respectively.
+#define TEST_SETUP() void testcase_setup_hook(void)
+#define TEST_TEARDOWN() void testcase_teardown_hook(void)
+
+// Default, global implementations. Calls will resolve to these functions if there's no better (more specifically scoped, e.g. nested) function with the same name.
+TEST_SETUP() { /* empty */ }
+TEST_TEARDOWN() { /* empty */ }
+
 bool testcase_prepare_run(
   struct test_suite *tsuite,
   struct test_case *tcase,
@@ -111,6 +119,7 @@ void testcase_register_run(
     struct test_case_result *_TEST_CASE_RESULT_PARMNAME \
   )
 
+// This mess is required because we cannot perform indirect calls to nested functions, as Dune doesn't like it - it causes a pagefault.
 #define _TEST_CASE_IMPL(NAME, FNAME) \
   auto _TEST_CASE_DECL(FNAME); \
   { \
@@ -120,7 +129,9 @@ void testcase_register_run(
     }; \
     struct test_case_result *_result = NULL; \
     if (testcase_prepare_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), &_result)) { \
+      testcase_setup_hook(); \
       FNAME(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), _result); \
+      testcase_teardown_hook(); \
       testcase_register_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), _result); \
     } \
   } \
