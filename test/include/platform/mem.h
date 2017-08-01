@@ -18,6 +18,10 @@ typedef uintptr_t vaddr_t;
 #define PG_OFFSET(BASE, NPAGES) \
   ((__typeof((BASE)))((uintptr_t)(BASE) + (NPAGES) * PGSIZE))
 
+// Whether the two pointers/addresses are located on the same 4K page.
+#define PG_IS_SAME(PTR1, PTR2) \
+  ((uintptr_t)(PTR1) / PGSIZE == (uintptr_t)(PTR2) / PGSIZE)
+
 // Given a physical address of a page table, gives the virtual address where that page table is mapped.
 void *pt_paddr2vaddr(paddr_t pa);
 

@@ -1,24 +1,50 @@
 // TODO: dangless prefix
-// TODO: also create a header file for distribution, that doesn't expose e.g. common.h
 #include "virtmem.h"
 #include "virtmem_alloc.h" // vp_reset()
 #include "dangless_malloc.h"
 
 #include "dunetest.h"
 
+#define SYSMALLOC_HEADER_SIZE (0x10ul)
+#define MALLOC_FILL_PG_SIZE ((size_t)PGSIZE - SYSMALLOC_HEADER_SIZE)
+
+static bool find_free_vmemregion(/*OUT*/ void **pstart, /*OUT*/ void **pend) {
+  // just find the first unused PML4 entry and returns the memregion for it
+  const size_t pte_addr_mult = 1ul << pt_level_shift(PT_L4);
+  pte_t *ptroot = pt_root();
+
+  size_t i;
+  for (i = 0; i < PT_NUM_ENTRIES; i++) {
+    if (ptroot[i])
+      continue;
+
+    /*OUT*/ *pstart = (void *)(i * pte_addr_mult);
+    /*OUT*/ *pend = (void *)((i + 1) * pte_addr_mult);
+
+    return true;
+  }
+
+  return false;
+}
+
 TEST_SUITE("Dune basics") {
   // enter Dune, etc.
   dunetest_init();
+
+  void *dvmem_start, *dvmem_end;
+  if (!find_free_vmemregion(/*OUT*/ &dvmem_start, /*OUT*/ &dvmem_end)) {
+    fprintf(stderr, "No free PML4 entry?!\n");
+    abort();
+  }
 
   TEST_SETUP() {
     // reset the virtual page allocator
     vp_reset();
 
-    // dedicate PML4[2]
-    // TODO
+    // reset the original memregion
+    dangless_dedicate_vmem(dvmem_start, dvmem_end);
   }
 
-#if 0
   TEST("free(NULL)") {
     dangless_free(NULL);
   }
@@ -56,8 +82,13 @@ TEST_SUITE("Dune basics") {
   }
 
   TEST("Page allocation") {
-    void *p = TMALLOC(char[PGSIZE]);
-    TFREE(p);
+    void *p1 = TMALLOC(char[MALLOC_FILL_PG_SIZE]);
+
+    // actually always going to be 2 virtual pages, due to the inpage-offset caused by the malloc header
+    void *p2 = TMALLOC(char[PGSIZE]);
+
+    TFREE(p2);
+    TFREE(p1);
   }
 
   TEST("Many small allocations") {
@@ -78,7 +109,6 @@ TEST_SUITE("Dune basics") {
       TFREE(curr);
     }
   }
-#endif
 
   TEST("realloc(NULL)") {
     void *p = TREALLOC(NULL, void *);
@@ -94,42 +124,46 @@ TEST_SUITE("Dune basics") {
   }
 
   TEST("realloc shrinking pages") {
-    void *p = TMALLOC(char[2 * PGSIZE]);
-    ASSERT_VALID_PTR((uint8_t *)p + 2 * PGSIZE - 1);
+    // NOTE: a PGSIZE worth of malloc()-d area has to be placed on 2 virtual pages, due to the in-page offset: a malloc()-d area will never be on a page boundary, because the malloc header comes before it
+    void *p = TMALLOC(char[2 * MALLOC_FILL_PG_SIZE]);
+    ASSERT_VALID_PTR((uint8_t *)p + 2 * MALLOC_FILL_PG_SIZE - 1);
 
-    void *p2 = TREALLOC(p, char[PGSIZE]);
+    void *p2 = TREALLOC(p, char[MALLOC_FILL_PG_SIZE]);
     ASSERT_EQUALS(p, p2);
 
-    // we're not guaranteed that a whole PGSIZE worth of memory got invalidated, because we're not guaranteed to get a page-aligned region
+    // we're not guaranteed that a whole MALLOC_FILL_PG_SIZE worth of memory got invalidated, because we're not guaranteed to get a page-aligned region
     // however, what can definitely be guaranteed is that the last byte of the region will no longer be accessible
-    ASSERT_INVALID_PTR((uint8_t *)p2 + 2 * PGSIZE - 1);
+    ASSERT_INVALID_PTR((uint8_t *)p2 + 2 * MALLOC_FILL_PG_SIZE - 1);
 
     TFREE(p2);
   }
 
-  TEST("realloc growing in-place") {
-    // this is guaranteed to be OK due to the allocation patterns we have before this unit test - a more solid solution would be to malloc 2 * PGSIZE, resize it to PGSIZE, and then resize it back to 2 * PGSIZE
-    void *p1 = TMALLOC(char[2 * PGSIZE]);
-    void *p2 = TREALLOC(p1, char[PGSIZE]);
+  TEST("realloc no growing in-place") {
+    void *p1 = TMALLOC(char[2 * MALLOC_FILL_PG_SIZE]);
+    void *p2 = TREALLOC(p1, char[MALLOC_FILL_PG_SIZE]);
     ASSERT_EQUALS(p1, p2);
 
-    void *p3 = TREALLOC(p2, char[2 * PGSIZE]);
-    ASSERT_EQUALS(p1, p3);
+    // We cannot safely grow in-place, since we still might have a dangling pointer to p1 + MALLOC_FILL_PG_SIZE! This has to yield a new memory region.
+    void *p3 = TREALLOC(p2, char[2 * MALLOC_FILL_PG_SIZE]);
+    ASSERT_NOT_EQUALS(p1, p3);
 
     TFREE(p3);
   }
 
   TEST("realloc growing relocation") {
-    // allocate two pages: they should be consecutive due to the previous tests
-    void *p1 = TMALLOC(char[PGSIZE]);
-    void *p2 = TMALLOC(char[PGSIZE]);
-    ASSERT_EQUALS(PG_OFFSET(p1, 1), p2);
+    // allocate two consecutive pages
+    void *p1 = TMALLOC(char[MALLOC_FILL_PG_SIZE]);
+    void *p2 = TMALLOC(char[MALLOC_FILL_PG_SIZE]);
+
+    // note that the addresses won't be exactly equal, because there'll be a malloc header in between
+    ASSERT_SAME_PAGE(PG_OFFSET(p1, 1), p2);
 
     // try to grow p1: this is not possible in-place because p2 is in the way
-    void *p3 = TREALLOC(p1, char[2 * PGSIZE]);
+    void *p3 = TREALLOC(p1, char[2 * MALLOC_FILL_PG_SIZE]);
     ASSERT_NOT_EQUALS(p3, p1);
     ASSERT_NOT_EQUALS(p3, p2);
 
     TFREE(p3);
+    TFREE(p2);
   }
 }

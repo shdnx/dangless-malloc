@@ -57,4 +57,7 @@ void dunetest_init(void);
 
 #define TFREE(PTR) dangless_free((PTR))
 
+#define ASSERT_SAME_PAGE(PTR1, PTR2) \
+ _ASSERT2(PTR1, PTR2, PG_IS_SAME, "expected address " #PTR1 " to be on the same 4K page as address " #PTR2)
+
 #endif

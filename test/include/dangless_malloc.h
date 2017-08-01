@@ -16,4 +16,11 @@ void dangless_free(void *p);
 // Whether a dangless hook is currently being processed on the calling thread.
 bool dangless_hook_running(void);
 
+// Gets the original (canonical) pointer as returned by the system allocator of a dangless-remapped pointer.
+void *dangless_get_canonical(void *p);
+
+// Equivalent of malloc_usable_size() GNU extension.
+// TODO: this is a GNU extension, should it be supported? E.g. Rumprun's implementation doesn't provide malloc_usable_size()
+//size_t dangless_usable_size(void *p);
+
 #endif // DANGLESS_MALLOC_H

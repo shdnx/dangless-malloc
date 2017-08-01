@@ -34,6 +34,7 @@ int dangless_dedicate_vmem(void *start, void *end) {
 
 // TODO: make this platform-specific
 static void auto_dedicate_vmem(void) {
+  // TODO: maybe refactor this? There's an almost identical function in tests/dune/basics.c...
   const size_t pte_addr_mult = 1uL << pt_level_shift(PT_L4);
   pte_t *ptroot = pt_root();
 
@@ -49,13 +50,14 @@ static void auto_dedicate_vmem(void) {
       (void *)((i + 1) * pte_addr_mult)
     );
 
-    if (result == 0) {
-      nentries_dedicated++;
+    if (result != 0)
+      continue;
 
-      if (nentries_dedicated >= DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
-        DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", DANGLESS_AUTO_DEDICATE_MAX_PML4ES);
-        break;
-      }
+    nentries_dedicated++;
+
+    if (nentries_dedicated >= DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
+      DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", DANGLESS_AUTO_DEDICATE_MAX_PML4ES);
+      break;
     }
   }
 
@@ -126,6 +128,8 @@ void *dangless_malloc(size_t size) {
   if (!HOOK_ENTER())
     return p;
 
+  DPRINTF("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
+
   HOOK_RETURN(do_vremap(p, size, "malloc"));
 }
 
@@ -154,26 +158,30 @@ static void virtual_invalidate_pte(pte_t *ppte) {
 }
 
 static void virtual_invalidate(void *p, size_t npages) {
+  p = (void *)ROUND_DOWN((vaddr_t)p, PGSIZE);
+
   DPRINTF("invalidating %zu virtual pages starting at %p...\n", npages, p);
 
-  size_t page = 0;
-  while (page < npages) {
+  size_t page_offset = 0;
+  while (page_offset < npages) {
+    void *ppage = PG_OFFSET(p, page_offset);
+
     pte_t *ppte;
-    enum pt_level level = pt_walk(PG_OFFSET(p, page), PGWALK_FULL, OUT &ppte);
+    enum pt_level level = pt_walk(ppage, PGWALK_FULL, OUT &ppte);
     ASSERT0(level == PT_L1);
     ASSERT0(FLAG_ISSET(*ppte, PTE_V));
 
     // optimised for invalidating adjecent PTEs in a PT
-    size_t pte_base_offset = pt_level_offset((vaddr_t)p, PT_L1);
-    size_t nptes = MIN(PT_NUM_ENTRIES - pte_base_offset, npages - page);
+    size_t pte_base_offset = pt_level_offset((vaddr_t)ppage, PT_L1);
+    size_t nptes = MIN(PT_NUM_ENTRIES - pte_base_offset, npages - page_offset);
 
     size_t pte_offset;
     for (pte_offset = 0; pte_offset < nptes; pte_offset++) {
       virtual_invalidate_pte(&ppte[pte_offset]);
-      tlb_flush_one(PG_OFFSET(p, page + pte_offset));
+      tlb_flush_one(PG_OFFSET(ppage, pte_offset));
     }
 
-    page += nptes;
+    page_offset += nptes;
   }
 }
 
@@ -213,6 +221,7 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (p) {
     int result = vremap_resolve(p, OUT &original_ptr);
+    DPRINTF("vremap_resolve(%p) => %d, %p\n", p, result, original_ptr);
 
     if (result == 0) {
       was_remapped = true;
@@ -228,14 +237,15 @@ void *dangless_realloc(void *p, size_t new_size) {
     HOOK_RETURN(do_vremap(sysrealloc(p, new_size), new_size, "realloc"));
   }
 
-  // TODO: this is imprecise, there's also the malloc header to consider!
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
-  const size_t old_npages = sysmalloc_usable_pages(p);
-  DPRINTF("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
+  const size_t old_npages = sysmalloc_usable_pages(original_ptr);
+  //DPRINTF("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
     HOOK_RETURN(NULL);
+
+  //DPRINTF("original_ptr = %p, newp = %p\n", original_ptr, newp);
 
   if (newp == original_ptr) {
     // we can potentially do it in-place
@@ -257,11 +267,28 @@ void *dangless_realloc(void *p, size_t new_size) {
     }
   }
 
-  // there's no in-place reallocation possible: either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
+  // there's no safe in-place reallocation possible: either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
   // NOTE that it's possible that we'll still end up with result == p, if the virtual memory region after p is free and can be used to accommodate new_size - old_size
   virtual_invalidate(p, old_npages);
   HOOK_RETURN(do_vremap(newp, new_size, "realloc"));
 }
+
+void *dangless_get_canonical(void *p) {
+  void *original_ptr;
+  int result = vremap_resolve(p, OUT &original_ptr);
+  if (result < 0)
+    return NULL;
+
+  return original_ptr;
+}
+
+/*size_t dangless_usable_size(void *p) {
+  void *c = dangless_get_canonical(p);
+  if (!c)
+    return 0;
+
+  return malloc_usable_size(c);
+}*/
 
 // strong overrides of the glibc memory allocation symbols
 // --whole-archive has to be used when linking against the library so that these symbols will get picked up instead of the glibc ones

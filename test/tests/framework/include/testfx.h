@@ -56,8 +56,8 @@ void testsuite_register(struct test_suite *tsuite);
 #define TEST_TEARDOWN() void testcase_teardown_hook(void)
 
 // Default, global implementations. Calls will resolve to these functions if there's no better (more specifically scoped, e.g. nested) function with the same name.
-TEST_SETUP() { /* empty */ }
-TEST_TEARDOWN() { /* empty */ }
+static inline TEST_SETUP() { /* empty */ }
+static inline TEST_TEARDOWN() { /* empty */ }
 
 bool testcase_prepare_run(
   struct test_suite *tsuite,

@@ -43,7 +43,7 @@ typedef uint64_t u64;
 
 // Round down A to the nearest multiple of N.
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
-#define ROUND_UP(A, N) ((A) + (N) - (A) % (N))
+#define ROUND_UP(A, N) (((A) + (N) - 1) / (N) * (N))
 
 #define dprintf(...) fprintf(stderr, __VA_ARGS__)
 #define dprintf_nomalloc(...) fprintf_nomalloc(stderr, __VA_ARGS__)
