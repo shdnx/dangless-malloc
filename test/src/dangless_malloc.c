@@ -35,13 +35,13 @@ int dangless_dedicate_vmem(void *start, void *end) {
 // TODO: make this platform-specific
 static void auto_dedicate_vmem(void) {
   // TODO: maybe refactor this? There's an almost identical function in tests/dune/basics.c...
-  const size_t pte_addr_mult = 1uL << pt_level_shift(PT_L4);
+  const size_t pte_addr_mult = 1ul << pt_level_shift(PT_L4);
   pte_t *ptroot = pt_root();
 
   size_t nentries_dedicated = 0;
 
   size_t i;
-  for (i = 0; i < PT_NUM_ENTRIES; i++) {
+  for (i = 0; i < PT_NUM_ENTRIES && nentries_dedicated < DANGLESS_AUTO_DEDICATE_MAX_PML4ES; i++) {
     if (ptroot[i])
       continue;
 
@@ -54,11 +54,6 @@ static void auto_dedicate_vmem(void) {
       continue;
 
     nentries_dedicated++;
-
-    if (nentries_dedicated >= DANGLESS_AUTO_DEDICATE_MAX_PML4ES) {
-      DPRINTF("reached auto-dedication limit of %zu PML4 entries\n", DANGLESS_AUTO_DEDICATE_MAX_PML4ES);
-      break;
-    }
   }
 
   DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);

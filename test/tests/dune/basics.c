@@ -31,19 +31,15 @@ TEST_SUITE("Dune basics") {
   // enter Dune, etc.
   dunetest_init();
 
+  // dedicate virtual memory
   void *dvmem_start, *dvmem_end;
   if (!find_free_vmemregion(/*OUT*/ &dvmem_start, /*OUT*/ &dvmem_end)) {
     fprintf(stderr, "No free PML4 entry?!\n");
     abort();
   }
 
-  TEST_SETUP() {
-    // reset the virtual page allocator
-    vp_reset();
-
-    // reset the original memregion
-    dangless_dedicate_vmem(dvmem_start, dvmem_end);
-  }
+  vp_reset();
+  dangless_dedicate_vmem(dvmem_start, dvmem_end);
 
   TEST("free(NULL)") {
     dangless_free(NULL);
@@ -165,5 +161,19 @@ TEST_SUITE("Dune basics") {
 
     TFREE(p3);
     TFREE(p2);
+  }
+
+  TEST("falling back to sysmalloc") {
+    // reset the virtual page allocator, meaning there won't be any virtual pages available for dangless
+    vp_reset();
+
+    void *p = TMALLOC(void *);
+
+    paddr_t pa = pt_resolve(p);
+    ASSERT_NOT_EQUALS(pa, 0);
+
+    ASSERT_EQUALS(pa, dune_va_to_pa(p));
+
+    TFREE(p);
   }
 }
