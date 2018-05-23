@@ -1,5 +1,5 @@
-dune
-papers
-./rumprun
-*.sublime-workspace
 *.*~
+.DS_Store
+*.sublime-workspace
+bin
+obj

@@ -1,4 +1,7 @@
 General:
+ - multi-threaded tests
+ - performance measurement:
+    baseline, ix-dune baseline, dangless
  - garbage collector
  - memalign(), valloc()
 
@@ -23,7 +26,6 @@ Rumprun:
 
 Low-priority general:
  - for huge allocations (that are >= 2 MB), we could use hugepages
- - design the garbage collector
  - aligned_alloc()? rumprun doesn't implement it
 
 Low-priority Rumprun:

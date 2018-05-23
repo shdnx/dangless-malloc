@@ -1,0 +1,20 @@
+diff --git a/libdune/entry.c b/libdune/entry.c
+index faa0b06..3b1f9fc 100644
+--- a/libdune/entry.c
++++ b/libdune/entry.c
+@@ -350,6 +350,15 @@ static int __setup_mappings_full(struct dune_layout *layout)
+ {
+ 	int ret;
+ 
++	// G: brought over from the old Dune
++  ret = dune_vm_map_phys(pgroot, (void *) PAGEBASE,
++              MAX_PAGES * PGSIZE,
++              (void *) dune_va_to_pa((void *) PAGEBASE),
++              PERM_R | PERM_W | PERM_BIG);
++  if (ret)
++      return ret;
++  // G: -----
++
+ 	ret = dune_vm_map_phys(pgroot, (void *) 0, 1UL << 32,
+ 			      (void *) 0,
+ 			      PERM_R | PERM_W | PERM_X | PERM_U);

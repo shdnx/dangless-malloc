@@ -1,0 +1,22 @@
+diff --git a/kern/compat.c b/kern/compat.c
+index 8bc48f8..87c84e8 100644
+--- a/kern/compat.c
++++ b/kern/compat.c
+@@ -13,7 +13,7 @@ DEF_KERNEL_SYM(void, tracehook_notify_resume, struct pt_regs *);
+ // this code is based on do_notify_resume() in v4.2.0 and prepare_exit_to_usermode() in v4.3.0
+ void dune_do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
+ {
+-    if (thread_info_flags & _TIF_UPROBE)
++    /*if (thread_info_flags & _TIF_UPROBE)
+         KERNEL_SYM(uprobe_notify_resume)(regs);
+ 
+     // signals already handled by the caller vmx_launch(), so we don't handle them here, even though do_notify_resume() did and prepare_exit_to_usermode() also does
+@@ -27,7 +27,7 @@ void dune_do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info
+     }
+ 
+     if (thread_info_flags & _TIF_USER_RETURN_NOTIFY)
+-        KERNEL_SYM(fire_user_return_notifiers)();
++        KERNEL_SYM(fire_user_return_notifiers)();*/
+ }
+ 
+ #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)

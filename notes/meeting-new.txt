@@ -1,0 +1,27 @@
+1) what is the resident virtual working set of applications like SPEC2006, nginx and memcached (run with normal benchmarks)?
+ - min/avg/max allocation size?
+ - track number of virtual pages used over time
+ - when a free happens, just free the virtual page
+
+if these virtual working sets are stable, then we can do the randomization thing
+
+2) test program: keep doing allocations and frees, and see how long it takes to exhaust available virtual memory
+ - 8 bytes, 16 bytes, 64 bytes
+ - only do it for a few GBs and then extrapolate
+
+3) have to clean up pagetable pages!
+ - lock + refcount per pagetable page
+ 10 bits is enough: 9 bits for refcount + 1 bit whether the pagetable page is in use
+
+4) no GC, just always randomize which virtual page to remap to; if the selected vpage is already in use, just take another random one, etc.
+ - upon free: just free
+
+5) live DFS deduplication Middleware paper
+
+September 25, start writing September 1
+
+To map the entire 48-bit address space, total pagetable size will be: (1 + 512 + 512^2) * 4 KB = 1.050628 gigabytes
+
+TLB overhead - will it be brutal? Kaveh says it will be
+
+if we can do better than 80% overhead, then we're good

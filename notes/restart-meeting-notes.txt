@@ -1,0 +1,24 @@
+for now: just modify the build process of simple applications (hello world) and statically link dangless to them (which links to libdune)
+  use .preinit_array or __attribute__((constructor)): dune_init_and_enter() an dangless_init()
+
+eventually probably:
+  LD_PRELOAD for my malloc, calloc, etc.
+    for this I need to compile dangless as shared library - libdune cannot be a shared library (it contains non-PIC); but since libdune is part of the sandbox, this should be fine; just compile dangless as an SO and see if we can just convince the linker to find the libdune symbols during runtime
+  use dune sandbox for loading test applications (SPEC, etc.)
+    it uses a simplified ELF loader, so bootstrap through the Linux dynamic loader (ld-....so)
+    it runs my code in ring 3, whereas I need it ring 0
+      try to change it all to ring 0, if it's possible (too much overhead in ring 3)
+      alternatively, just make the page table pages accessible in ring 3, and have some mechanism for allocating more
+
+bug Koen about:
+ - Oscar paper; they do something very similar as me - we have to do better than them (they have 40% overhead or something)
+ - get SPEC2006 for testing - measure overhead
+
+first step: make it work for simple applications and see if we can measure overhead; we'll see where to proceed from there
+  we don't need a GC for now
+
+will we need to support malloc_usable_size()?
+
+use tcmalloc for inspiration, they do LD_PRELOAD stuff
+
+Koen will be gone from the 2nd week of June

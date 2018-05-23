@@ -1,0 +1,29 @@
+2017-03-07
+ - run benchmarks on host Linux vs guest rumprun and OSv: apache, nginx
+ - look at Linux kernel module, see if it would be viable:
+	- expose page tables; need to modify the way the page tables are allocated, enable the user bit
+		- just make the physical memory's identical mapping available to the user (PT_U)
+	- TLB flushing?
+	- virtual memory allocation? just mmap()
+
+another method? mmap(), back it by some magic file descriptor?
+what about the kernel's pagetable bookkepping?
+
+kernel module initially reserves part of virtual memory and enough physical memory to create enough pagetables to map it all
+ => then we need to only mess with these page tables
+
+Dune: garbage collection with threads?
+
+the problem with unikernels:
+ - performance
+ - multi-threading: we need a background thread for garbage collection
+
+!!! TODO:
+ - benchmarks: host Linux, guest rumprun, guest OSv
+ - figure out whether we can do a background thread with rumprun/OSv; maybe even just user-level threading would be enough?
+	- how does rumprun/OSv implements pthreads
+	- how apache, nginx, etc. works
+ - make the implementation modular so that it doesn't depend directly on rumprun details
+
+follow-up meeting: 2017-03-14 13:30
+

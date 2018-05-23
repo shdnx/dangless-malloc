@@ -4,6 +4,10 @@
 
 #include "testfx.h"
 
+struct test_suite *g_current_suite = NULL;
+struct test_case *g_current_test = NULL;
+struct test_case_result *g_current_result = NULL;
+
 static size_t g_num_testsuites = 0;
 static size_t g_num_testcases_total = 0;
 static size_t g_num_testcases_failed = 0;
@@ -63,6 +67,10 @@ bool testcase_prepare_run(struct test_suite *tsuite, struct test_case *tcase, /*
   result->case_name = tcase->name;
 
   /*OUT*/ *presult = result;
+
+  g_current_suite = tsuite;
+  g_current_test = tcase;
+  g_current_result = result;
   return true;
 }
 
@@ -90,6 +98,10 @@ void testcase_register_run(struct test_suite *tsuite, struct test_case *tcase, s
     //LOG("FAIL\n");
     LOG("Test case %s failed!\n", tcase->name);
   }
+
+  g_current_suite = NULL;
+  g_current_test = NULL;
+  g_current_result = NULL;
 }
 
 int main(int argc, const char **argv) {
