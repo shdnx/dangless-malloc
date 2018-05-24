@@ -1,1 +1,1 @@
-source "/home/gabor/dev/vusec/thesis/rumprun/./obj-amd64-hw/config-PATH.sh"
+#source "../vendor/rumprun/obj-amd64-hw/config-PATH.sh"

@@ -1,7 +1,15 @@
-MKLASTCONFIG = bin/last-platform-config.mk
+# Hack to disable implicit rules to VASTLY improve performance; see https://stackoverflow.com/a/4126617/128240
+.SUFFIXES:
 
-BIN_DIR = bin/$(PLATFORM)
+BUILD_DIR = build
+BIN_DIR = $(BUILD_DIR)/$(PLATFORM)
+
 MKCONFIG = $(BIN_DIR)/config.mk
+MKLASTCONFIG = $(BUILD_DIR)/last-platform-config.mk
+
+BUILDCONFIG_INCLUDE_PATH = $(BUILD_DIR)/include
+BUILDCONFIG_HEADER_DIR = $(BUILDCONFIG_INCLUDE_PATH)/dangless
+BUILDCONFIG_HEADER_FILE = $(BUILDCONFIG_HEADER_DIR)/buildconfig.h
 
 # the PLATFORM variable should be supplied by the user
 # if it's not specified, the last configuration is used, if any
@@ -12,29 +20,24 @@ else
 -include $(MKLASTCONFIG)
 
 ifndef PLATFORM
-$(error PLATFORM is not set)
+$(error No existing build configuration: set PLATFORM and run 'make config' first.)
 endif
 
-endif
+endif # end ifdef PLATFORM
 
-CONFIG_OVERRIDE_SYMBOLS ?= 1
-CONFIG_AUTODEDICATE_PML4ES ?= 1
-CONFIG_CALLOC_SPECIAL_BUFSIZE ?= 32
+-include make/buildconfig-defaults.mk
 
+# TODO: shouldn't this be moved to the top? otherwise I can't see how the platform-specific makefile could override it
 CC = gcc
 AR = ar
 RANLIB = ranlib
 
-INCLUDES = -Iinclude
-DEFINES = -DDANGLESS_OVERRIDE_SYMBOLS=$(CONFIG_OVERRIDE_SYMBOLS) -DDANGLESS_AUTO_DEDICATE_MAX_PML4ES=$(CONFIG_AUTODEDICATE_PML4ES) -DDANGLESS_CALLOC_SPECIAL_BUFSIZE=$(CONFIG_CALLOC_SPECIAL_BUFSIZE)
-CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG -pthread
+INCLUDES = -Iinclude -I$(BUILDCONFIG_INCLUDE_PATH)
+DEFINES =
+CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG -pthread -MMD -MP
 BIN = $(BIN_DIR)/libdangless.a
 
-define MKLASTCONFIG_DATA :=
--include $(realpath $(MKCONFIG))
-endef
-
-BASE_OBJS_DIR = obj/$(PLATFORM)
+BASE_OBJS_DIR = $(BUILD_DIR)/obj/$(PLATFORM)
 
 CORE_SRCS_DIR = src
 CORE_SRCS = $(wildcard src/*.c)
@@ -50,7 +53,7 @@ SRCS = $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS = $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: all clean always platform_bin platform_clean
+.PHONY: all config clean clean_full always platform_bin platform_clean
 
 all: $(BIN)
 
@@ -58,48 +61,29 @@ always:;
 
 -include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
-define MKCONFIG_DATA :=
-PLATFORM ?= $(PLATFORM)
-DANGLESS_BIN := $(realpath $(BIN))
-DANGLESS_INCLUDE_DIR := $(realpath include)
+-include make/buildconfig.mk
 
-CONFIG_OVERRIDE_SYMBOLS ?= $(CONFIG_OVERRIDE_SYMBOLS)
-CONFIG_AUTODEDICATE_PML4ES ?= $(CONFIG_AUTODEDICATE_PML4ES)
-CONFIG_CALLOC_SPECIAL_BUFSIZE ?= $(CONFIG_CALLOC_SPECIAL_BUFSIZE)
-
-DANGLESS_USER_CFLAGS := -pthread $(PLATFORM_USER_CFLAGS)
-DANGLESS_USER_LDFLAGS := -L$$(dir $$(DANGLESS_BIN)) -Wl,-whole-archive -ldangless -Wl,-no-whole-archive -pthread $(PLATFORM_USER_LDFLAGS)
-
-$(PLATFORM_MKCONFIG_DATA)
-endef
-
-$(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
+$(BIN_DIR) $(BUILDCONFIG_HEADER_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
 
-$(MKLASTCONFIG): $(BIN_DIR) always
-	$(file > $@,$(MKLASTCONFIG_DATA))
-
-$(MKCONFIG): $(BIN_DIR) always
-	$(file > $@,$(MKCONFIG_DATA))
-
-$(CORE_OBJS_DIR)/%.o: src/%.c $(CORE_OBJS_DIR)
+$(CORE_OBJS_DIR)/%.o: src/%.c $(CORE_OBJS_DIR) $(BUILDCONFIG_HEADER_FILE)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATOFORM_DEFINES) -c $< -o $@
 
-$(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c $(PLATFORM_OBJS_DIR)
+$(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c $(PLATFORM_OBJS_DIR) $(BUILDCONFIG_HEADER_FILE)
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATOFORM_DEFINES) -c $< -o $@
 
-$(BIN): $(BIN_DIR) $(MKCONFIG) $(MKLASTCONFIG) platform_bin
+$(BIN): $(BIN_DIR) platform_bin
 
 clean: platform_clean
 	rm -f $(OBJS)
 	rm -f $(DEPS)
 	rm -f $(BIN)
-	rm -f $(MKCONFIG) $(MKLASTCONFIG)
+	rm -f $(BUILDCONFIG_FILES)
 
-clean_all:
-	rm -rf bin
-	rm -rf obj
+clean_full:
+	rm -rf $(BUILD_DIR)
 
+# can be used to dump Makefile variables for debugging purposes
 print-%  : ; @echo $* = $($*)
 
 -include $(DEPS)

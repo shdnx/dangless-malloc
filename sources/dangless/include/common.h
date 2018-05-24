@@ -108,4 +108,6 @@ void _print_caller_info_nomalloc(const char *file, const char *func, int line);
 #define LIKELY(COND) __builtin_expect((COND), 1)
 #define UNLIKELY(COND) __builtin_expect((COND), 0)
 
+#define THREAD_LOCAL __thread
+
 #endif // COMMON_H

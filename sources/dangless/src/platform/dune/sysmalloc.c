@@ -28,7 +28,7 @@ static void populate_addrs(void) {
   g_populating = true;
   void *h;
 
-#if DANGLESS_OVERRIDE_SYMBOLS
+#if DANGLESS_CONFIG_OVERRIDE_SYMBOLS
   h = RTLD_NEXT;
 #else
   h = RTLD_DEFAULT;
@@ -59,7 +59,7 @@ void *sysmalloc(size_t sz) {
 }
 
 static void *syscalloc_special(size_t num, size_t size) {
-  static char s_storage[DANGLESS_CALLOC_SPECIAL_BUFSIZE];
+  static char s_storage[DANGLESS_CONFIG_CALLOC_SPECIAL_BUFSIZE];
   static bool s_storage_used = false;
 
   ASSERT(!s_storage_used, "Attempted to use the syscalloc special allocator again!");

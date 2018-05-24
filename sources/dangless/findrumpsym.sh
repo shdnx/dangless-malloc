@@ -1,5 +1,6 @@
 #!/bin/bash
-RUMPRUN_OBJ_ROOT=../rumprun/obj-amd64-hw
+
+RUMPRUN_OBJ_ROOT=../vendor/rumprun/obj-amd64-hw
 SYMBOL_NAME=$1
 PATTERN=$2
 

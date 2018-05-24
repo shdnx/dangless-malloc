@@ -41,7 +41,7 @@ static void auto_dedicate_vmem(void) {
   size_t nentries_dedicated = 0;
 
   size_t i;
-  for (i = 0; i < PT_NUM_ENTRIES && nentries_dedicated < DANGLESS_AUTO_DEDICATE_MAX_PML4ES; i++) {
+  for (i = 0; i < PT_NUM_ENTRIES && nentries_dedicated < DANGLESS_CONFIG_AUTO_DEDICATE_MAX_PML4ES; i++) {
     if (ptroot[i])
       continue;
 
@@ -59,7 +59,7 @@ static void auto_dedicate_vmem(void) {
   DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
 }
 
-static __thread unsigned g_hook_depth = 0;
+static THREAD_LOCAL unsigned g_hook_depth = 0;
 
 bool dangless_hook_running(void) {
   return g_hook_depth > 0;
@@ -287,7 +287,7 @@ void *dangless_get_canonical(void *p) {
 
 // strong overrides of the glibc memory allocation symbols
 // --whole-archive has to be used when linking against the library so that these symbols will get picked up instead of the glibc ones
-#if DANGLESS_OVERRIDE_SYMBOLS
+#if DANGLESS_CONFIG_OVERRIDE_SYMBOLS
   #define STRONG_ALIAS(ALIASNAME, OVERRIDENAME) \
     extern __typeof(OVERRIDENAME) ALIASNAME __attribute__((alias(#OVERRIDENAME)))
 

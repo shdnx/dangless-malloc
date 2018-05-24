@@ -1,2 +1,0 @@
-autostash PATH
-. "./env.sh"

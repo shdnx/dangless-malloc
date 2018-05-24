@@ -1,18 +1,9 @@
 #ifndef DANGLESS_CONFIG_H
 #define DANGLESS_CONFIG_H
 
-#ifndef DANGLESS_OVERRIDE_SYMBOLS
-  #define DANGLESS_OVERRIDE_SYMBOLS 1
-#endif
+#include "dangless/buildconfig.h"
 
-// Maximum number of free PML4 entries to auto-dedicate to dangless.
-#ifndef DANGLESS_AUTO_DEDICATE_MAX_PML4ES
-  #define DANGLESS_AUTO_DEDICATE_MAX_PML4ES 1uL
-#endif
-
-#ifndef DANGLESS_CALLOC_SPECIAL_BUFSIZE
-  #define DANGLESS_CALLOC_SPECIAL_BUFSIZE 32
-#endif
+// TODO: turn all of these into build config things?
 
 // dangless_malloc.c
 #define DGLMALLOC_DEBUG 1
