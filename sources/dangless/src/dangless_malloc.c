@@ -1,6 +1,7 @@
 #include <pthread.h>
 
 #include "config.h"
+#include "common.h"
 #include "dangless_malloc.h"
 #include "virtmem.h"
 #include "virtmem_alloc.h"
@@ -90,7 +91,7 @@ static void do_hook_exit(const char *func_name) {
 
 #define HOOK_RETURN(V) \
   do { \
-    __typeof((V)) __hook_result = (V); \
+    typeof((V)) __hook_result = (V); \
     HOOK_EXIT(); \
     return __hook_result; \
   } while (0)
@@ -247,8 +248,8 @@ void *dangless_realloc(void *p, size_t new_size) {
 
 #if DGLMALLOC_DEBUG
     // verify that the physical page also didn't change
-    paddr_t old_pa_page = pt_resolve_page(original_ptr, NULL);
-    paddr_t new_pa_page = pt_resolve_page(newp, NULL);
+    paddr_t old_pa_page = pt_resolve_page(original_ptr, OUT_IGNORE);
+    paddr_t new_pa_page = pt_resolve_page(newp, OUT_IGNORE);
     ASSERT(old_pa_page == new_pa_page, "sysrealloc() performed virtual reallocation in-place, but not the physical reallocation! original_ptr = newp = %p, but old_pa = %p != new_pa = %p", newp, (void *)old_pa_page, (void *)new_pa_page);
 #endif
 
@@ -289,7 +290,7 @@ void *dangless_get_canonical(void *p) {
 // --whole-archive has to be used when linking against the library so that these symbols will get picked up instead of the glibc ones
 #if DANGLESS_CONFIG_OVERRIDE_SYMBOLS
   #define STRONG_ALIAS(ALIASNAME, OVERRIDENAME) \
-    extern __typeof(OVERRIDENAME) ALIASNAME __attribute__((alias(#OVERRIDENAME)))
+    extern typeof(OVERRIDENAME) ALIASNAME __attribute__((alias(#OVERRIDENAME)))
 
   STRONG_ALIAS(malloc, dangless_malloc);
   STRONG_ALIAS(calloc, dangless_calloc);

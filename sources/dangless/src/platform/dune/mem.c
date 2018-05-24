@@ -1,4 +1,4 @@
-#include <assert.h>
+#include "common.h"
 
 #include "platform/mem.h"
 
@@ -18,7 +18,7 @@ void *pt_paddr2vaddr(paddr_t pa) {
   }
 
   // The stack is highest: any page-tables have to be underneath it
-  assert(pa < dune_stack_pa_base);
+  ASSERT(pa < dune_stack_pa_base, "Invalid phyical address %016lx: must be below the stack base %016lx!", pa, dune_stack_pa_base);
 
   if (pa >= dune_mmap_pa_base) {
     // this memory was allocated with mmap(): reverse dune_mmap_addr_to_pa()

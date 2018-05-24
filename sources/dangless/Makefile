@@ -33,8 +33,8 @@ AR = ar
 RANLIB = ranlib
 
 INCLUDES = -Iinclude -I$(BUILDCONFIG_INCLUDE_PATH)
-DEFINES =
-CFLAGS = -std=gnu11 -Wall -Wextra -ggdb -O0 -DDEBUG -pthread -MMD -MP
+DEFINES = -DDEBUG
+CFLAGS = -std=gnu11 -Wall -Wextra -Wno-format-zero-length -ggdb -O0 -pthread -MMD -MP
 BIN = $(BIN_DIR)/libdangless.a
 
 BASE_OBJS_DIR = $(BUILD_DIR)/obj/$(PLATFORM)
