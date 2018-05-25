@@ -48,7 +48,8 @@ $(BUILDCONFIG_HEADER_FILE): $(BUILDCONFIG_HEADER_DIR) always
 
 BUILDCONFIG_FILES = $(MKCONFIG) $(MKLASTCONFIG) $(BUILDCONFIG_HEADER_FILE)
 
-config: $(BUILDCONFIG_FILES) always
+# it's important to have the directories BIN_DIR and BUILDCONFIG_HEADER_DIR created first, otherwise realpath will fail while generating the various files
+config: $(BIN_DIR) $(BUILDCONFIG_HEADER_DIR) $(BUILDCONFIG_FILES) always
 	@echo Build configuration files written for platform $(PLATFORM)
 
 # always re-generate the mklastconfig file if PLATFORM was specified
