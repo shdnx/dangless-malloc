@@ -3,7 +3,7 @@
 	url = git@github.com:ix-project/dune.git
 [submodule "sources/vendor/rumprun"]
 	path = vendor/rumprun
-	url = http://repo.rumpkernel.org/rumprun
+	url = git@github.com:rumpkernel/rumprun.git
 [submodule "sources/vendor/dune-vusec"]
 	path = vendor/dune-vusec
-	url = git@bitbucket.org:vusec/dune.git
+	url = git@github.com:vusec/dune.git
