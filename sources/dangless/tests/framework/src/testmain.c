@@ -28,7 +28,7 @@ void testsuite_register(struct test_suite *suite) {
   g_num_testsuites++;
 }
 
-void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, char *message) {
+void _test_assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, char *message) {
   tcr->pass = false;
   tcr->message = message;
   tcr->line = line;

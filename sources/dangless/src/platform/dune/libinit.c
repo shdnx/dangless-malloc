@@ -1,4 +1,8 @@
+#define _GNU_SOURCE
+
 #include <stdlib.h>
+
+#include <errno.h>
 
 #include "common.h"
 #include "config.h"
@@ -12,16 +16,15 @@ static void lib_init(void) {
 
   s_initalized = true;
 
-  dprintf("Entering Dune...\n");
+  /*dprintf("Entering Dune...\n");
 
   int result;
   if ((result = dune_init_and_enter()) != 0) {
-    // TODO: a more elegant solution to this
-    dprintf("Failed to enter Dune mode: result %d!\n", result);
+    perror("Failed to enter Dune mode");
     abort();
   }
 
-  dprintf("Dune entered successfully. Running...\n");
+  dprintf("Dune entered successfully. Running...\n");*/
 }
 
 #if DANGLESS_CONFIG_REGISTER_PREINIT

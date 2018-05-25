@@ -25,9 +25,12 @@ autoSync () {
 }
 
 if [ $# -ge 1 ] && [ $1 == "--watch" ]; then
+  autoSync
+
   echo "Watching $DIR for changes and performing sync automatically"
 
   fswatch -o $DIR | while read -r event; do autoSync; done
 else
-  doSync
+  # strange that we need that semicolon, otherwise Bash complains "unexpected token fi"
+  doSync;
 fi

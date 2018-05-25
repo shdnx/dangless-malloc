@@ -29,7 +29,7 @@ static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
 
-  DPRINTF("dedicating virtual memory: " FMT_PTR " - " FMT_PTR "\n", start, end);
+  DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
   return vp_free_region(start, end);
 }
 
@@ -62,15 +62,22 @@ static void auto_dedicate_vmem(void) {
 
 static THREAD_LOCAL unsigned g_hook_depth = 0;
 
-bool dangless_hook_running(void) {
+bool dangless_is_hook_running(void) {
   return g_hook_depth > 0;
 }
 
 static bool do_hook_enter(const char *func_name) {
-  //DPRINTF_NOMALLOC("entering hook from %s (depth = %d)...\n", func_name, g_hook_depth);
+  //DPRINTF_NOMALLOC("entering hook %s...\n", func_name);
 
-  if (g_hook_depth > 0 || UNLIKELY(!in_kernel_mode()))
+  if (UNLIKELY(dangless_is_hook_running())) {
+    DPRINTF_NOMALLOC("failed to enter hook %s: already running a hook at depth %d\n", func_name, g_hook_depth);
     return false;
+  }
+
+  if (UNLIKELY(!in_kernel_mode())) {
+    //DPRINTF_NOMALLOC("failed to enter hook %s: not in kernel mode yet\n", func_name);
+    return false;
+  }
 
   g_hook_depth++;
 
@@ -79,11 +86,11 @@ static bool do_hook_enter(const char *func_name) {
 }
 
 static void do_hook_exit(const char *func_name) {
-  ASSERT(g_hook_depth > 0, "Unbalanced HOOK_ENTER/HOOK_EXIT?!");
+  ASSERT(dangless_is_hook_running(), "Unbalanced HOOK_ENTER/HOOK_EXIT?!");
 
   g_hook_depth--;
 
-  //DPRINTF("exited hook from %s (new depth: %d)\n", func_name, g_hook_depth);
+  //DPRINTF("exited hook %s\n", func_name);
 }
 
 #define HOOK_ENTER() do_hook_enter(__func__)

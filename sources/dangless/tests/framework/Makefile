@@ -1,8 +1,10 @@
+.SUFFIXES:
+
 CC = gcc
 AR = ar
 RANLIB = ranlib
 
-CFLAGS = -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG
+CFLAGS = -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG -MMD -MP
 INCLUDES = -Iinclude
 
 BIN = bin/libtestfx.a
@@ -43,3 +45,5 @@ clean:
 	rm -f $(OBJS)
 	rm -f $(DEPS)
 	rm -f $(BIN) $(MKCONFIG)
+
+-include $(DEPS)

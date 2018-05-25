@@ -10,8 +10,6 @@
 // Even if such a call would result in an allocation, we're fine so long as the call occurs during a hook execution AFTER a HOOK_ENTER() call is successful. For all printing and logging purposes, code that may run before or during HOOK_ENTER() MUST use the functions from printf_nomalloc.h.
 #include "printf_nomalloc.h"
 
-// TODO: split up into multiple files? e.g. common/types.h, common/math.h, common/tracing.h, common/assert.h, etc.?
-
 typedef int8_t i8;
 typedef uint8_t u8;
 typedef int16_t i16;

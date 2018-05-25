@@ -13,8 +13,6 @@ struct test_case_result;
 extern struct test_case *g_current_test;
 extern struct test_case_result *g_current_result;
 
-void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, char *message);
-
 #define _FMT(V) \
   _Generic((V), \
     bool: "%d", \
@@ -41,12 +39,14 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
     strdup(_buf); \
   })
 
+void _test_assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, char *message);
+
 #define _ASSERT_FAIL(...) \
-  _assert_fail(g_current_test, g_current_result, __LINE__, SPRINTF(__VA_ARGS__));
+  _test_assert_fail(g_current_test, g_current_result, __LINE__, SPRINTF(__VA_ARGS__));
 
 #define _ASSERT1(A, COND, MESSAGE) \
   { \
-    __typeof((A)) _result = (A); \
+    typeof((A)) _result = (A); \
     if (!COND(_result)) { \
       char *fmt = SPRINTF("%%s\n\t%%s = %s\n", _FMT(_result)); \
       _ASSERT_FAIL(fmt, MESSAGE, #A, _result); \
@@ -57,8 +57,8 @@ void _assert_fail(struct test_case *tc, struct test_case_result *tcr, int line, 
 
 #define _ASSERT2(A, B, COND, MESSAGE) \
   { \
-    __typeof((A)) _result_a = (A); \
-    __typeof((B)) _result_b = (B); \
+    typeof((A)) _result_a = (A); \
+    typeof((B)) _result_b = (B); \
     if (!COND(_result_a, _result_b)) { \
       char *fmt = SPRINTF("%%s\n\t%%s = %s\n\t%%s = %s\n", _FMT(_result_a), _FMT(_result_b)); \
       _ASSERT_FAIL(fmt, MESSAGE, #A, _result_a, #B, _result_b); \

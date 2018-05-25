@@ -53,7 +53,7 @@ SRCS = $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS = $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS = $(OBJS:.o=.d)
 
-.PHONY: all config clean clean_full always platform_bin platform_clean
+.PHONY: all config clean clean_full always platform_bin platform_clean test
 
 all: $(BIN)
 
@@ -82,6 +82,10 @@ clean: platform_clean
 
 clean_full:
 	rm -rf $(BUILD_DIR)
+
+test: $(BIN)
+	make -C tests/framework
+	make -C tests/$(PLATFORM) run
 
 # can be used to dump Makefile variables for debugging purposes
 print-%  : ; @echo $* = $($*)

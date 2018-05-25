@@ -1,5 +1,5 @@
 DANGLESS_ROOT = ../..
-DANGLESS_BIN_DIR = $(DANGLESS_ROOT)/bin/rumprun
+DANGLESS_BIN_DIR = $(DANGLESS_ROOT)/build/rumprun
 
 -include $(DANGLESS_BIN_DIR)/config.mk
 

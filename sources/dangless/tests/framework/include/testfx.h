@@ -114,7 +114,7 @@ void testcase_register_run(
 
 #define _TEST_CASE_FNAME_GEN() CONCAT2(_testcase_, __COUNTER__)
 
-#define _TEST_CASE_VARNAME(FNAME) CONCAT2(FNAME, _data
+#define _TEST_CASE_VARNAME(FNAME) CONCAT2(FNAME, _data)
 #define _TEST_CASE_DECL(FNAME) void FNAME (void)
 
 // This mess is required because we cannot perform indirect calls to nested functions, as Dune doesn't like it - it causes a pagefault.

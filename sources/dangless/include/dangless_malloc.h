@@ -14,7 +14,7 @@ int dangless_posix_memalign(void **pp, size_t align, size_t size);
 void dangless_free(void *p);
 
 // Whether a dangless hook is currently being processed on the calling thread.
-bool dangless_hook_running(void);
+bool dangless_is_hook_running(void);
 
 // Gets the original (canonical) pointer as returned by the system allocator of a dangless-remapped pointer.
 void *dangless_get_canonical(void *p);

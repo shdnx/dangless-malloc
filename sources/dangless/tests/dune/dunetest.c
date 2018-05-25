@@ -1,3 +1,10 @@
+#define _GNU_SOURCE
+
+#include <stdlib.h>
+#include <stdio.h>
+
+#include <errno.h>
+
 #include "dunetest.h"
 
 /*static uintptr_t g_checking_memregion_start = 0;
@@ -24,8 +31,7 @@ void dunetest_init(void) {
   fprintf(stderr, "Entering Dune...\n");
 
   if (dune_init_and_enter() != 0) {
-    // TODO: a more elegant solution to this
-    fprintf(stderr, "Failed to enter Dune mode!\n");
+    perror("Failed to enter Dune mode");
     abort();
   }
 

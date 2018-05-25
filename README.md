@@ -1,5 +1,20 @@
 This project is currently heavily work-in-progress.
 
+# System requirements
+
+Most requirements are posed by [Dune](https://github.com/ix-project/dune):
+
+ - A 64-bit x86 Linux environment
+ - A relatively recent Intel CPU with VT-x support
+ - Kernel version of 4.4.0 or older
+ - Installed kernel headers for the running kernel
+ - Root privileges
+ - Enabled transparent hugepages:
+    - `/sys/kernel/mm/transparent_hugepage/enabled` is set to `madvise` or `always`
+    - `/proc/sys/vm/nr_hugepages` is a sufficiently large number (200 does the trick on my machine)
+
+Besides this, my code requires a relatively recent version of GCC (or a compiler that supports the GNU extensions to C11). GCC version 5 or newer should work.
+
 # Setup
 
 ```bash
@@ -22,6 +37,9 @@ cd ../dangless
 # some other configuration options can be used, see make/buildconfig-details.mk
 PLATFORM=dune DUNE_ROOT=../vendor/dune-ix make config
 make
+
+# run unit tests
+make test
 ```
 
 # License
