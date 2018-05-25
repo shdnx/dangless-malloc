@@ -22,7 +22,7 @@ git submodule init
 git submodule update
 
 # patch dune-ix, so that it maps the pages necessary for allocating physical pages in the virtual environment in ring 0
-cd sources/vendor/dune-ix
+cd vendor/dune-ix
 git apply ../dune-ix.patch
 
 # need sudo, because it's building a kernel module
@@ -31,7 +31,7 @@ sudo make
 # insert the Dune kernel module
 sudo insmod kern/dune.ko
 
-cd ../dangless
+cd ../../sources
 
 # currently only the dune platform is really supported
 # some other configuration options can be used, see make/buildconfig-details.mk

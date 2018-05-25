@@ -3,7 +3,7 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 doSync () {
-  local path_relative_to_root="sources/dangless"
+  local path_relative_to_root="sources"
 
   rsync \
     --verbose \
