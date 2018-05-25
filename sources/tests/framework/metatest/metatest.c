@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#include "testfx.h"
+#include "testfx/testfx.h"
 
 TEST_SUITE("Metatest suite") {
   fprintf(stderr, "Starting metatest suite...\n");

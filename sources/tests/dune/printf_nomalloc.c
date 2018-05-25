@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "printf_nomalloc.h"
-#include "testfx.h"
+#include "testfx/testfx.h"
 
 TEST_SUITE("nomalloc_printf") {
   TEST("sprintf_nomalloc simple") {

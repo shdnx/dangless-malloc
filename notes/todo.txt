@@ -3,6 +3,7 @@
  - move dangless include into a 'dangless' folder so you have to include them as 'dangless/virtmem.h' etc.
 
 Maybe later:
+ - open-source testfx as a separate library
  - more memory allocation functions: aligned_alloc(), memalign(), valloc(), etc. https://linux.die.net/man/3/memalign ?
 
 ------------------ old stuff ---------------

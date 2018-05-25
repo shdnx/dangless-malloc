@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#include "testfx.h"
+#include "testfx/testfx.h"
 
 struct test_suite *g_current_suite = NULL;
 struct test_case *g_current_test = NULL;
@@ -135,5 +134,5 @@ int main(int argc, const char **argv) {
 
   fprintf(stderr, "Finished! Passed: %zu / %zu\n", g_num_testcases_total - g_num_testcases_failed, g_num_testcases_total);
 
-  return 0;
+  return g_num_testcases_failed > 0 ? 1 : 0;
 }

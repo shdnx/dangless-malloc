@@ -1,15 +1,14 @@
 #ifndef DUNETEST_H
 #define DUNETEST_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <string.h> // memset
 
+#include "dangless_malloc.h"
 #include "virtmem.h"
 
 #include "libdune/dune.h"
 
-#include "testfx.h"
+#include "testfx/testfx.h"
 
 void dunetest_init(void);
 

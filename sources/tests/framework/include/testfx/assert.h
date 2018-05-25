@@ -1,17 +1,11 @@
 #ifndef TESTFX_ASSERT_H
 #define TESTFX_ASSERT_H
 
-#include <stdio.h>
-#include <string.h> // strdup
+#include <stdio.h> // snprintf
+#include <string.h> // strdup, strcmp
 #include <stdlib.h> // free
-#include <stdbool.h>
-#include <stdint.h>
 
-struct test_case;
-struct test_case_result;
-
-extern struct test_case *g_current_test;
-extern struct test_case_result *g_current_result;
+#include "testfx/internals/common.h"
 
 #define _FMT(V) \
   _Generic((V), \

@@ -4,7 +4,7 @@
 #include "virtmem.h"
 #include "virtmem_alloc.h"
 
-#include "testfx.h"
+#include "testfx/testfx.h"
 
 // TODO: we should enforce that this test suite runs before e.g. 'basics.c'
 TEST_SUITE("Virtual page allocator") {

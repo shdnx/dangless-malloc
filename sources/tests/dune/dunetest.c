@@ -1,9 +1,9 @@
 #define _GNU_SOURCE
 
-#include <stdlib.h>
+#include <stdlib.h> // abort
 #include <stdio.h>
 
-#include <errno.h>
+#include <errno.h> // perror
 
 #include "dunetest.h"
 
