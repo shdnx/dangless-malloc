@@ -5,6 +5,7 @@
 
 #include <errno.h> // perror
 
+#include "virtmem.h"
 #include "dunetest.h"
 
 /*static uintptr_t g_checking_memregion_start = 0;
@@ -28,14 +29,18 @@ void dunetest_init(void) {
 
   s_initalized = true;
 
-  fprintf(stderr, "Entering Dune...\n");
+  if (!in_kernel_mode()) {
+    fprintf(stderr, "Entering Dune...\n");
 
-  if (dune_init_and_enter() != 0) {
-    perror("Failed to enter Dune mode");
-    abort();
+    if (dune_init_and_enter() != 0) {
+      perror("Failed to enter Dune mode");
+      abort();
+    }
+
+    fprintf(stderr, "Now in Dune!\n");
   }
 
   //dune_register_pgflt_handler(&pagefault_handler);
 
-  fprintf(stderr, "Now in Dune, starting tests...\n");
+  fprintf(stderr, "Init done, starting tests...\n");
 }

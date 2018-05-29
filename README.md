@@ -31,6 +31,9 @@ sudo make
 # insert the Dune kernel module
 sudo insmod kern/dune.ko
 
+# change permissions on /dev/dune so we can run Dune apps without 'sudo'
+sudo chmod a+rw /dev/dune
+
 cd ../../sources
 
 # currently only the dune platform is really supported

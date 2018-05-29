@@ -12,7 +12,10 @@
 #define VIRTREMAP_DEBUG 1
 
 // platform/sysmalloc.c
-#define SYSMALLOC_DEBUG 1
+//#define SYSMALLOC_DEBUG 1
+
+// platform/init.c
+#define INIT_DEBUG 1
 
 // virtmem_alloc.c
 #define VMALLOC_DEBUG 1

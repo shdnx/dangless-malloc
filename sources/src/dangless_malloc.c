@@ -10,11 +10,11 @@
 #include "platform/virtual_remap.h"
 
 #if DGLMALLOC_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
-  #define DPRINTF_NOMALLOC(...) vdprintf_nomalloc(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
+  #define LOG_NOMALLOC(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
-  #define DPRINTF_NOMALLOC(...) /* empty */
+  #define LOG(...) /* empty */
+  #define LOG_NOMALLOC(...) /* empty */
 #endif
 
 enum {
@@ -29,7 +29,7 @@ static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
 
-  DPRINTF("dedicating virtual memory: %p - %p\n", start, end);
+  LOG("dedicating virtual memory: %p - %p\n", start, end);
   return vp_free_region(start, end);
 }
 
@@ -57,7 +57,7 @@ static void auto_dedicate_vmem(void) {
     nentries_dedicated++;
   }
 
-  DPRINTF("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
+  LOG("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
 }
 
 static THREAD_LOCAL unsigned g_hook_depth = 0;
@@ -67,21 +67,21 @@ bool dangless_is_hook_running(void) {
 }
 
 static bool do_hook_enter(const char *func_name) {
-  //DPRINTF_NOMALLOC("entering hook %s...\n", func_name);
+  //LOG_NOMALLOC("entering hook %s...\n", func_name);
 
   if (UNLIKELY(dangless_is_hook_running())) {
-    DPRINTF_NOMALLOC("failed to enter hook %s: already running a hook at depth %d\n", func_name, g_hook_depth);
+    LOG_NOMALLOC("failed to enter hook %s: already running a hook at depth %d\n", func_name, g_hook_depth);
     return false;
   }
 
   if (UNLIKELY(!in_kernel_mode())) {
-    //DPRINTF_NOMALLOC("failed to enter hook %s: not in kernel mode yet\n", func_name);
+    //LOG_NOMALLOC("failed to enter hook %s: not in kernel mode yet\n", func_name);
     return false;
   }
 
   g_hook_depth++;
 
-  //DPRINTF_NOMALLOC("entered hook!\n");
+  //LOG_NOMALLOC("entered hook!\n");
   return true;
 }
 
@@ -90,7 +90,7 @@ static void do_hook_exit(const char *func_name) {
 
   g_hook_depth--;
 
-  //DPRINTF("exited hook %s\n", func_name);
+  //LOG("exited hook %s\n", func_name);
 }
 
 #define HOOK_ENTER() do_hook_enter(__func__)
@@ -112,14 +112,14 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
   int result = vremap_map(p, sz, OUT &remapped_ptr);
 
   if (UNLIKELY(result == EVREM_NO_VM && !g_initialized)) {
-    DPRINTF("auto-dedicating available virtual memory to dangless...\n");
+    LOG("auto-dedicating available virtual memory to dangless...\n");
 
     pthread_once(&g_auto_dedicate_once, auto_dedicate_vmem);
 
-    DPRINTF("re-trying vremap...\n");
+    LOG("re-trying vremap...\n");
     return do_vremap(p, sz, func_name);
   } else if (result < 0) {
-    DPRINTF("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, sz, result);
+    LOG("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, sz, result);
     return p;
   }
 
@@ -131,7 +131,7 @@ void *dangless_malloc(size_t size) {
   if (!HOOK_ENTER())
     return p;
 
-  DPRINTF("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
+  LOG("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
 
   HOOK_RETURN(do_vremap(p, size, "malloc"));
 }
@@ -163,7 +163,7 @@ static void virtual_invalidate_pte(pte_t *ppte) {
 static void virtual_invalidate(void *p, size_t npages) {
   p = (void *)ROUND_DOWN((vaddr_t)p, PGSIZE);
 
-  DPRINTF("invalidating %zu virtual pages starting at %p...\n", npages, p);
+  LOG("invalidating %zu virtual pages starting at %p...\n", npages, p);
 
   size_t page_offset = 0;
   while (page_offset < npages) {
@@ -205,9 +205,9 @@ void dangless_free(void *p) {
     size_t npages = sysmalloc_usable_pages(original_ptr);
     virtual_invalidate(p, npages);
   } else if (result < 0) {
-    DPRINTF("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
+    LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
   } else {
-    DPRINTF("vremap_resolve returned %d, assume no remapping\n", result);
+    LOG("vremap_resolve returned %d, assume no remapping\n", result);
   }
 
   sysfree(original_ptr);
@@ -224,14 +224,14 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (p) {
     int result = vremap_resolve(p, OUT &original_ptr);
-    DPRINTF("vremap_resolve(%p) => %d, %p\n", p, result, original_ptr);
+    LOG("vremap_resolve(%p) => %d, %p\n", p, result, original_ptr);
 
     if (result == 0) {
       was_remapped = true;
     } else if (result < 0) {
-      DPRINTF("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
+      LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
     } else {
-      DPRINTF("vremap_resolve returned %d, assume no remapping\n", result);
+      LOG("vremap_resolve returned %d, assume no remapping\n", result);
     }
   }
 
@@ -242,13 +242,13 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
   const size_t old_npages = sysmalloc_usable_pages(original_ptr);
-  //DPRINTF("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
+  //LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
     HOOK_RETURN(NULL);
 
-  //DPRINTF("original_ptr = %p, newp = %p\n", original_ptr, newp);
+  //LOG("original_ptr = %p, newp = %p\n", original_ptr, newp);
 
   if (newp == original_ptr) {
     // we can potentially do it in-place

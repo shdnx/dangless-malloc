@@ -45,7 +45,7 @@ DEFINES := -DDEBUG
 CFLAGS += -std=gnu11 -Wall -Wextra -Wno-format-zero-length -ggdb -O0 -pthread -MMD -MP
 BIN := $(BIN_DIR)/libdangless.a
 
-BASE_OBJS_DIR := $(BUILD_DIR)/obj/$(PLATFORM)
+BASE_OBJS_DIR := $(BIN_DIR)/obj
 
 CORE_SRCS_DIR := src
 CORE_SRCS := $(wildcard src/*.c)
@@ -54,14 +54,14 @@ CORE_OBJS := $(patsubst $(CORE_SRCS_DIR)/%.c,$(CORE_OBJS_DIR)/%.o,$(CORE_SRCS))
 
 PLATFORM_SRCS_DIR := src/platform/$(PLATFORM)
 PLATFORM_SRCS := $(wildcard $(PLATFORM_SRCS_DIR)/*.c)
-PLATFORM_OBJS_DIR := $(BASE_OBJS_DIR)/platform/$(PLATFORM)
+PLATFORM_OBJS_DIR := $(BASE_OBJS_DIR)/platform
 PLATFORM_OBJS := $(patsubst $(PLATFORM_SRCS_DIR)/%.c,$(PLATFORM_OBJS_DIR)/%.o,$(PLATFORM_SRCS))
 
 SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS := $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all config clean clean_full clean_config always test
+.PHONY: all config clean test always
 
 all: $(BIN)
 
@@ -85,12 +85,6 @@ $(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(OBJS)
 	$(RANLIB) $@
 
 clean:
-	rm -f $(OBJS)
-	rm -f $(DEPS)
-	rm -f $(BIN)
-	rm -f $(MKCONFIG) $(MKLASTCONFIG) $(BUILDCONFIG_HEADER_FILE)
-
-clean_full:
 	rm -rf $(BUILD_DIR)
 
 test: $(BIN)

@@ -1,18 +1,14 @@
--include ../bin/testfx.mk
+include ../bin/testfx.mk
 
-ifndef TESTFX_ROOT
-$(error testfx not built?)
-endif
+CC := $(TESTFX_USER_CC)
+CFLAGS := $(TESTFX_USER_CFLAGS)
+LDFLAGS := $(TESTFX_USER_LDFLAGS)
 
-CC = $(TESTFX_USER_CC)
-CFLAGS = $(TESTFX_USER_CFLAGS)
-LDFLAGS = $(TESTFX_USER_LDFLAGS)
+BIN := bin/metatest
 
-BIN = bin/metatest
-
-SRCS = $(wildcard *.c)
-OBJS = $(patsubst %.c,obj/%.o,$(SRCS))
-DEPS = $(OBJS:.o=.d)
+SRCS := $(wildcard *.c)
+OBJS := $(patsubst %.c,obj/%.o,$(SRCS))
+DEPS := $(OBJS:.o=.d)
 
 .PHONY: all clean
 

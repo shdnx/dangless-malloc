@@ -8,45 +8,43 @@ CFLAGS := -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG -MMD 
 INCLUDES := -Iinclude
 
 LIBNAME := testfx
-BIN := bin/lib$(LIBNAME).a
-MKCONFIG = bin/testfx.mk
+BIN := build/lib$(LIBNAME).a
+MKCONFIG = build/testfx.mk
 
 SRCS = $(wildcard src/*.c)
-OBJS = $(patsubst src/%.c,obj/%.o,$(SRCS))
+OBJS = $(patsubst src/%.c,build/obj/%.o,$(SRCS))
 DEPS = $(OBJS:.o=.d)
 
 .PHONY: all clean
 
 all: $(BIN)
 
-bin obj:
+build build/obj:
 	mkdir -p $@
 
-obj/%.o: src/%.c obj
+build/obj/%.o: src/%.c build/obj
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(BIN): $(OBJS) $(MKCONFIG) bin
+$(BIN): $(OBJS) build
+	$(file > $(MKCONFIG),$(MKCONFIG_DATA))
+
 	$(AR) rcs $@ $(OBJS)
 	$(RANLIB) $@
 
 define MKCONFIG_DATA :=
 TESTFX_ROOT := $(CURDIR)
+
 TESTFX_BIN_LIBNAME := $(LIBNAME)
-TESTFX_BIN := $(realpath BIN)
-TESTFX_BIN_DIR := $$(dirnake $(TESTFX_BIN))
-TESTFX_INCLUDE_DIR := $$(TESTFX_ROOT)/include
+TESTFX_BIN := $(CURDIR)/$(BIN)
+TESTFX_BIN_DIR := $(CURDIR)/build
+TESTFX_INCLUDE_DIR := $(CURDIR)/include
 
 TESTFX_USER_CC = gcc
 TESTFX_USER_CFLAGS = -std=gnu11 -O0 -ggdb -DDEBUG -Wno-unused-parameter -I$$(TESTFX_INCLUDE_DIR)
 TESTFX_USER_LDFLAGS = -L$$(TESTFX_BIN_DIR) -l$$(TESTFX_BIN_LIBNAME)
 endef
 
-$(MKCONFIG): bin
-	$(file > $@,$(MKCONFIG_DATA))
-
 clean:
-	rm -f $(OBJS)
-	rm -f $(DEPS)
-	rm -f $(BIN) $(MKCONFIG)
+	rm -rf build
 
 -include $(DEPS)

@@ -6,7 +6,7 @@ FX_ROOT := ../framework
 DANGLESS_BIN_DIR := $(DANGLESS_ROOT)/build/dune
 include $(DANGLESS_BIN_DIR)/config.mk
 
-FX_BIN_DIR = $(FX_ROOT)/bin
+FX_BIN_DIR = $(FX_ROOT)/build
 include $(FX_BIN_DIR)/testfx.mk
 
 BIN := bin/dangless-dune-test
@@ -19,29 +19,27 @@ CFLAGS := $(TESTFX_USER_CFLAGS) $(DANGLESS_USER_CFLAGS) -MMD -MP
 LDFLAGS := $(TESTFX_USER_LDFLAGS) $(DANGLESS_USER_LDFLAGS)
 
 SRCS := $(wildcard *.c)
-OBJS := $(patsubst %.c,obj/%.o,$(SRCS))
+OBJS := $(patsubst %.c,build/obj/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
 .PHONY: all clean run
 
 all: $(BIN)
 
-bin obj:
+build build/obj:
 	mkdir -p $@
 
 clean:
-	rm -f $(OBJS)
-	rm -f $(DEPS)
-	rm -f $(BIN)
+	rm -rf build
 
-obj/%.o: %.c obj
+build/obj/%.o: %.c build/obj
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(BIN): $(OBJS) $(DANGLESS_BIN) bin
+$(BIN): $(OBJS) $(DANGLESS_BIN) build
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 run: $(BIN)
-	sudo $(BIN)
+	$(BIN)
 
 # debug
 print-%  : ; @echo $* = $($*)
