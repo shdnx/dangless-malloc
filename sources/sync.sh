@@ -1,5 +1,6 @@
 #!/bin/bash
 
+REMOTE_ROOT="~/remote/thesis"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 doSync () {
@@ -17,7 +18,7 @@ doSync () {
     --exclude=obj \
     $@ \
     "$DIR/" \
-    "homelan:~/remote/thesis/${path_relative_to_root}"
+    "homelan:${REMOTE_ROOT}/${path_relative_to_root}"
 }
 
 autoSync () {
