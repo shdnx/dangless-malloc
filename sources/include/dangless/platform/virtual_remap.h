@@ -1,8 +1,8 @@
-#ifndef VIRTUAL_REMAP_H
-#define VIRTUAL_REMAP_H
+#ifndef DANGLESS_PLATFORM_VIRTUAL_REMAP_H
+#define DANGLESS_PLATFORM_VIRTUAL_REMAP_H
 
-#include "common.h"
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/platform/mem.h"
 
 enum {
   VREM_OK = 0,
@@ -27,4 +27,4 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped);
 // Given a remapped virtual memory address, attempts to determine the original virtual address. If successful, the 'original_ptr' out parameter is filled with the original virtual address and the function returns 0.
 int vremap_resolve(void *ptr, OUT void **original_ptr);
 
-#endif // VIRTUAL_REMAP_H
+#endif

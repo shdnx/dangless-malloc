@@ -1,9 +1,8 @@
-#ifndef VIRTMEM_H
-#define VIRTMEM_H
+#ifndef DANGLESS_VIRTMEM_H
+#define DANGLESS_VIRTMEM_H
 
-#include "common.h"
-
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/platform/mem.h"
 
 enum {
   RING_KERNEL = 0x0,
@@ -122,4 +121,4 @@ static inline void tlb_flush_all(void) {
        "mov %%rax, %%cr3\n" ::: "rax");
 }
 
-#endif // VIRTMEM_H
+#endif

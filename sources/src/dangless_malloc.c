@@ -1,13 +1,13 @@
 #include <pthread.h>
 
-#include "config.h"
-#include "common.h"
-#include "dangless_malloc.h"
-#include "virtmem.h"
-#include "virtmem_alloc.h"
+#include "dangless/config.h"
+#include "dangless/common.h"
+#include "dangless/dangless_malloc.h"
+#include "dangless/virtmem.h"
+#include "dangless/virtmem_alloc.h"
 
-#include "platform/sysmalloc.h"
-#include "platform/virtual_remap.h"
+#include "dangless/platform/sysmalloc.h"
+#include "dangless/platform/virtual_remap.h"
 
 #if DGLMALLOC_DEBUG
   #define LOG(...) vdprintf(__VA_ARGS__)

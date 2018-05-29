@@ -23,4 +23,4 @@ void *dangless_get_canonical(void *p);
 // TODO: this is a GNU extension, should it be supported? E.g. Rumprun's implementation doesn't provide malloc_usable_size()
 //size_t dangless_usable_size(void *p);
 
-#endif // DANGLESS_MALLOC_H
+#endif

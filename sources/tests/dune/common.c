@@ -1,5 +1,5 @@
-#include "virtmem.h"
-#include "dangless_malloc.h"
+#include "dangless/virtmem.h"
+#include "dangless/dangless_malloc.h"
 #include "dangless/buildconfig.h"
 
 #include "dunetest.h"

@@ -2,8 +2,8 @@
 #include <limits.h>
 #include <unistd.h>
 
-#include "common.h"
-#include "printf_nomalloc.h"
+#include "dangless/common.h"
+#include "dangless/printf_nomalloc.h"
 
 #define BUFFER_SIZE 1024
 

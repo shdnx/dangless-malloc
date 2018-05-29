@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h> // abort
 
-#include "virtmem.h"
-#include "virtmem_alloc.h"
+#include "dangless/virtmem.h"
+#include "dangless/virtmem_alloc.h"
 
 #include "testfx/testfx.h"
 

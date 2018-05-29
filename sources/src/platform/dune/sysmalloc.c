@@ -3,15 +3,15 @@
 #include <dlfcn.h> // dlsym(), RTLD_NEXT, RTLD_DEFAULT
 #include <malloc.h> // malloc_usable_size()
 
-#include "common.h"
-#include "config.h"
-#include "platform/mem.h"
-#include "platform/sysmalloc.h"
+#include "dangless/common.h"
+#include "dangless/config.h"
+#include "dangless/platform/mem.h"
+#include "dangless/platform/sysmalloc.h"
 
 #if SYSMALLOC_DEBUG
-  #define DPRINTF(...) vdprintf_nomalloc(__VA_ARGS__)
+  #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 static bool g_populating = false;
@@ -69,7 +69,7 @@ static void *syscalloc_special(size_t num, size_t size) {
   const size_t requested_size = num * size;
   ASSERT(sizeof(s_storage) >= requested_size, "Insufficient special calloc storage (%zu) to satisfy request (%zu * %zu = %zu)!!!", sizeof(s_storage), num, size, requested_size);
 
-  DPRINTF("Allocating %zu bytes from syscalloc special storage (capacity %zu)\n", requested_size, sizeof(s_storage));
+  LOG("Allocating %zu bytes from syscalloc special storage (capacity %zu)\n", requested_size, sizeof(s_storage));
   return s_storage;
 }
 
@@ -83,7 +83,7 @@ void *syscalloc(size_t num, size_t size) {
       //  - https://www.slideshare.net/tetsu.koba/tips-of-malloc-free (slide 34)
       //  - https://github.com/ugtrain/ugtrain/blob/d9519a15f4363cee48bb3c270f6050181c5aa305/src/linuxhooking/memhooks.c#L153
 
-      DPRINTF("populate_addrs() is already running: special dlsym() calloc() handling active!\n");
+      LOG("populate_addrs() is already running: special dlsym() calloc() handling active!\n");
 
       return syscalloc_special(num, size);
     }

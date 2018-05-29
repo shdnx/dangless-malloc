@@ -1,23 +1,21 @@
-#include <assert.h>
-
-#include "common.h"
-#include "virtmem.h"
-#include "virtmem_alloc.h"
-#include "platform/virtual_remap.h"
+#include "dangless/common.h"
+#include "dangless/virtmem.h"
+#include "dangless/virtmem_alloc.h"
+#include "dangless/platform/virtual_remap.h"
 
 #if VIRTREMAP_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 // TODO: this only supports <= PAGESIZE allocation
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
-  assert(ptr);
+  ASSERT0(ptr);
 
   void *va = vp_alloc_one();
   if (!va) {
-    DPRINTF("could not allocate virtual memory page to remap to\n");
+    LOG("could not allocate virtual memory page to remap to\n");
     return EVREM_NO_VM;
   }
 
@@ -25,7 +23,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   {
     enum pt_level level;
     paddr_t pa = pt_resolve_page(va, OUT &level);
-    assert(!pa && "Allocated virtual page is already mapped to a physical address!");
+    ASSERT(!pa, "Allocated virtual page is already mapped to a physical address!");
   }
 #endif
 
@@ -37,7 +35,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   // this assumes that the allocated virtual memory region is backed by a contiguous physical memory region
   int result;
   if ((result = pt_map_region(pa_page, (vaddr_t)va, ROUND_UP(size, PGSIZE), PTE_W | PTE_NX)) < 0) {
-    DPRINTF("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
+    LOG("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free_one(va);

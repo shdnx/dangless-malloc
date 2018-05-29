@@ -1,17 +1,16 @@
-#include "common.h"
-#include "config.h"
-#include "virtmem.h"
-#include "virtmem_alloc.h"
-
-#include "platform/mem.h"
-#include "platform/virtual_remap.h"
+#include "dangless/common.h"
+#include "dangless/config.h"
+#include "dangless/virtmem.h"
+#include "dangless/virtmem_alloc.h"
+#include "dangless/platform/mem.h"
+#include "dangless/platform/virtual_remap.h"
 
 #include "dune.h"
 
 #if VIRTREMAP_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 // TODO: this is basically the same code as for rumprun (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
@@ -27,7 +26,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   paddr_t pa = dune_va_to_pa(ptr);
   paddr_t pa_page = ROUND_DOWN(pa, PGSIZE);
 
-  DPRINTF("inpage_offset = %zu, npages = %zu, pa = 0x%lx, pa_page = 0x%lx\n", inpage_offset, npages, pa, pa_page);
+  LOG("inpage_offset = %zu, npages = %zu, pa = 0x%lx, pa_page = 0x%lx\n", inpage_offset, npages, pa, pa_page);
 
 #if VIRTREMAP_DEBUG
   // verify that 'ptr' is backed by contigous physical memory in the expected way (regardless of whether it's mapped with hugepages or not)
@@ -57,11 +56,11 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 
   void *va = vp_alloc(npages);
   if (!va) {
-    DPRINTF("could not allocate virtual memory region of %zu pages to remap to\n", npages);
+    LOG("could not allocate virtual memory region of %zu pages to remap to\n", npages);
     return EVREM_NO_VM;
   }
 
-  DPRINTF("got va to remap to: %p\n", va);
+  LOG("got va to remap to: %p\n", va);
 
 #if VIRTREMAP_DEBUG
   // verify that the allocated virtual memory region is not yet backed by any physical memory
@@ -79,7 +78,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   // this assumes that 'ptr' is backed by a contiguous physical memory region
   int result;
   if ((result = pt_map_region(pa_page, (vaddr_t)va, npages * PGSIZE, PTE_W | PTE_NX)) < 0) {
-    DPRINTF("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
+    LOG("could not remap pa 0x%lx to va %p, code %d\n", pa_page, va, result);
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free(va, npages);

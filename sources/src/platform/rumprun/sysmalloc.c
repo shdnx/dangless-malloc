@@ -1,14 +1,12 @@
-#include "platform/sysmalloc.h"
-#include "common.h"
+#include "dangless/common.h"
+#include "dangless/platform/sysmalloc.h"
 
 #include "rumprun.h"
 
-#define SYSMALLOC_DEBUG 1
-
 #if SYSMALLOC_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 // bmk-core/memalloc.h

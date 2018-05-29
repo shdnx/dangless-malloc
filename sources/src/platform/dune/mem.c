@@ -1,6 +1,5 @@
-#include "common.h"
-
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/platform/mem.h"
 
 #include "dune.h"
 

@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef DANGLESS_COMMON_H
+#define DANGLESS_COMMON_H
 
 #include <stdint.h> // int8_t, int16_t, etc.
 #include <stddef.h> // ptrdiff_t
@@ -8,7 +8,7 @@
 
 // libc's printf() et al MAY allocate memory using malloc() et al. In practice, printing only to stderr using glibc this doesn't seem to ever happen, but I want to be sure.
 // Even if such a call would result in an allocation, we're fine so long as the call occurs during a hook execution AFTER a HOOK_ENTER() call is successful. For all printing and logging purposes, code that may run before or during HOOK_ENTER() MUST use the functions from printf_nomalloc.h.
-#include "printf_nomalloc.h"
+#include "dangless/printf_nomalloc.h"
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -134,4 +134,4 @@ void _assert_fail(void);
       static_assert_fail(); \
   }*/
 
-#endif // COMMON_H
+#endif

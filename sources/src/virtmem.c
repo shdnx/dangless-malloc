@@ -1,14 +1,13 @@
 #include <pthread.h>
 
-#include "common.h"
-#include "virtmem.h"
-
-#include "platform/physmem_alloc.h"
+#include "dangless/common.h"
+#include "dangless/virtmem.h"
+#include "dangless/platform/physmem_alloc.h"
 
 #if VIRTMEM_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 static pthread_mutex_t g_pt_mapping_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -95,7 +94,7 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
 #define CREATE_LEVEL(LVL) \
     ptpa = pp_zalloc_one(); \
     if (!ptpa) { \
-      DPRINTF("failed to allocate pagetable page!\n"); \
+      LOG("failed to allocate pagetable page!\n"); \
       goto fail_cleanup; \
     } \
     *ppte = (pte_t)ptpa | flags | PTE_V; \
@@ -139,7 +138,7 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
 
   for (offset = 0; offset < size; offset += PGSIZE) {
     if ((result = pt_map_page(pa + offset, va + offset, flags)) < 0) {
-      DPRINTF("could not map page offset 0x%lx\n", offset);
+      LOG("could not map page offset 0x%lx\n", offset);
       goto fail_unmap;
     }
   }
@@ -160,7 +159,7 @@ int pt_unmap_page(vaddr_t va, enum pt_level on_level) {
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, on_level, OUT &ppte);
   if (level != on_level) {
-    DPRINTF("0x%lx is not mapped under level %u, pt_walk() returned level %u\n", va, on_level, level);
+    LOG("0x%lx is not mapped under level %u, pt_walk() returned level %u\n", va, on_level, level);
     return -1;
   }
 

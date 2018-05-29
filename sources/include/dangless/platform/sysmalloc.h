@@ -1,5 +1,5 @@
-#ifndef SYSMALLOC_H
-#define SYSMALLOC_H
+#ifndef DANGLESS_PLATFORM_SYSMALLOC_H
+#define DANGLESS_PLATFORM_SYSMALLOC_H
 
 #include <stddef.h>
 
@@ -16,4 +16,4 @@ size_t sysmalloc_usable_pages(void *p);
 #define MALLOC(TYPE) ((TYPE *)sysmalloc(sizeof(TYPE)))
 #define FREE(P) (sysfree((P)))
 
-#endif // SYSMALLOC_H
+#endif

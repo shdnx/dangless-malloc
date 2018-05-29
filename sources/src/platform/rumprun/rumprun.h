@@ -1,7 +1,7 @@
-#ifndef RUMPRUN_H
-#define RUMPRUN_H
+#ifndef DANGLESS_RUMPRUN_H
+#define DANGLESS_RUMPRUN_H
 
-#include "common.h"
+#include "dangless/common.h"
 
 // These macros allow us to use functions defined by rumprun by knowing their offset inside rumprun.o. They use function pointer variables.
 // Linking to the rumprun modules is very tricky, we'd basically have to pull in the entire rumprun as well as use its linker script, which sounds super unhealthy and would likely lead to all sort of problems besides the waste.
@@ -41,4 +41,4 @@
 
 #define RUMPRUN_VAR(NAME) (*__RUMPRUN_SYM_NAME(NAME))*/
 
-#endif // RUMPRUN_H
+#endif

@@ -1,9 +1,8 @@
-#ifndef PHYSMEM_ALLOC_H
-#define PHYSMEM_ALLOC_H
+#ifndef DANGLESS_PLATFORM_PHYSMEM_ALLOC_H
+#define DANGLESS_PLATFORM_PHYSMEM_ALLOC_H
 
-#include "common.h"
-
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/platform/mem.h"
 
 // This is a memory allocator for 4K physical pages that are going to be in use for a very long time, and are very rarely or never freed (e.g. page tables).
 
@@ -21,4 +20,4 @@ inline static paddr_t pp_alloc_one(void) { return pp_alloc(1); }
 inline static paddr_t pp_zalloc_one(void) { return pp_zalloc(1); }
 inline static void pp_free_one(paddr_t pa) { return pp_free(pa, 1); }
 
-#endif // PHYSMEM_ALLOC_H
+#endif

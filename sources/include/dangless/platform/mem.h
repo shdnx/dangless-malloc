@@ -1,7 +1,7 @@
-#ifndef MEM_H
-#define MEM_H
+#ifndef DANGLESS_PLATFORM_MEM_H
+#define DANGLESS_PLATFORM_MEM_H
 
-#include "common.h"
+#include "dangless/common.h"
 
 typedef uintptr_t paddr_t;
 typedef uintptr_t vaddr_t;
@@ -21,4 +21,4 @@ typedef uintptr_t vaddr_t;
 // Given a physical address of a page table, gives the virtual address where that page table is mapped.
 void *pt_paddr2vaddr(paddr_t pa);
 
-#endif // MEM_H
+#endif

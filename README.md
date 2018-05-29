@@ -38,7 +38,7 @@ cd ../../sources
 
 # currently only the dune platform is really supported
 # some other configuration options can be used, see make/buildconfig-details.mk
-PLATFORM=dune DUNE_ROOT=../vendor/dune-ix make config
+make config PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
 make
 
 # run unit tests

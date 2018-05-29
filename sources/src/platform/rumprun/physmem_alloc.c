@@ -1,10 +1,9 @@
 #include <string.h> // memset()
 
-#include "queue.h"
-#include "virtmem.h"
-
-#include "platform/physmem_alloc.h"
-#include "platform/sysmalloc.h"
+#include "dangless/queue.h"
+#include "dangless/virtmem.h"
+#include "dangless/platform/physmem_alloc.h"
+#include "dangless/platform/sysmalloc.h"
 
 #include "rumprun.h"
 

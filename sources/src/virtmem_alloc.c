@@ -1,17 +1,16 @@
 #include <pthread.h>
 
-#include "common.h"
-#include "config.h"
-#include "queue.h"
-#include "virtmem_alloc.h"
-
-#include "platform/mem.h"
-#include "platform/sysmalloc.h"
+#include "dangless/common.h"
+#include "dangless/config.h"
+#include "dangless/queue.h"
+#include "dangless/virtmem_alloc.h"
+#include "dangless/platform/mem.h"
+#include "dangless/platform/sysmalloc.h"
 
 #if VMALLOC_DEBUG
-  #define DPRINTF(...) vdprintf(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
 #else
-  #define DPRINTF(...) /* empty */
+  #define LOG(...) /* empty */
 #endif
 
 struct vp_span {
@@ -59,7 +58,7 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   }
 
   if (UNLIKELY(span == LIST_END(&list->items))) {
-    DPRINTF("could not allocate %zu pages: freelist empty\n", npages);
+    LOG("could not allocate %zu pages: freelist empty\n", npages);
     pthread_mutex_unlock(&list->mutex);
     return NULL;
   }
@@ -72,10 +71,10 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   list->nallocs++;
 #endif
 
-  DPRINTF("satisfying %zu page alloc from span %p => 0x%lx\n", npages, span, va);
+  LOG("satisfying %zu page alloc from span %p => 0x%lx\n", npages, span, va);
 
   if (span_empty(span)) {
-    DPRINTF("span %p is now empty, deallocating\n", span);
+    LOG("span %p is now empty, deallocating\n", span);
     LIST_REMOVE(span, freelist);
     FREE(span);
   }
@@ -90,7 +89,7 @@ static struct vp_span *try_merge_spans(struct vp_span *left, struct vp_span *rig
   if (left->end != right->start)
     return NULL;
 
-  DPRINTF("merging span %p (%p - %p) with span %p (%p - %p)\n", left, (void *)left->start, (void *)left->end, right, (void *)right->start, (void *)right->end);
+  LOG("merging span %p (%p - %p) with span %p (%p - %p)\n", left, (void *)left->start, (void *)left->end, right, (void *)right->start, (void *)right->end);
 
   // merge 'right' into 'left'
   left->end = right->end;
@@ -120,7 +119,7 @@ static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
 
   // try merging with prev_span
   if (prev_span != NULL && prev_span->end == start) {
-    DPRINTF("merging freed range %p - %p into prev span %p (%p - %p)\n", (void *)start, (void *)end, prev_span, (void *)prev_span->start, (void *)prev_span->end);
+    LOG("merging freed range %p - %p into prev span %p (%p - %p)\n", (void *)start, (void *)end, prev_span, (void *)prev_span->start, (void *)prev_span->end);
 
     prev_span->end = end;
 
@@ -134,7 +133,7 @@ static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
 
   // try merging with next_span
   if (next_span != LIST_END(&list->items) && next_span->start == end) {
-    DPRINTF("merging freed range %p - %p into next span %p (%p - %p)\n", (void *)start, (void *)end, next_span, (void *)next_span->start, (void *)next_span->end);
+    LOG("merging freed range %p - %p into next span %p (%p - %p)\n", (void *)start, (void *)end, next_span, (void *)next_span->start, (void *)next_span->end);
 
     next_span->start = start;
 
@@ -149,7 +148,7 @@ static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
   // failed to merge into existing spans, so we'll have to create a new span
   struct vp_span *span = MALLOC(struct vp_span);
   if (UNLIKELY(!span)) {
-    DPRINTF("could not allocate vp_span: out of memory?\n");
+    LOG("could not allocate vp_span: out of memory?\n");
     pthread_mutex_unlock(&list->mutex);
     return -1;
   }
@@ -157,7 +156,7 @@ static int freelist_free(struct vp_freelist *list, void *p, size_t npages) {
   span->start = start;
   span->end = end;
 
-  DPRINTF("new span %p: %p - %p (%zu pages)\n", span, (void *)span->start, (void *)span->end, span_num_pages(span));
+  LOG("new span %p: %p - %p (%zu pages)\n", span, (void *)span->start, (void *)span->end, span_num_pages(span));
 
   // insert the new span
   if (prev_span) {

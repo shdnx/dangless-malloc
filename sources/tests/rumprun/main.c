@@ -2,12 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-// dangless stuff
-#include "common.h"
-#include "virtmem.h"
-#include "dangless_malloc.h"
-#include "dump.h"
-#include "platform/sysmalloc.h"
+#include "dangless/common.h"
+#include "dangless/virtmem.h"
+#include "dangless/dangless_malloc.h"
+#include "dangless/dump.h"
+#include "dangless/platform/sysmalloc.h"
 
 static int global_var;
 

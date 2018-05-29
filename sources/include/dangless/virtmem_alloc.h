@@ -1,8 +1,8 @@
-#ifndef VIRTMEM_ALLOC_H
-#define VIRTMEM_ALLOC_H
+#ifndef DANGLESS_VIRTMEM_ALLOC_H
+#define DANGLESS_VIRTMEM_ALLOC_H
 
-#include "common.h"
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/platform/mem.h"
 
 // This is a virtual 4K page allocator.
 // Initially, it doesn't own any memory, and any calls to vp_alloc() will fail. Assign memory to it by calling vp_free() or vp_free_region(): this is the memory that will be returned by subsequent vp_alloc() calls.
@@ -24,4 +24,4 @@ inline static int vp_free_region(void *start, void *end) {
   return vp_free(start, ((vaddr_t)end - (vaddr_t)start) / PGSIZE);
 }
 
-#endif // VIRTMEM_ALLOC_H
+#endif

@@ -1,5 +1,5 @@
-#ifndef DANGLESS_PRINTF_NOMALLOC
-#define DANGLESS_PRINTF_NOMALLOC
+#ifndef DANGLESS_PRINTF_NOMALLOC_H
+#define DANGLESS_PRINTF_NOMALLOC_H
 
 #include <stdio.h> // FILE *
 #include <stdarg.h> // va_list

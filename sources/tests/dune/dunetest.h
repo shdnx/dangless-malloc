@@ -3,10 +3,10 @@
 
 #include <string.h> // memset
 
-#include "dangless_malloc.h"
-#include "virtmem.h"
-
 #include "libdune/dune.h"
+
+#include "dangless/dangless_malloc.h"
+#include "dangless/virtmem.h"
 
 #include "testfx/testfx.h"
 

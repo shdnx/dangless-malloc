@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "printf_nomalloc.h"
+#include "dangless/printf_nomalloc.h"
+
 #include "testfx/testfx.h"
 
 TEST_SUITE("nomalloc_printf") {

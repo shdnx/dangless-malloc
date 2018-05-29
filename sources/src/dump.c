@@ -1,8 +1,8 @@
 #include <stdio.h>
 
-#include "common.h"
-#include "virtmem.h"
-#include "platform/mem.h"
+#include "dangless/common.h"
+#include "dangless/virtmem.h"
+#include "dangless/platform/mem.h"
 
 #define PRINTF_INDENT(INDENT_LENGTH, FORMAT, ...) \
   printf("%*s" FORMAT, (INDENT_LENGTH), "", __VA_ARGS__)

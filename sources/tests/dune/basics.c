@@ -1,7 +1,6 @@
-// TODO: dangless prefix
-#include "virtmem.h"
-#include "virtmem_alloc.h" // vp_reset()
-#include "dangless_malloc.h"
+#include "dangless/virtmem.h"
+#include "dangless/virtmem_alloc.h" // vp_reset()
+#include "dangless/dangless_malloc.h"
 
 #include "dunetest.h"
 
