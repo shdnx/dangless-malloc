@@ -1,7 +1,7 @@
 #ifndef DANGLESS_CONFIG_H
 #define DANGLESS_CONFIG_H
 
-#include "dangless/buildconfig.h"
+#include "dangless/build/config.h"
 
 // TODO: turn all of these into build config things?
 

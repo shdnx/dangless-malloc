@@ -30,8 +30,10 @@ override BIN_DIR := $(BIN_DIR)
 override MKCONFIG := $(MKCONFIG)
 
 BUILDCONFIG_INCLUDE_PATH := $(BUILD_DIR)/include
-BUILDCONFIG_HEADER_DIR := $(BUILDCONFIG_INCLUDE_PATH)/dangless
-BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_HEADER_DIR)/buildconfig.h
+BUILDCONFIG_HEADER_DIR := $(BUILDCONFIG_INCLUDE_PATH)/dangless/build
+BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_HEADER_DIR)/config.h
+
+SYSCALLMETA_FILE := $(BUILDCONFIG_HEADER_DIR)/syscallmeta.inc
 
 include make/buildconfig-defaults.mk
 
@@ -73,6 +75,9 @@ include make/buildconfig.mk
 
 $(BIN_DIR) $(BUILDCONFIG_HEADER_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
+
+$(SYSCALLMETA_FILE): $(BUILDCONFIG_HEADER_DIR) scripts/generate_syscallmeta.py
+	python3 scripts/generate_syscallmeta.py /usr/src/linux-headers-`uname -r` > $@
 
 $(CORE_OBJS_DIR)/%.o: src/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATFORM_DEFINES) -c $< -o $@
