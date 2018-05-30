@@ -9,6 +9,7 @@ BIN_DIR = $(BUILD_DIR)/$(PLATFORM)
 
 # deferred!
 MKCONFIG = $(BIN_DIR)/config.mk
+MKUSER = $(BIN_DIR)/user.mk
 MKLASTCONFIG := $(BUILD_DIR)/last-platform-config.mk
 
 # the PLATFORM variable should be supplied by the user
@@ -28,6 +29,7 @@ endif # end ifdef PLATFORM
 # force evaluation of deferred variables from earlier
 override BIN_DIR := $(BIN_DIR)
 override MKCONFIG := $(MKCONFIG)
+override MKUSER := $(MKUSER)
 
 BUILDCONFIG_INCLUDE_PATH := $(BUILD_DIR)/include
 BUILDCONFIG_HEADER_DIR := $(BUILDCONFIG_INCLUDE_PATH)/dangless/build
@@ -63,7 +65,7 @@ SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS := $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all config clean test always
+.PHONY: all config show-config clean test always
 
 all: $(BIN)
 
@@ -85,7 +87,7 @@ $(CORE_OBJS_DIR)/%.o: src/%.c
 $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATFORM_DEFINES) -c $< -o $@
 
-$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(OBJS)
+$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 	$(RANLIB) $@
 

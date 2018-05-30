@@ -3,18 +3,21 @@ include ../common.mk
 CFLAGS := $(DANGLESS_USER_CFLAGS)
 LDFLAGS := $(DANGLESS_USER_LDFLAGS)
 
-BIN := ./hello-world
+BIN := bin/hello-world
 SRCS := $(wildcard *.c)
 
 .PHONY: clean run
 
 all: $(BIN)
 
-$(BIN): $(SRCS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+bin:
+	mkdir $@
+
+$(BIN): bin $(SRCS) $(DANGLESS_BIN)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SRCS) -o $@
 
 clean:
-	rm -f $(BIN)
+	rm -rf bin
 
 run: $(BIN)
 	$(BIN)

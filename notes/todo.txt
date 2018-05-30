@@ -1,8 +1,8 @@
  - nicer output for the unit testing framework: colors, indentations, empty lines
  - split up the dangless common.h into multiple files, e.g. common/types.h, common/math.h, common/tracing.h, common/assert.h, etc.
- - move dangless include into a 'dangless' folder so you have to include them as 'dangless/virtmem.h' etc.
 
 Maybe later:
+ - open-source scripts/generate_syscallmeta.py
  - open-source testfx as a separate library
  - more memory allocation functions: aligned_alloc(), memalign(), valloc(), etc. https://linux.die.net/man/3/memalign ?
 

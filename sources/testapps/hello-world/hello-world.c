@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void fprintf_nomalloc(FILE *os, const char *restrict format, ...);
+extern void fprintf_nomalloc(FILE *os, const char *restrict format, ...);
 #define LOG(...) fprintf_nomalloc(stdout, __VA_ARGS__)
 
 // A better source is include/virtmem.h
@@ -12,13 +12,38 @@ static inline int in_kernel_mode(void) {
   return (cs & 0x3) == 0x0;
 }
 
+extern void dangless_init(void);
+
 int main(int argc, const char **argv) {
+  if (puts("Hello world from userspace!") == EOF)
+    perror("userspace puts()");
+
+  dangless_init();
+
   if (!in_kernel_mode()) {
     fprintf(stderr, "Not in kernel mode, cannot hello world!!\n");
     return 1;
   }
 
-  /*char *filename = malloc(16);
+  // ------
+
+  puts("Hello world normally!");
+
+  char *text = malloc(32);
+  strcpy(text, "Hello malloc-d world!");
+
+  LOG("text = [%p] \"%s\"\n", text, text);
+
+  if (puts(text) == EOF) {
+    perror("puts");
+    LOG("puts failed!\n");
+  }
+
+  free(text);
+
+  // -------
+
+  char *filename = malloc(16);
   strcpy(filename, "./test.txt");
 
   LOG("filename = [%p] \"%s\"\n", filename, filename);
@@ -26,6 +51,7 @@ int main(int argc, const char **argv) {
   FILE *fp = fopen(filename, "w");
   if (!fp) {
     perror("fopen");
+    LOG("fopen failed!\n");
     return 1;
   }
 
@@ -34,20 +60,7 @@ int main(int argc, const char **argv) {
 
   free(filename);
 
-  LOG("file OK\n");*/
-
-  // --
-
-  char *text = malloc(32);
-  strcpy(text, "Hello world!\n");
-
-  LOG("text = [%p] \"%s\"\n", text, text);
-
-  int rc = puts(text);
-  if (rc == EOF)
-    perror("puts");
-
-  free(text);
+  LOG("filetest done\n");
 
   return 0;
 }

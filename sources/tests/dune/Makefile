@@ -4,12 +4,12 @@ DANGLESS_ROOT := ../..
 FX_ROOT := ../framework
 
 DANGLESS_BIN_DIR := $(DANGLESS_ROOT)/build/dune
-include $(DANGLESS_BIN_DIR)/config.mk
+include $(DANGLESS_BIN_DIR)/user.mk
 
 FX_BIN_DIR = $(FX_ROOT)/build
 include $(FX_BIN_DIR)/testfx.mk
 
-BIN := bin/dangless-dune-test
+BIN := build/dangless-dune-test
 
 CC := $(TESTFX_USER_CC)
 

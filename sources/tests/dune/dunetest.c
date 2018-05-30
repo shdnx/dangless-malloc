@@ -39,6 +39,8 @@ void dunetest_init(void) {
     }
 
     fprintf(stderr, "Now in Dune!\n");
+  } else {
+    fprintf(stderr, "Was already in Dune mode, won't try to enter again\n");
   }
 
   //dune_register_pgflt_handler(&pagefault_handler);

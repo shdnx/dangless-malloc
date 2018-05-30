@@ -94,9 +94,4 @@ void dangless_init(void) {
 #if DANGLESS_CONFIG_REGISTER_PREINIT
   __attribute__((section(".preinit_array")))
   void (*preinit_entry)(void) = &dangless_init;
-
-  /*__attribute__((constructor))
-  static void init(void) {
-    dangless_init();
-  }*/
 #endif
