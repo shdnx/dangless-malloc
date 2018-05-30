@@ -7,7 +7,7 @@
 
 #include "dune.h"
 
-#if VIRTREMAP_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTREMAP
   #define LOG(...) vdprintf(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
@@ -28,7 +28,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 
   LOG("inpage_offset = %zu, npages = %zu, pa = 0x%lx, pa_page = 0x%lx\n", inpage_offset, npages, pa, pa_page);
 
-#if VIRTREMAP_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTREMAP
   // verify that 'ptr' is backed by contigous physical memory in the expected way (regardless of whether it's mapped with hugepages or not)
   {
     enum pt_level base_level;
@@ -62,7 +62,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 
   LOG("got va to remap to: %p\n", va);
 
-#if VIRTREMAP_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTREMAP
   // verify that the allocated virtual memory region is not yet backed by any physical memory
   {
     size_t i;

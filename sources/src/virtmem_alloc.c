@@ -7,7 +7,7 @@
 #include "dangless/platform/mem.h"
 #include "dangless/platform/sysmalloc.h"
 
-#if VMALLOC_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTMEMALLOC
   #define LOG(...) vdprintf(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
@@ -36,7 +36,7 @@ struct vp_freelist {
 
   pthread_mutex_t mutex;
 
-  // only used if VMALLOC_STATS == 1
+  // only used if DANGLESS_CONFIG_VIRTMEMALLOC_STATS == 1
   size_t nallocs;
 };
 
@@ -67,7 +67,7 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   vaddr_t va = span->start;
   span->start += npages * PGSIZE;
 
-#if VMALLOC_STATS
+#if DANGLESS_CONFIG_VIRTMEMALLOC_STATS
   list->nallocs++;
 #endif
 

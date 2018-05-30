@@ -122,9 +122,16 @@ with open(os.path.join(LINUX_HEADERS_DIR, "include/linux/syscalls.h"), "r") as f
         currentSysCall.params.append(parseParameter(paramText))
 
 os = sys.stdout
-os.write("#include <sys/syscall.h>\n\n")
-os.write("// SYSCALL_SIGNATURE(return type, name, num parameters, parameter types...) \n")
-os.write("// SYSCALL_USERPTR_PARAMS(name, user pointer parameter indexes...)\n")
+os.write("""// This file needs <sys/syscall.h> to be included, for access to the __NR_* syscall number macros
+
+#ifndef SYSCALL_SIGNATURE
+  #define SYSCALL_SIGNATURE(RETTYPE, NAME, NUM_PARAMS, ...) /* empty */
+#endif
+
+#ifndef SYSCALL_USERPTR_PARAMS
+  #define SYSCALL_USERPTR_PARAMS(NAME, ...) /* empty */
+#endif
+""")
 
 for syscall in SYSCALLS:
   os.write("\n#ifdef __NR_{f.name}\n".format(f = syscall))
@@ -151,3 +158,8 @@ for syscall in SYSCALLS:
     os.write(")\n")
 
   os.write("#endif\n")
+
+os.write("""
+#undef SYSCALL_SIGNATURE
+#undef SYSCALL_USERPTR_PARAMS
+""")

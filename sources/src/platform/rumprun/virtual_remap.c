@@ -3,7 +3,7 @@
 #include "dangless/virtmem_alloc.h"
 #include "dangless/platform/virtual_remap.h"
 
-#if VIRTREMAP_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTREMAP
   #define LOG(...) vdprintf(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
@@ -19,7 +19,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
     return EVREM_NO_VM;
   }
 
-#if VIRTREMAP_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTREMAP
   {
     enum pt_level level;
     paddr_t pa = pt_resolve_page(va, OUT &level);

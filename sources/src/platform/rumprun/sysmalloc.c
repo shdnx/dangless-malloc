@@ -3,7 +3,7 @@
 
 #include "rumprun.h"
 
-#if SYSMALLOC_DEBUG
+#if DANGLESS_CONFIG_DEBUG_SYSMALLOC
   #define LOG(...) vdprintf(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */

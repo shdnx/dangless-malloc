@@ -7,6 +7,12 @@
 
 #include "rumprun.h"
 
+#if DANGLESS_CONFIG_DEBUG_PHYSMEM_ALLOC
+  #define LOG(...) vdprintf(__VA_ARGS__)
+#else
+  #define LOG(...) /* empty */
+#endif
+
 // Physical page allocation with rumprun is tricky. Rumprun appears to use a virtual memory identity mapping for the first 4 GBs of the address space, and it doesn't use the rest.
 // This means that it doesn't have a physical memory allocator. It only has a page allocator in bmk-core/pgalloc.h.
 // However, because all virtual memory mappings use 2 MB hugepages, we cannot actually use this directly to get 4K physical pages.
@@ -16,12 +22,6 @@
 RUMPRUN_DEF_FUNC(0xce60, void *, bmk_pgalloc, int /* order */);
 RUMPRUN_DEF_FUNC(0xcc70, void *, bmk_pgalloc_align, int /* order */, unsigned long /*align*/);
 RUMPRUN_DEF_FUNC(0xce70, void, bmk_pgfree, void * /* ptr */, int /* order */);
-
-#if PHYSMEM_DEBUG
-  #define PHYSMEM_DPRINTF(...) dprintf("[physmem] " __VA_ARGS__)
-#else
-  #define PHYSMEM_DPRINTF(...) /* empty */
-#endif
 
 #define BMK_PGALLOC_ORDER 9 // 512 pages, i.e. 1x 2MB hugepage
 #define BMK_PGALLOC_NPAGES (1uL << BMK_PGALLOC_ORDER)
@@ -50,7 +50,7 @@ static LIST_HEAD(, pp_span) ppspan_freelist = LIST_HEAD_INITIALIZER(&ppspan_free
 static struct pp_span *physmem_acquire(void) {
   void *p = RUMPRUN_FUNC(bmk_pgalloc_align)(BMK_PGALLOC_ORDER, BMK_PGALLOC_ALIGN);
   if (!p) {
-    PHYSMEM_DPRINTF("bmk_pgalloc_align() failed: out of memory?\n");
+    LOG("bmk_pgalloc_align() failed: out of memory?\n");
     return NULL;
   }
 
@@ -61,14 +61,14 @@ static struct pp_span *physmem_acquire(void) {
 
   struct pp_span *ps = MALLOC(struct pp_span);
   if (!ps) {
-    PHYSMEM_DPRINTF("Failed to malloc pp_span: out of memory?\n");
+    LOG("Failed to malloc pp_span: out of memory?\n");
     RUMPRUN_FUNC(bmk_pgfree)(p, BMK_PGALLOC_ORDER);
     return NULL;
   }
 
   ps->begin = pa2ppindex(pa);
   ps->end = ps->begin + BMK_PGALLOC_NPAGES;
-  PHYSMEM_DPRINTF("Acquired physical memory pages: 0x%x - 0x%x (%lu pages) => pp_span %p\n", ps->begin, ps->end, BMK_PGALLOC_NPAGES, ps);
+  LOG("Acquired physical memory pages: 0x%x - 0x%x (%lu pages) => pp_span %p\n", ps->begin, ps->end, BMK_PGALLOC_NPAGES, ps);
 
   LIST_INSERT_HEAD(&ppspan_freelist, ps, freelist);
   return ps;
@@ -78,7 +78,7 @@ static void physmem_free(struct pp_span *ps) {
   ASSERT(ps->begin % (BMK_PGALLOC_ALIGN / PGSIZE) == 0, "pp_span doesn't begin at an alignment boundary!");
   ASSERT((ps->end - ps->begin) == BMK_PGALLOC_NPAGES, "pp_span is incomplete!");
 
-  PHYSMEM_DPRINTF("Freeing physical memory pages 0x%x - 0x%x, pp_span %p\n", ps->begin, ps->end, ps);
+  LOG("Freeing physical memory pages 0x%x - 0x%x, pp_span %p\n", ps->begin, ps->end, ps);
 
   // NOTE: using identity-mapping
   void *p = (void *)(ppindex2pa(ps->begin));
@@ -99,11 +99,11 @@ paddr_t pp_alloc(size_t npages) {
   }
 
   if (ps == LIST_END(&ppspan_freelist)) {
-    PHYSMEM_DPRINTF("No free pp_span containing %zu pages: attempt to acquire physical memory\n", npages);
+    LOG("No free pp_span containing %zu pages: attempt to acquire physical memory\n", npages);
 
     ps = physmem_acquire();
     if (!ps) {
-      PHYSMEM_DPRINTF("pp_alloc failed: failed to acquire physical memory\n");
+      LOG("pp_alloc failed: failed to acquire physical memory\n");
       return 0;
     }
   }
@@ -112,10 +112,10 @@ paddr_t pp_alloc(size_t npages) {
   paddr_t pa = ppindex2pa(ps->begin);
   ps->begin += npages;
 
-  PHYSMEM_DPRINTF("Allocating %zu pages from pp_span %p => 0x%lx\n", npages, ps, pa);
+  LOG("Allocating %zu pages from pp_span %p => 0x%lx\n", npages, ps, pa);
 
   if (ps->begin == ps->end) {
-    PHYSMEM_DPRINTF("pp_span %p is now empty, deallocating\n", ps);
+    LOG("pp_span %p is now empty, deallocating\n", ps);
     LIST_REMOVE(ps, freelist);
     FREE(ps);
   }

@@ -4,7 +4,7 @@
 #include "dangless/virtmem.h"
 #include "dangless/platform/physmem_alloc.h"
 
-#if VIRTMEM_DEBUG
+#if DANGLESS_CONFIG_DEBUG_VIRTMEM
   #define LOG(...) vdprintf(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */

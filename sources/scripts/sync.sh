@@ -1,7 +1,15 @@
 #!/bin/bash
 
 REMOTE_ROOT="~/remote/thesis"
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
+
+# source: https://stackoverflow.com/a/7126780/128240
+dir_resolve() {
+  cd "$1" 2>/dev/null || return $? # cd to desired directory; if fail, quell any error messages but return exit status
+  echo "`pwd -P`" # output full, link-resolved path
+}
+
+DIR=`dir_resolve $DIR`
 
 doSync () {
   local path_relative_to_root="sources"

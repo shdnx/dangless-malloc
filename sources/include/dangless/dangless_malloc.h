@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+void dangless_init(void);
+
 // Dedicate the given virtual memory region to be used by this allocator if possible.
 int dangless_dedicate_vmem(void *start, void *end);
 

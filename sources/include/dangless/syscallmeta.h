@@ -1,11 +1,11 @@
 #ifndef DANGLESS_SYSCALLMETA_H
 #define DANGLESS_SYSCALLMETA_H
 
-#include <stddef.h>
+#include "dangless/common.h"
 
 #define SYSCALL_MAX_NUM_ARGS 6
 
-extern int g_syscall_ptr_args[][SYSCALL_MAX_NUM_ARGS + 1];
-extern size_t g_syscall_ptr_args_len;
+const int *syscall_get_userptr_params(index_t syscallno);
+const char *syscall_get_name(index_t syscallno);
 
 #endif

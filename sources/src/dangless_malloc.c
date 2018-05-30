@@ -9,7 +9,7 @@
 #include "dangless/platform/sysmalloc.h"
 #include "dangless/platform/virtual_remap.h"
 
-#if DGLMALLOC_DEBUG
+#if DANGLESS_CONFIG_DEBUG_DGLMALLOC
   #define LOG(...) vdprintf(__VA_ARGS__)
   #define LOG_NOMALLOC(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
@@ -253,7 +253,7 @@ void *dangless_realloc(void *p, size_t new_size) {
   if (newp == original_ptr) {
     // we can potentially do it in-place
 
-#if DGLMALLOC_DEBUG
+#if DANGLESS_CONFIG_DEBUG_DGLMALLOC
     // verify that the physical page also didn't change
     paddr_t old_pa_page = pt_resolve_page(original_ptr, OUT_IGNORE);
     paddr_t new_pa_page = pt_resolve_page(newp, OUT_IGNORE);

@@ -4,6 +4,12 @@
 
 #include "dune.h"
 
+#if DANGLESS_CONFIG_DEBUG_PHYSMEM_ALLOC
+  #define LOG(...) vdprintf(__VA_ARGS__)
+#else
+  #define LOG(...) /* empty */
+#endif
+
 paddr_t pp_alloc(size_t npages) {
   ASSERT0(npages == 1);
 

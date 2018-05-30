@@ -38,10 +38,6 @@ int main(int argc, const char **argv) {
 
   // --
 
-  int pc = printf("FOOBARBAZ\n");
-  if (pc < 0)
-    perror("printf");
-
   char *text = malloc(32);
   strcpy(text, "Hello world!\n");
 

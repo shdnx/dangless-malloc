@@ -8,7 +8,7 @@
 #include "dangless/platform/mem.h"
 #include "dangless/platform/sysmalloc.h"
 
-#if SYSMALLOC_DEBUG
+#if DANGLESS_CONFIG_DEBUG_SYSMALLOC
   #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */

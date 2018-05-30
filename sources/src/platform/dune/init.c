@@ -11,13 +11,17 @@
 
 #include "dune.h"
 
-#if INIT_DEBUG
+#if DANGLESS_CONFIG_DEBUG_INIT
   #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
 #endif
 
-static u64 *syscall_arg(struct dune_tf *tf, index_t argnum) {
+static inline u64 *syscall_no(struct dune_tf *tf) {
+  return &tf->rax;
+}
+
+static inline u64 *syscall_arg(struct dune_tf *tf, index_t argnum) {
   ASSERT(argnum < SYSCALL_MAX_NUM_ARGS, "System calls cannot have more than %d arguments!", SYSCALL_MAX_NUM_ARGS);
 
   // since in struct dune_tf, the fields are in the same order as syscall argument registers, we can just pretend that dune_tf is an array of u64-s
@@ -42,17 +46,17 @@ static void syscall_process_ptr_param(REF u64 *param) {
   }
 }
 
+// why doesn't this ever get executed???
 static void syscall_handler(struct dune_tf *tf) {
-  u64 syscallno = tf->rax;
+  u64 syscallno = *syscall_no(tf);
+  LOG("syscall %s (%lu)!\n", syscall_get_name(syscallno), syscallno);
 
-  if (syscallno < g_syscall_ptr_args_len) {
-    for (int *ptr_param_no = g_syscall_ptr_args[syscallno];
-         *ptr_param_no > 0;
-         ptr_param_no++) {
-      syscall_process_ptr_param(
-        REF syscall_arg(tf, (index_t)(*ptr_param_no) - 1)
-      );
-    }
+  for (const int *ptr_param_no = syscall_get_userptr_params(syscallno);
+       ptr_param_no && *ptr_param_no > 0;
+       ptr_param_no++) {
+    syscall_process_ptr_param(
+      REF syscall_arg(tf, (index_t)(*ptr_param_no) - 1)
+    );
   }
 
   dune_passthrough_syscall(tf);
@@ -65,15 +69,22 @@ void dangless_init(void) {
 
   s_initalized = true;
 
-  LOG("Entering Dune...\n");
+  LOG("Initializing Dune...\n");
 
   int result;
-  if ((result = dune_init_and_enter()) != 0) {
+  if ((result = dune_init(/*map_full=*/true)) != 0) {
+    perror("Dangless: failed to initialize Dune");
+    abort();
+  }
+
+  LOG("Entering Dune...\n");
+
+  if ((result = dune_enter()) != 0) {
     perror("Dangless: failed to enter Dune mode");
     abort();
   }
 
-  LOG("Dune entered successfully.\n");
+  LOG("Dune ready!\n");
 
   dune_register_syscall_handler(&syscall_handler);
 
@@ -83,4 +94,9 @@ void dangless_init(void) {
 #if DANGLESS_CONFIG_REGISTER_PREINIT
   __attribute__((section(".preinit_array")))
   void (*preinit_entry)(void) = &dangless_init;
+
+  /*__attribute__((constructor))
+  static void init(void) {
+    dangless_init();
+  }*/
 #endif
