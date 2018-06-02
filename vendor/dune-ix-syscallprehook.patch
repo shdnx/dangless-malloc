@@ -1,0 +1,90 @@
+diff --git a/libdune/dune.S b/libdune/dune.S
+index a8f34c0..1a653d6 100644
+--- a/libdune/dune.S
++++ b/libdune/dune.S
+@@ -291,8 +291,57 @@ __dune_syscall:
+ 	/* handle system calls from G0 */
+ 	testq $1, %gs:IN_USERMODE
+ 	jnz 1f
+-	pushq	%r11
+-	popfq
++
++	pushq %r11 // contains rflags
++
++	// TODO: how about multi-threading support??
++	// check if we have a handler registered for system calls originating in ring 0
++	pushq %rax
++	movq __dune_ring0_syscall_prehook, %rax
++	testq %rax, %rax
++	popq %rax
++	jz passthrough_to_host
++
++	// all right, so we're handling a syscall that came from ring 0 in ring 0, why not
++
++	// From the System V AMD64 ABI calling convention: "If the callee wishes to use registers RBX, RBP, and R12-R15, it must restore their original values before returning control to the caller. All other registers must be saved by the caller if it wishes to preserve their values."
++	// so we have to save rax, rcx, rdx, rdi, rsi, r8-11 before calling into the C prehook; these are all needed for the system call anyway (r11 with rflags is saved as first thing in this function)
++	pushq %rcx // return address
++	pushq %rax // syscall number
++
++	// save the syscall arguments in an array on the stack
++	pushq %r9  // arg 6
++	pushq %r8  // arg 5
++	pushq %r10 // arg 4
++	pushq %rdx // arg 3
++	pushq %rsi // arg 2
++	pushq %rdi // arg 1
++
++	// call the prehook; while the prehook is running, deregister it, so that we don't get into recursion if it tries to do a syscall
++	pushq %rbp
++	movq __dune_ring0_syscall_prehook, %rbp // %rbp is callee-saved
++	movq $0, __dune_ring0_syscall_prehook
++
++	movq %rax, %rdi // argument 1: syscall number
++	movq %rsp, %rsi // argument 2: pointer to the syscall arguments array
++	call *%rbp
++
++	movq %rbp, __dune_ring0_syscall_prehook
++	pop %rbp
++
++	// restore the syscall arguments
++	popq %rdi // arg 1
++	popq %rsi // arg 2
++	popq %rdx // arg 3
++	popq %r10 // arg 4
++	popq %r8  // arg 5
++	popq %r9  // arg 6
++
++	popq %rax // syscall number
++	popq %rcx // return address
++
++passthrough_to_host:
++	popfq // restore rflags (was placed by syscall to %r11 originally)
+ 	vmcall
+ 	jmp	*%rcx
+ 
+diff --git a/libdune/dune.h b/libdune/dune.h
+index 80bf24d..5930faa 100644
+--- a/libdune/dune.h
++++ b/libdune/dune.h
+@@ -356,3 +356,7 @@ static inline int dune_init_and_enter(void)
+ }
+ 
+ extern void dune_control_guest_ints(bool enable);
++
++// Function to run before system calls originating in ring 0 are passed on to the host kernel. Used in dune.S, defined in trap.c.
++typedef void(*dune_ring0_syscall_prehook_t)(uint64_t syscall, uint64_t *args);
++extern dune_ring0_syscall_prehook_t __dune_ring0_syscall_prehook;
+diff --git a/libdune/trap.c b/libdune/trap.c
+index caf8aba..42a5921 100644
+--- a/libdune/trap.c
++++ b/libdune/trap.c
+@@ -14,6 +14,9 @@ static dune_syscall_cb syscall_cb;
+ static dune_pgflt_cb pgflt_cb;
+ static dune_intr_cb intr_cbs[IDT_ENTRIES];
+ 
++// Function to run before system calls originating in ring 0 are passed on to the host kernel. Used in dune.S.
++dune_ring0_syscall_prehook_t __dune_ring0_syscall_prehook;
++
+ static inline unsigned long read_cr2(void)
+ {
+ 	unsigned long val;

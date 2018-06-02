@@ -12,12 +12,14 @@
 #include "dune.h"
 
 #if DANGLESS_CONFIG_DEBUG_INIT
-  #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
+  #define LOG(...) vdprintf(__VA_ARGS__)
+  #define LOG_NOMALLOC(...) vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
+  #define LOG_NOMALLOC(...) /* empty */
 #endif
 
-static inline u64 *syscall_no(struct dune_tf *tf) {
+/*static inline u64 *syscall_no(struct dune_tf *tf) {
   return &tf->rax;
 }
 
@@ -26,40 +28,37 @@ static inline u64 *syscall_arg(struct dune_tf *tf, index_t argnum) {
 
   // since in struct dune_tf, the fields are in the same order as syscall argument registers, we can just pretend that dune_tf is an array of u64-s
   return &tf->rdi + argnum;
-}
+}*/
 
-static void syscall_process_ptr_param(REF u64 *param) {
-  void *param_ptr = (void *)*param;
+static void syscall_process_ptr_arg(u64 syscall, REF u64 *args, index_t ptr_arg_index) {
+  ASSERT(ptr_arg_index < SYSCALL_MAX_NUM_ARGS, "System call argument index %lu out of range!", ptr_arg_index);
 
-  if (!*param)
+  void *arg_ptr = (void *)args[ptr_arg_index];
+
+  if (!arg_ptr)
     return; // null pointer
 
   void *canonical_ptr;
-  int result = vremap_resolve(param_ptr, OUT &canonical_ptr);
+  int result = vremap_resolve(arg_ptr, OUT &canonical_ptr);
 
   if (result == VREM_OK) {
-    LOG("Translated remapped syscall pointer argument %p to canonical %p\n", param_ptr, canonical_ptr);
+    LOG("%p => canonical %p\n", arg_ptr, canonical_ptr);
 
-    REF *param = (u64)canonical_ptr;
+    REF args[ptr_arg_index] = (u64)canonical_ptr;
   } else {
-    LOG("Could not translate syscall pointer argument %p: code %d\n", param_ptr, result);
+    LOG("syscall %s arg %lu (%s): ", syscall_get_name(syscall), ptr_arg_index, syscall_get_info(syscall)->param_types[ptr_arg_index]);
+    LOG("could not translate %p: code %d\n", arg_ptr, result);
   }
 }
 
-// why doesn't this ever get executed???
-static void syscall_handler(struct dune_tf *tf) {
-  u64 syscallno = *syscall_no(tf);
-  LOG("syscall %s (%lu)!\n", syscall_get_name(syscallno), syscallno);
+static void syscall_prehook(u64 syscall, u64 *args) {
+  //LOG("syscall %s\n", syscall_get_name(syscall));
 
-  for (const int *ptr_param_no = syscall_get_userptr_params(syscallno);
-       ptr_param_no && *ptr_param_no > 0;
-       ptr_param_no++) {
-    syscall_process_ptr_param(
-      REF syscall_arg(tf, (index_t)(*ptr_param_no) - 1)
-    );
+  for (const int *ptrparam_no = syscall_get_userptr_params(syscall);
+       ptrparam_no && *ptrparam_no > 0;
+       ptrparam_no++) {
+    syscall_process_ptr_arg(syscall, REF args, *ptrparam_no - 1);
   }
-
-  dune_passthrough_syscall(tf);
 }
 
 void dangless_init(void) {
@@ -86,7 +85,9 @@ void dangless_init(void) {
 
   LOG("Dune ready!\n");
 
-  dune_register_syscall_handler(&syscall_handler);
+  // Function to run before system calls originating in ring 0 are passed on to the host kernel. Defined in libdune/dune.S.
+  extern void (*__dune_ring0_syscall_prehook)(u64 syscall, u64 *args);
+  __dune_ring0_syscall_prehook = &syscall_prehook;
 
   LOG("Running...\n");
 }
