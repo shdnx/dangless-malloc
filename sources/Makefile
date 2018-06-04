@@ -4,38 +4,25 @@
 ROOT := $(CURDIR)
 BUILD_DIR := build
 
-# have to defer evaluation on this, as it requires PLATFORM, but that may not be set yet!
-BIN_DIR = $(BUILD_DIR)/$(PLATFORM)
-
-# deferred!
-MKCONFIG = $(BIN_DIR)/config.mk
-MKUSER = $(BIN_DIR)/user.mk
-MKLASTCONFIG := $(BUILD_DIR)/last-platform-config.mk
-
-# the PLATFORM variable should be supplied by the user
-# if it's not specified, the last configuration is used, if any
-ifdef PLATFORM
--include $(MKCONFIG)
-
-else
+MKLASTCONFIG := $(BUILD_DIR)/last-config.mk
 -include $(MKLASTCONFIG)
 
-ifndef PLATFORM
-$(error No existing build configuration in $(MKLASTCONFIG): set PLATFORM and run 'make config' first.)
-endif
+PROFILE ?= debug
+PLATFORM ?= dune
 
-endif # end ifdef PLATFORM
+# have to defer evaluation on this, as it requires PLATFORM, but it may not be set yet!
+BIN_DIR := $(BUILD_DIR)/$(PLATFORM)_$(PROFILE)
+MKCONFIG := $(BIN_DIR)/config.mk
+MKUSER := $(BIN_DIR)/user.mk
 
-# force evaluation of deferred variables from earlier
-override BIN_DIR := $(BIN_DIR)
-override MKCONFIG := $(MKCONFIG)
-override MKUSER := $(MKUSER)
+-include $(MKCONFIG)
 
-BUILDCONFIG_INCLUDE_PATH := $(BUILD_DIR)/include
-BUILDCONFIG_HEADER_DIR := $(BUILDCONFIG_INCLUDE_PATH)/dangless/build
-BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_HEADER_DIR)/config.h
+BUILDCONFIG_COMMON_INCLUDE_PATH := $(BUILD_DIR)/include
+BUILDCONFIG_SPECIALIZED_INCLUDE_PATH := $(BIN_DIR)/include
 
-SYSCALLMETA_FILE := $(BUILDCONFIG_HEADER_DIR)/syscallmeta.inc
+SYSCALLMETA_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/syscallmeta.inc
+
+BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH)/dangless/build/spec/config.h
 
 include make/buildconfig-defaults.mk
 
@@ -44,9 +31,15 @@ CC := gcc
 AR := ar
 RANLIB := ranlib
 
-INCLUDES := -Iinclude -I$(BUILDCONFIG_INCLUDE_PATH)
-DEFINES := -DDEBUG
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-format-zero-length -ggdb -O0 -pthread -MMD -MP
+INCLUDES := -I$(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH) -I$(BUILDCONFIG_COMMON_INCLUDE_PATH) -Iinclude
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-format-zero-length -Wno-sign-compare -pthread -MMD -MP
+
+ifeq ($(PROFILE),debug)
+	CFLAGS += -DDEBUG -ggdb -O0
+else
+	CFLAGS += -DNDEBUG -Ofast
+endif
+
 BIN := $(BIN_DIR)/libdangless.a
 
 BASE_OBJS_DIR := $(BIN_DIR)/obj
@@ -75,17 +68,17 @@ include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
 include make/buildconfig.mk
 
-$(BIN_DIR) $(BUILDCONFIG_HEADER_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
+$(BIN_DIR) $(dir $(SYSCALLMETA_FILE)) $(dir $(BUILDCONFIG_HEADER_FILE)) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
 
-$(SYSCALLMETA_FILE): $(BUILDCONFIG_HEADER_DIR) scripts/generate_syscallmeta.py
+$(SYSCALLMETA_FILE): $(dir $(SYSCALLMETA_FILE)) scripts/generate_syscallmeta.py
 	python3 scripts/generate_syscallmeta.py /usr/src/linux-headers-`uname -r` > $@
 
 $(CORE_OBJS_DIR)/%.o: src/%.c
-	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATFORM_DEFINES) -c $< -o $@
+	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
 $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
-	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) $(DEFINES) $(PLATFORM_DEFINES) -c $< -o $@
+	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
 $(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)

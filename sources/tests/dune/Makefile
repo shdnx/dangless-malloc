@@ -3,7 +3,9 @@
 DANGLESS_ROOT := ../..
 FX_ROOT := ../framework
 
-DANGLESS_BIN_DIR := $(DANGLESS_ROOT)/build/dune
+include $(DANGLESS_ROOT)/build/last-config.mk
+
+DANGLESS_BIN_DIR := $(DANGLESS_ROOT)/build/$(PLATFORM)_$(PROFILE)
 include $(DANGLESS_BIN_DIR)/user.mk
 
 # needed for DUNE_ROOT
@@ -17,7 +19,7 @@ BIN := build/dangless-dune-test
 CC := $(TESTFX_USER_CC)
 
 # DANGLESS_USER_CFLAGS doesn't include the include paths for dune, or dangless itself, because normal users don't need these things, they can just malloc() et al and not think about dangless or Dune
-INCLUDES := -I$(DUNE_ROOT) -I$(DANGLESS_INCLUDE_DIR) -I$(DANGLESS_BUILD_INCLUDE_DIR)
+INCLUDES := -I$(DUNE_ROOT) $(DANGLESS_INCLUDES)
 CFLAGS := $(TESTFX_USER_CFLAGS) $(DANGLESS_USER_CFLAGS) -MMD -MP
 LDFLAGS := $(TESTFX_USER_LDFLAGS) $(DANGLESS_USER_LDFLAGS)
 

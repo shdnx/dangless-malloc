@@ -6,7 +6,7 @@
 
 #define SYSCALL_MAX_ARGS 6
 
-const int *syscall_get_userptr_params(index_t syscallno);
+const ARRAY i8 *syscall_get_userptr_params(index_t syscallno);
 
 #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
 

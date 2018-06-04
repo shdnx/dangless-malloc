@@ -18,12 +18,17 @@ Besides this, my code requires a relatively recent version of GCC (or a compiler
 # Setup
 
 ```bash
+# initialize and download dependencies (notably dune)
 git submodule init
 git submodule update
 
-# patch dune-ix, so that it maps the pages necessary for allocating physical pages in the virtual environment in ring 0
 cd vendor/dune-ix
-git apply ../dune-ix.patch
+
+# patch dune, so that it maps the pages necessary for allocating physical pages in the virtual environment in ring 0
+git apply ../dune-ix-guestppages.patch
+
+# patch dune, so that we can register a prehook function to run before system calls are passed to the host kernel
+git apply ../dune-ix-syscallprehook.patch
 
 # need sudo, because it's building a kernel module
 sudo make
@@ -38,11 +43,15 @@ cd ../../sources
 
 # currently only the dune platform is really supported
 # some other configuration options can be used, see make/buildconfig-details.mk
-make config PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
+# use PROFILE=release for benchmarking and so
+make config PROFILE=debug PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
 make
 
 # run unit tests
 make test
+
+# run "Hello world" test app
+make testapp APP=hello-world
 ```
 
 # License

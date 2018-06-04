@@ -33,6 +33,9 @@ typedef ptrdiff_t index_t;
 // Indicates that a pointer or pointer-like function parameter is expected not to be NULL. Only used to signal intent, has no effect on the code.
 #define NOT_NULL /* empty */
 
+// Indicates that a pointer function parameter or return type points to an array, not just a single object.
+#define ARRAY /* empty */
+
 #define LIKELY(COND) __builtin_expect((COND), 1)
 #define UNLIKELY(COND) __builtin_expect((COND), 0)
 
@@ -134,6 +137,6 @@ void _assert_fail(void);
       static_assert_fail(); \
   }*/
 
-#define ARRAY_LENGTH(ARR) ((size_t)(sizeof(ARR) / sizeof(ARR[0])))
+#define ARRAY_LENGTH(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 
 #endif

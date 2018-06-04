@@ -40,7 +40,7 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
   }
 }
 
-static void ring0_syscall_prehook(u64 syscall, REF u64 args[]) {
+static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
   /*const struct syscall_info *info = syscall_get_info(syscall);
   LOG("syscall: %s(\n", info->name);
   for (index_t i = 0; i < info->num_params; i++) {
@@ -48,10 +48,10 @@ static void ring0_syscall_prehook(u64 syscall, REF u64 args[]) {
   }
   LOG(")\n");*/
 
-  for (const int *ptrparam_no = syscall_get_userptr_params(syscall);
+  for (const i8 *ptrparam_no = syscall_get_userptr_params(syscall);
        ptrparam_no && *ptrparam_no > 0;
        ptrparam_no++) {
-    process_syscall_ptr_arg(syscall, REF args, *ptrparam_no - 1);
+    process_syscall_ptr_arg(syscall, REF args, (index_t)*ptrparam_no - 1);
   }
 }
 
@@ -79,7 +79,9 @@ void dangless_init(void) {
 
   LOG("Dune ready!\n");
 
-  __dune_ring0_syscall_prehook = &ring0_syscall_prehook;
+  // Function to run before system calls originating in ring 0 are passed on to the host kernel.
+  // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
+  __dune_vmcall_prehook = &dangless_vmcall_prehook;
 
   LOG("Running...\n");
 }

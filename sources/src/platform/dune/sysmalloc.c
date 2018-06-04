@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 
+#include <stdlib.h> // abort()
 #include <dlfcn.h> // dlsym(), RTLD_NEXT, RTLD_DEFAULT
 #include <malloc.h> // malloc_usable_size()
 
@@ -15,6 +16,7 @@
 #endif
 
 static bool g_populating = false;
+
 static void*(*addr_sysmalloc)(size_t) = NULL;
 static void*(*addr_syscalloc)(size_t, size_t) = NULL;
 static void*(*addr_sysrealloc)(void *, size_t) = NULL;
@@ -24,8 +26,8 @@ static void(*addr_sysfree)(void *) = NULL;
 // This function will only run once, during the first allocation. Since that will happen well before main(), there's no need for any syncronization around here.
 static void populate_addrs(void) {
   ASSERT(!g_populating, "Recursive populate_addrs() call!");
-
   g_populating = true;
+
   void *h;
 
 #if DANGLESS_CONFIG_OVERRIDE_SYMBOLS
@@ -37,8 +39,14 @@ static void populate_addrs(void) {
   char *err;
 
 #define HANDLE_SYM(FN) \
-  addr_sys##FN = dlsym(h, #FN); \
-  ASSERT(!(err = dlerror()), "Could not get symbol address for %s: dlerror: %s", #FN, err)
+  do { \
+    addr_sys##FN = dlsym(h, #FN); \
+    /* Weird: if I use ASSERT(!(err = dlerror()), ...) then weird things happen in release mode; so have to check for this separately */ \
+    if ((err = dlerror())) { \
+      vdprintf_nomalloc("Could not get symbol address for %s: dlerror: %s", #FN, err); \
+      abort(); \
+    } \
+  } while (0)
 
   HANDLE_SYM(malloc);
   HANDLE_SYM(calloc);
@@ -52,7 +60,7 @@ static void populate_addrs(void) {
 }
 
 void *sysmalloc(size_t sz) {
-  if (!addr_sysmalloc)
+  if (UNLIKELY(!addr_sysmalloc))
     populate_addrs();
 
   return addr_sysmalloc(sz);
@@ -116,6 +124,6 @@ void sysfree(void *p) {
 }
 
 size_t sysmalloc_usable_pages(void *p) {
-  size_t sz = malloc_usable_size(p);
+  const size_t sz = malloc_usable_size(p);
   return ROUND_UP(sz, PGSIZE) / PGSIZE;
 }
