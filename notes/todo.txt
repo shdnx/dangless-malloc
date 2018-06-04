@@ -1,4 +1,3 @@
- - there seems to be a bug in the Python script for generating syscallmeta.inc: e.g. with clone, it considers the parameter type "unsigned" and thinks that the name is "long"
  - printf_nomalloc() seems to have some problems, e.g. try using init.c with it; looks like a concurrency issue, but it couldn't be??
  - LOG_CONTEXT(), LOG_CONTEXT_BEGIN(), LOG_CONTEXT_END()
  - nicer output for the unit testing framework: colors, indentations, empty lines

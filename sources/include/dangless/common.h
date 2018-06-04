@@ -134,6 +134,6 @@ void _assert_fail(void);
       static_assert_fail(); \
   }*/
 
-#define ARRAY_LENGTH(ARR) (sizeof(ARR) / sizeof(ARR[0]))
+#define ARRAY_LENGTH(ARR) ((size_t)(sizeof(ARR) / sizeof(ARR[0])))
 
 #endif

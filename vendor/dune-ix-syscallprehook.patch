@@ -1,8 +1,8 @@
 diff --git a/libdune/dune.S b/libdune/dune.S
-index a8f34c0..1a653d6 100644
+index a8f34c0..3306897 100644
 --- a/libdune/dune.S
 +++ b/libdune/dune.S
-@@ -291,8 +291,57 @@ __dune_syscall:
+@@ -291,8 +291,58 @@ __dune_syscall:
  	/* handle system calls from G0 */
  	testq $1, %gs:IN_USERMODE
  	jnz 1f
@@ -35,12 +35,13 @@ index a8f34c0..1a653d6 100644
 +	pushq %rdi // arg 1
 +
 +	// call the prehook; while the prehook is running, deregister it, so that we don't get into recursion if it tries to do a syscall
++	movq %rax, %rdi // argument 1: syscall number
++	movq %rsp, %rsi // argument 2: pointer to the syscall arguments array
++
 +	pushq %rbp
 +	movq __dune_ring0_syscall_prehook, %rbp // %rbp is callee-saved
 +	movq $0, __dune_ring0_syscall_prehook
 +
-+	movq %rax, %rdi // argument 1: syscall number
-+	movq %rsp, %rsi // argument 2: pointer to the syscall arguments array
 +	call *%rbp
 +
 +	movq %rbp, __dune_ring0_syscall_prehook
@@ -62,29 +63,3 @@ index a8f34c0..1a653d6 100644
  	vmcall
  	jmp	*%rcx
  
-diff --git a/libdune/dune.h b/libdune/dune.h
-index 80bf24d..5930faa 100644
---- a/libdune/dune.h
-+++ b/libdune/dune.h
-@@ -356,3 +356,7 @@ static inline int dune_init_and_enter(void)
- }
- 
- extern void dune_control_guest_ints(bool enable);
-+
-+// Function to run before system calls originating in ring 0 are passed on to the host kernel. Used in dune.S, defined in trap.c.
-+typedef void(*dune_ring0_syscall_prehook_t)(uint64_t syscall, uint64_t *args);
-+extern dune_ring0_syscall_prehook_t __dune_ring0_syscall_prehook;
-diff --git a/libdune/trap.c b/libdune/trap.c
-index caf8aba..42a5921 100644
---- a/libdune/trap.c
-+++ b/libdune/trap.c
-@@ -14,6 +14,9 @@ static dune_syscall_cb syscall_cb;
- static dune_pgflt_cb pgflt_cb;
- static dune_intr_cb intr_cbs[IDT_ENTRIES];
- 
-+// Function to run before system calls originating in ring 0 are passed on to the host kernel. Used in dune.S.
-+dune_ring0_syscall_prehook_t __dune_ring0_syscall_prehook;
-+
- static inline unsigned long read_cr2(void)
- {
- 	unsigned long val;

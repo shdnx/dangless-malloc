@@ -2,26 +2,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+// dangless/printf_nomalloc.h
 extern void fprintf_nomalloc(FILE *os, const char *restrict format, ...);
 #define LOG(...) fprintf_nomalloc(stdout, __VA_ARGS__)
 
-// A better source is include/virtmem.h
+// dangless/virtmem.h
 static inline int in_kernel_mode(void) {
   unsigned short cs;
   asm("mov %%cs, %0" : "=r" (cs));
   return (cs & 0x3) == 0x0;
 }
 
-extern void dangless_init(void);
-
 int main(int argc, const char **argv) {
-  if (puts("Hello world from userspace!") == EOF)
-    perror("userspace puts()");
-
-  dangless_init();
-
   if (!in_kernel_mode()) {
-    fprintf(stderr, "Not in kernel mode, cannot hello world!!\n");
+    LOG("Not in kernel mode, this would be a boring hello world!\n");
     return 1;
   }
 
@@ -37,6 +31,8 @@ int main(int argc, const char **argv) {
   if (puts(text) == EOF) {
     perror("puts");
     LOG("puts failed!\n");
+  } else {
+    LOG("puts OK\n");
   }
 
   free(text);
@@ -52,15 +48,14 @@ int main(int argc, const char **argv) {
   if (!fp) {
     perror("fopen");
     LOG("fopen failed!\n");
-    return 1;
+  } else {
+    fwrite(filename, sizeof(char), strlen(filename), fp);
+    fclose(fp);
+
+    LOG("filetest OK\n");
   }
 
-  fwrite(filename, sizeof(char), strlen(filename), fp);
-  fclose(fp);
-
   free(filename);
-
-  LOG("filetest done\n");
 
   return 0;
 }

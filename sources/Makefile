@@ -65,7 +65,7 @@ SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
 OBJS := $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS := $(OBJS:.o=.d)
 
-.PHONY: all config show-config clean test always
+.PHONY: all config show-config clean clean-all test always
 
 all: $(BIN)
 
@@ -92,6 +92,11 @@ $(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(O
 	$(RANLIB) $@
 
 clean:
+	rm -f $(OBJS)
+	rm -f $(DEPS)
+	rm -f $(BIN)
+
+clean-all:
 	rm -rf $(BUILD_DIR)
 
 test: $(BIN)
