@@ -1,5 +1,26 @@
-$ zsh
-$ runspec --config=dangless-baseline --action build --rebuild all_c
+configurations: dangless-baseline, dangless-dune, dangless-dangless
 
-$ runspec --config=dangless-dangless --action build --rebuild all_c
-$ runspec --config=dangless-dangless --nobuild --iterations 1 --ignore-errors --size test all_c
+$ zsh
+
+$ runspec --config=dangless-baseline --action build --rebuild all_c
+$ runspec --config=dangless-baseline --nobuild --iterations 1 --ignore-errors --size test all_c
+
+$ runspec --config=dangless-dune --action build --rebuild all_c
+$ runspec --config=dangless-dune --nobuild --iterations 1 --ignore-errors --size test all_c
+
+$ runspec --config=dangless-dangless-debug --action build --rebuild --ignore-errors all_c all_cpp
+$ runspec --config=dangless-dangless-debug --nobuild --iterations 1 --ignore-errors --size test all_c
+
+Error: 1x400.perlbench 1x403.gcc 1x445.gobmk 1x456.hmmer 1x462.libquantum
+Success: 1x401.bzip2 1x429.mcf 1x433.milc 1x458.sjeng 1x464.h264ref 1x470.lbm 1x482.sphinx3 1x998.specrand 1x999.specrand
+
+Error: 1x403.gcc 1x445.gobmk 1x456.hmmer 1x462.libquantum
+Success: 1x400.perlbench 1x401.bzip2 1x429.mcf 1x433.milc 1x458.sjeng 1x464.h264ref 1x470.lbm 1x482.sphinx3 1x998.specrand 1x999.specrand
+
+exit code 32, signal 0
+
+------
+
+/home/gabor/remote/thesis/spec2006/bin/specinvoke -d /home/gabor/remote/thesis/spec2006/benchspec/CPU2006/400.perlbench/run/run_base_test_dangless-dangless.0000 -e speccmds.err -o speccmds.stdout -f speccmds.cmd -C -q
+
+/home/gabor/remote/thesis/spec2006/bin/specinvoke -E -d /home/gabor/remote/thesis/spec2006/benchspec/CPU2006/400.perlbench/run/run_base_test_dangless-dangless.0001 -c 1 -e compare.err -o compare.stdout -f compare.cmd

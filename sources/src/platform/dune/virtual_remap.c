@@ -13,6 +13,10 @@
   #define LOG(...) /* empty */
 #endif
 
+int vremap_errno = 0;
+
+#define RETURN(CODE) return vremap_errno = (CODE)
+
 // TODO: this is basically the same code as for rumprun (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
 int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   ASSERT0(ptr && size);
@@ -57,7 +61,7 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
   void *va = vp_alloc(npages);
   if (!va) {
     LOG("could not allocate virtual memory region of %zu pages to remap to\n", npages);
-    return EVREM_NO_VM;
+    RETURN(EVREM_NO_VM);
   }
 
   LOG("got va to remap to: %p\n", va);
@@ -82,15 +86,17 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 
     // try to give back the virtual memory page - this may fail, but we can't do anything about it
     vp_free(va, npages);
-    return EVREM_VIRT_MAP;
+    RETURN(EVREM_VIRT_MAP);
   }
 
   OUT *remapped_ptr = (u8 *)va + inpage_offset;
-  return VREM_OK;
+  RETURN(VREM_OK);
 }
 
 int vremap_resolve(void *ptr, OUT void **original_ptr) {
   ASSERT0(in_kernel_mode());
+
+  // TODO: detect if ptr points to the stack or to a global variable (.bss or .data)
 
   // Detecting whether a virtual address was remapped:
   // - Do a pagewalk on the virtual address (VA) and get the corresponding physical address (PA).
@@ -98,13 +104,13 @@ int vremap_resolve(void *ptr, OUT void **original_ptr) {
   paddr_t pa = pt_resolve(ptr);
   if (!pa) {
     // not backed by physical memory
-    return EVREM_NO_PHYS_BACK;
+    RETURN(EVREM_NO_PHYS_BACK);
   }
 
   if (dune_va_to_pa(ptr) == pa) {
     // not a remapped adddress
     OUT *original_ptr = ptr;
-    return VREM_NOT_REMAPPED;
+    RETURN(VREM_NOT_REMAPPED);
   }
 
   // Getting the original (before remapping) virtual address:
@@ -114,5 +120,22 @@ int vremap_resolve(void *ptr, OUT void **original_ptr) {
   // This happens to be the same logic we use to determine the virtual address of page table physical addresses. Ugly.
   // TODO: refactor/rename?
   OUT *original_ptr = pt_paddr2vaddr(pa);
-  return VREM_OK;
+  RETURN(VREM_OK);
+}
+
+static const char *const g_error_messages[] = {
+  [VREM_OK] = "No error",
+  [VREM_NOT_REMAPPED] = "Pointer is not a remapped one",
+  [_VREM_MAX + -EVREM_NO_VM] = "Out of virtual memory",
+  [_VREM_MAX + -EVREM_VIRT_MAP] = "Failed to map virtual memory",
+  [_VREM_MAX + -EVREM_NO_PHYS_BACK] = "Pointer is not backed by physical memory"
+};
+
+const char *vremap_describe_error(int code) {
+  if (_VREM_MIN < code || _VREM_MAX < code)
+    return "Invalid result code";
+
+  return code < 0
+    ? g_error_messages[-code]
+    : g_error_messages[code];
 }

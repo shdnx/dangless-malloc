@@ -224,7 +224,7 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (p) {
     int result = vremap_resolve(p, OUT &original_ptr);
-    LOG("vremap_resolve(%p) => %d, %p\n", p, result, original_ptr);
+    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, result, vremap_error(), original_ptr);
 
     if (result == 0) {
       was_remapped = true;
@@ -242,13 +242,13 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
   const size_t old_npages = sysmalloc_usable_pages(original_ptr);
-  //LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
+  LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
     HOOK_RETURN(NULL);
 
-  //LOG("original_ptr = %p, newp = %p\n", original_ptr, newp);
+  LOG("original_ptr = %p, newp = %p\n", original_ptr, newp);
 
   if (newp == original_ptr) {
     // we can potentially do it in-place

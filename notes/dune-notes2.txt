@@ -40,6 +40,7 @@ Since the pagetables are allocated by the page allocator, they are barely above 
 PAGEBASE   = 0x000200000000
              0x008000000000 PML4[1]
 phys_limit = 0x008000000000 (512 GB)
+             0x008002b96000
              0x7f0000000000 PML4[254]
 mmap_base  = 0x7f5c40000000
              0x7f6c00000000 mmap_base + GPA_MAP_SIZE

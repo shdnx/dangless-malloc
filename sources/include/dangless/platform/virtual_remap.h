@@ -17,8 +17,19 @@ enum {
   EVREM_VIRT_MAP = -2,
 
   // cannot resolve, because there's no physical memory backing
-  EVREM_NO_PHYS_BACK = -3
+  EVREM_NO_PHYS_BACK = -3,
+
+  _VREM_MIN = EVREM_NO_PHYS_BACK,
+  _VREM_MAX = VREM_NOT_REMAPPED
 };
+
+extern int vremap_errno;
+
+const char *vremap_describe_error(int code);
+
+static inline const char *vremap_error(void) {
+  return vremap_describe_error(vremap_errno);
+}
 
 // Given a pointer to a valid allocation and its size, re-maps the backing physical memory into a new virtual memory region, provided by the virtual memory allocator.
 // If successful, the 'remapped' out parameter is filled with the new virtual address and the function returns 0. The original pointer remains valid.

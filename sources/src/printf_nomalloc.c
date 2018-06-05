@@ -2,12 +2,11 @@
 #include <limits.h>
 #include <unistd.h>
 
+#include "dangless/config.h"
 #include "dangless/common.h"
 #include "dangless/printf_nomalloc.h"
 
-#define BUFFER_SIZE 1024
-
-static char g_buffer[BUFFER_SIZE];
+static char g_buffer[DANGLESS_CONFIG_PRINTF_NOMALLOC_BUFFER_SIZE];
 
 static int translate_file(FILE *f) {
   if (f == stdout) return 1;

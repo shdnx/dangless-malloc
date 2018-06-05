@@ -34,19 +34,34 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
     //LOG("%p => canonical %p\n", arg_ptr, canonical_ptr);
 
     REF args[ptr_arg_index] = (u64)canonical_ptr;
-  } else {
-    /*LOG("syscall %s arg %lu (%s %s): ", syscall_get_name(syscall), ptr_arg_index, syscall_get_info(syscall)->params[ptr_arg_index].name, syscall_get_info(syscall)->params[ptr_arg_index].type);
-    LOG("could not translate %p: code %d\n", arg_ptr, result);*/
+  } else if (result != VREM_NOT_REMAPPED) {
+    #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
+      LOG("syscall %s arg %lu (%s %s): ", syscall_get_name(syscall), ptr_arg_index, syscall_get_info(syscall)->params[ptr_arg_index].name, syscall_get_info(syscall)->params[ptr_arg_index].type);
+    #else
+      LOG("syscall %lu arg %lu: ", syscall, ptr_arg_index);
+    #endif
+
+    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_error(), result);
   }
 }
 
 static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
-  /*const struct syscall_info *info = syscall_get_info(syscall);
-  LOG("syscall: %s(\n", info->name);
-  for (index_t i = 0; i < info->num_params; i++) {
-    LOG("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
-  }
-  LOG(")\n");*/
+#if DANGLESS_CONFIG_TRACE_SYSCALLS
+  #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
+    const struct syscall_info *info = syscall_get_info(syscall);
+    vdprintf("syscall: %s(\n", info->name);
+    for (index_t i = 0; i < info->num_params; i++) {
+      vdprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
+    }
+    vdprintf(")\n");
+  #else
+    vdprintf("syscall: %1$lu (0x%1$lx) (\n", syscall);
+    for (index_t i = 0; i < SYSCALL_MAX_ARGS; i++) {
+      vdprintf("\targ%1$ld = %2$lu (0x%2$lx)\n", i, args[i]);
+    }
+    vdprintf(")\n");
+  #endif
+#endif
 
   for (const i8 *ptrparam_no = syscall_get_userptr_params(syscall);
        ptrparam_no && *ptrparam_no > 0;
@@ -88,5 +103,5 @@ void dangless_init(void) {
 
 #if DANGLESS_CONFIG_REGISTER_PREINIT
   __attribute__((section(".preinit_array")))
-  void (*preinit_entry)(void) = &dangless_init;
+  static void (*preinit_entry)(void) = &dangless_init;
 #endif
