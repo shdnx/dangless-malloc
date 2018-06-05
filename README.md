@@ -1,4 +1,21 @@
-This project is currently heavily work-in-progress.
+*Please note that this project is currently heavily work-in-progress.*
+
+# What & why
+
+Manual memory management in languages such as C and C++ allows the programmer to have low-level, precise control over their application's execution and performance, at the cost of additional programming burden. It's easy to make mistakes with manual memory management, for example:
+
+ - Memory leak: allocate memory, but never free it
+ - Double free: attempt to free the same memory region twice
+ - Dangling pointer: free memory while still retaining a pointer to it
+ - Out-of-bounds access: attempt to access memory outside of allocated regions
+
+Such bugs are often subtle, difficult to detect, diagnose, and fix, and worse, are often exploitable by attackers. This lead to a demand for tools and technologies that can erase or mitigate these problems, in part giving rise to programming languages with automatic memory management, such as Java and C#.
+
+Dangless-malloc is a memory allocator that replaces the built-in memory allocations functions such as `malloc()`, `calloc()` and `free()`. It aims to guarantee that even if a dangling pointer remains and is dereferenced, it will not point to a valid memory region, that is, the memory region will not be re-used until we can reasonably guarantee that it is no longer referenced.
+
+Normally, achieving this would necessarily either waste huge amounts of physical memory, or perform a large number of `mprotect()` system calls to invalidate virtual memory pages while not deallocating them, causing a significant overhead.
+
+Dangless-malloc works around this problem by moving the entire process into its own virtual environment ("virtual machine") using the [Dune](https://github.com/ix-project/dune) library. Inside that virtual environment, the process effectively runs in ring 0, making it possible to modify pagetables directly, without having to perform a system call.
 
 # System requirements
 
@@ -24,11 +41,14 @@ git submodule update
 
 cd vendor/dune-ix
 
-# patch dune, so that it maps the pages necessary for allocating physical pages in the virtual environment in ring 0
+# patch dune, so that the physical page metadata is accessible inside the guest, allowing us to e.g. mess with the pagetables
 git apply ../dune-ix-guestppages.patch
 
 # patch dune, so that we can register a prehook function to run before system calls are passed to the host kernel
-git apply ../dune-ix-syscallprehook.patch
+git apply ../dune-ix-vmcallprehook.patch
+
+# patch dune, so that it doesn't kill the process with SIGTERM when handling the exit_group syscall - this causes runs to be registered as failures when they succeeded
+git apply ../dune-ix-nosigterm.patch
 
 # need sudo, because it's building a kernel module
 sudo make

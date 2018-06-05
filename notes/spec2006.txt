@@ -1,0 +1,5 @@
+$ zsh
+$ runspec --config=dangless-baseline --action build --rebuild all_c
+
+$ runspec --config=dangless-dangless --action build --rebuild all_c
+$ runspec --config=dangless-dangless --nobuild --iterations 1 --ignore-errors --size test all_c

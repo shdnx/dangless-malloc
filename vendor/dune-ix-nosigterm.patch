@@ -1,0 +1,13 @@
+diff --git a/kern/vmx.c b/kern/vmx.c
+index afb28c0..3ad5a7c 100644
+--- a/kern/vmx.c
++++ b/kern/vmx.c
+@@ -1199,7 +1199,7 @@ static int dune_exit_group(int error_code)
+ 	vcpu->ret_code = DUNE_RET_EXIT;
+ 	vcpu->conf->status = error_code;
+ 
+-	force_sig(SIGTERM, current);
++	//force_sig(SIGTERM, current);
+ 	return 0;
+ }
+ 
