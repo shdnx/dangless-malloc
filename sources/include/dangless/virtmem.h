@@ -44,6 +44,13 @@ enum {
   PTE_FRAME_L3 = PTE_FRAME_1G
 };
 
+enum {
+  // PTEs we invalidate will be set to this marker value
+  PTE_INVALIDATED = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
+};
+
+STATIC_ASSERT(!FLAG_ISSET(PTE_INVALIDATED, PTE_V), "DEAD_PTE cannot be a valid PTE!");
+
 enum pt_level {
   PT_INVALID = 0,
 

@@ -7,6 +7,7 @@
 #include "dangless/config.h"
 #include "dangless/common.h"
 #include "dangless/syscallmeta.h"
+#include "dangless/virtmem.h"
 #include "dangless/platform/virtual_remap.h"
 
 #include "dune.h"
@@ -41,7 +42,7 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
       LOG("syscall %lu arg %lu: ", syscall, ptr_arg_index);
     #endif
 
-    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_error(), result);
+    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_diag(), result);
   }
 }
 
@@ -51,15 +52,15 @@ static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
     const struct syscall_info *info = syscall_get_info(syscall);
     vdprintf("syscall: %s(\n", info->name);
     for (index_t i = 0; i < info->num_params; i++) {
-      vdprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
+      dprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
     }
-    vdprintf(")\n");
+    dprintf(")\n");
   #else
     vdprintf("syscall: %1$lu (0x%1$lx) (\n", syscall);
     for (index_t i = 0; i < SYSCALL_MAX_ARGS; i++) {
-      vdprintf("\targ%1$ld = %2$lu (0x%2$lx)\n", i, args[i]);
+      dprintf("\targ%1$ld = %2$lu (0x%2$lx)\n", i, args[i]);
     }
-    vdprintf(")\n");
+    dprintf(")\n");
   #endif
 #endif
 
@@ -68,6 +69,41 @@ static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
        ptrparam_no++) {
     process_syscall_ptr_arg(syscall, REF args, (index_t)*ptrparam_no - 1);
   }
+}
+
+enum {
+  PGFLT_FLAG_ISPRESENT  = 0x1,
+  PGFLT_FLAG_ISWRITE    = 0x2,
+  PGFLT_FLAG_ISUSER     = 0x4
+};
+
+static void dangless_pagefault_handler(vaddr_t addr_, u64 flags, struct dune_tf *tf) {
+  void *const addr = (void *)addr_;
+  void *const addr_page = (void *)ROUND_DOWN(addr_, PGSIZE);
+
+  // dune_printf() is guaranteed to work, whereas my code is not :P
+  dune_printf(
+    "!!! Unhandled page fault on %p, flags: %lx [%s | %s | %s]\n",
+    addr,
+    flags,
+    FLAG_ISSET(flags, PGFLT_FLAG_ISUSER) ? "user" : "kernel",
+    FLAG_ISSET(flags, PGFLT_FLAG_ISWRITE) ? "write" : "read",
+    FLAG_ISSET(flags, PGFLT_FLAG_ISPRESENT) ? "protection-violation" : "not-present"
+  );
+
+  // check whether this was a virtual address we invalidated, i.e. this would be a dangling pointer access
+  if (!FLAG_ISSET(flags, PGFLT_FLAG_ISPRESENT)) {
+    pte_t *ppte;
+    enum pt_level level = pt_walk(addr_page, PGWALK_FULL, OUT &ppte);
+
+    if (*ppte == PTE_INVALIDATED) {
+      dune_printf("NOTE: Access would have been through a dangling pointer: PTE %p invalidated on level %u\n", ppte, level);
+    }
+  }
+
+  dune_printf("\n");
+  dune_dump_trap_frame(tf);
+  dune_die(); // RIP
 }
 
 void dangless_init(void) {
@@ -97,6 +133,9 @@ void dangless_init(void) {
   // Function to run before system calls originating in ring 0 are passed on to the host kernel.
   // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
   __dune_vmcall_prehook = &dangless_vmcall_prehook;
+
+  // Register page-fault handler, for diagnostic purposes
+  dune_register_pgflt_handler(&dangless_pagefault_handler);
 
   LOG("Running...\n");
 }

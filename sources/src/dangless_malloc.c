@@ -17,12 +17,6 @@
   #define LOG_NOMALLOC(...) /* empty */
 #endif
 
-enum {
-  DEAD_PTE = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
-};
-
-STATIC_ASSERT(!FLAG_ISSET(DEAD_PTE, PTE_V), "DEAD_PTE cannot be a valid PTE!");
-
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
@@ -81,7 +75,10 @@ static bool do_hook_enter(const char *func_name) {
 
   g_hook_depth++;
 
-  //LOG_NOMALLOC("entered hook!\n");
+#if DANGLESS_CONFIG_TRACE_HOOKS
+  vdprintf("entering %s\n", func_name);
+#endif
+
   return true;
 }
 
@@ -90,7 +87,9 @@ static void do_hook_exit(const char *func_name) {
 
   g_hook_depth--;
 
-  //LOG("exited hook %s\n", func_name);
+#if DANGLESS_CONFIG_TRACE_HOOKS
+  vdprintf("exited %s\n", func_name);
+#endif
 }
 
 #define HOOK_ENTER() do_hook_enter(__func__)
@@ -157,7 +156,7 @@ int dangless_posix_memalign(void **pp, size_t align, size_t size) {
 // Invalidates a virtual page that was remapped with virtual_remap(), by marking its PTE as dead.
 // This allows us to detect a dangling pointer attempted access if we hook into the pagefault interrupt.
 static void virtual_invalidate_pte(pte_t *ppte) {
-  *ppte = DEAD_PTE;
+  *ppte = PTE_INVALIDATED;
 }
 
 static void virtual_invalidate(void *p, size_t npages) {
@@ -200,15 +199,16 @@ void dangless_free(void *p) {
 
   void *original_ptr = p;
   int result = vremap_resolve(p, OUT &original_ptr);
+  LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(), result, original_ptr);
 
   if (result == 0) {
-    size_t npages = sysmalloc_usable_pages(original_ptr);
+    const size_t npages = sysmalloc_usable_pages(original_ptr);
     virtual_invalidate(p, npages);
-  } else if (result < 0) {
+  } else /*if (result < 0) {
     LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
   } else {
     LOG("vremap_resolve returned %d, assume no remapping\n", result);
-  }
+  }*/
 
   sysfree(original_ptr);
 
@@ -216,28 +216,34 @@ void dangless_free(void *p) {
 }
 
 void *dangless_realloc(void *p, size_t new_size) {
+  LOG("entering realloc...\n");
+
   if (!HOOK_ENTER())
     return sysrealloc(p, new_size);
+
+  LOG("realloc(p = %p, new_size = %zu)\n", p, new_size);
 
   void *original_ptr = p;
   bool was_remapped = false;
 
   if (p) {
     int result = vremap_resolve(p, OUT &original_ptr);
-    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, result, vremap_error(), original_ptr);
+    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(), result, original_ptr);
 
     if (result == 0) {
       was_remapped = true;
     } else if (result < 0) {
-      LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
-    } else {
+      //LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
+    } /*else {
       LOG("vremap_resolve returned %d, assume no remapping\n", result);
-    }
+    }*/
   }
 
   if (!was_remapped) {
     // either realloc() was called with NULL, or the original pointer was not remaped, so we get to treat this as a new allocation
-    HOOK_RETURN(do_vremap(sysrealloc(p, new_size), new_size, "realloc"));
+    void *const newp = do_vremap(sysrealloc(p, new_size), new_size, "realloc");
+    LOG("pointer is NULL or not remapped; treating it as new allocation => %p\n", newp);
+    HOOK_RETURN(newp);
   }
 
   const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
@@ -262,25 +268,35 @@ void *dangless_realloc(void *p, size_t new_size) {
 
     if (new_npages == old_npages) {
       // no change in terms of location or in terms of size: nothing to do, just return the original pointer
+      LOG("in-place realloc, no changes in pages => %p\n", p);
       HOOK_RETURN(p);
     } else if (new_npages < old_npages) {
       // shrink in-place: only invalidate the pages at the end
-      virtual_invalidate(PG_OFFSET(p, new_npages), old_npages - new_npages);
+      void *const pinvalid = PG_OFFSET(p, new_npages);
+      const size_t num_invalid_pages = old_npages - new_npages;
+      virtual_invalidate(pinvalid, num_invalid_pages);
+      LOG("shrinking in-place realloc => %p\n", p);
       HOOK_RETURN(p);
     }
+    // otherwise we're growing in-place that we cannot guarantee to be able to do in virtual memory, so just create a new region
   }
 
   // there's no safe in-place reallocation possible: either the location changed, or new pages were requested: invalidate the whole original region, and create a new remapped region
   // NOTE that it's possible that we'll still end up with result == p, if the virtual memory region after p is free and can be used to accommodate new_size - old_size
   virtual_invalidate(p, old_npages);
-  HOOK_RETURN(do_vremap(newp, new_size, "realloc"));
+
+  void *const newvp = do_vremap(newp, new_size, "realloc");
+  LOG("=> %p\n", newvp);
+  HOOK_RETURN(newvp);
 }
 
 void *dangless_get_canonical(void *p) {
   void *original_ptr;
   int result = vremap_resolve(p, OUT &original_ptr);
-  if (result < 0)
+  if (result < 0) {
+    LOG("vremap_resolve failed: %s (%d)\n", vremap_diag(), result);
     return NULL;
+  }
 
   return original_ptr;
 }
