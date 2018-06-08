@@ -120,9 +120,12 @@ TEST_SUITE("Dune basics") {
 
   TEST("realloc shrinking pages") {
     // NOTE: a PGSIZE worth of malloc()-d area has to be placed on 2 virtual pages, due to the in-page offset: a malloc()-d area will never be on a page boundary, because the malloc header comes before it
+
+    // this will allocate minimum 2 pages, but usually 3 pages, given that the allocation will probably start in the middle of a page
     void *p = TMALLOC(char[2 * MALLOC_FILL_PG_SIZE]);
     ASSERT_VALID_PTR((uint8_t *)p + 2 * MALLOC_FILL_PG_SIZE - 1);
 
+    // this will definitely be minimum 1, maximum 2 pages, so we're shrinking the allocation by one page (at minimum)
     void *p2 = TREALLOC(p, char[MALLOC_FILL_PG_SIZE]);
     ASSERT_EQUALS(p, p2);
 

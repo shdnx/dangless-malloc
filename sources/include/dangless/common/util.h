@@ -1,6 +1,8 @@
 #ifndef DANGLESS_COMMON_UTIL_H
 #define DANGLESS_COMMON_UTIL_H
 
+#include <stdbool.h>
+
 #define LIKELY(COND) __builtin_expect((COND), 1)
 #define UNLIKELY(COND) __builtin_expect((COND), 0)
 
@@ -22,8 +24,10 @@
 #define MIN(A, B) ((A) < (B) ? (A) : (B))
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 
-// Round down A to the nearest multiple of N.
+// Round down A to the nearest multiple of N. If A is already a multiple of N, the result is A.
 #define ROUND_DOWN(A, N) ((A) - (A) % (N))
+
+// Round up A to the nearest multiple of N. If A is already a multiple of N, the result is A.
 #define ROUND_UP(A, N) (((A) + (N) - 1) / (N) * (N))
 
 #define ARRAY_LENGTH(ARR) (sizeof(ARR) / sizeof(ARR[0]))

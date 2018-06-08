@@ -21,4 +21,12 @@ typedef uintptr_t vaddr_t;
 // Given a physical address of a page table, gives the virtual address where that page table is mapped.
 void *pt_paddr2vaddr(paddr_t pa);
 
+#define NUM_SPANNED_PAGES(ADDR, SIZE) ( \
+    (size_t)( \
+      ROUND_UP((uintptr_t)(ADDR) + (SIZE), PGSIZE) \
+      - ROUND_DOWN((uintptr_t)(ADDR), PGSIZE) \
+    ) \
+    / PGSIZE \
+  )
+
 #endif

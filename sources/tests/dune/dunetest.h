@@ -5,6 +5,7 @@
 
 #include "libdune/dune.h"
 
+#include "dangless/common/types.h"
 #include "dangless/dangless_malloc.h"
 #include "dangless/virtmem.h"
 
@@ -19,13 +20,13 @@ void dunetest_init(void);
 
 // TODO: more elegant solution
 #define ASSERT_VALID_PTR(PTR) \
-  *(uint8_t *)(PTR) = 0xBE;
+  *(u8 *)(PTR) = 0xBE;
 
 #define ASSERT_INVALID_MEMREGION(START, LEN) \
   /* TODO */
 
 #define ASSERT_INVALID_PTR(PTR) \
-  ASSERT_EQUALS(pt_resolve_page((void *)(PTR), NULL), (paddr_t)0);
+  ASSERT_EQUALS(pt_resolve_page((void *)(PTR), OUT_IGNORE), (paddr_t)0)
 
 #define ASSERT_VALID_ALLOC(PTR, SIZE) \
   do { \

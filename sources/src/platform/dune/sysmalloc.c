@@ -123,7 +123,11 @@ void sysfree(void *p) {
   return addr_sysfree(p);
 }
 
+size_t sysmalloc_usable_size(void *p) {
+  return malloc_usable_size(p);
+}
+
 size_t sysmalloc_usable_pages(void *p) {
-  const size_t sz = malloc_usable_size(p);
+  const size_t sz = sysmalloc_usable_size(p);
   return ROUND_UP(sz, PGSIZE) / PGSIZE;
 }

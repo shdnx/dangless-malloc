@@ -85,7 +85,9 @@ struct test_suite {
     struct test_case_result *_result = NULL; \
     if (testcase_prepare_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), &_result)) { \
       testcase_setup_hook(); \
+      fprintf(stderr, "--- Begin testcase '%s' ---\n", (NAME)); \
       FNAME(); \
+      fprintf(stderr, "--- End testcase '%s' ---\n", (NAME)); \
       testcase_teardown_hook(); \
       testcase_register_run(_TEST_SUITE_PARMNAME, &_TEST_CASE_VARNAME(FNAME), _result); \
     } \

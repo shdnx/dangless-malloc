@@ -274,9 +274,8 @@ void *dangless_realloc(void *p, size_t new_size) {
     HOOK_RETURN(newp);
   }
 
-  const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
-  const size_t old_npages = sysmalloc_usable_pages(original_ptr);
-  LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
+  //const size_t old_npages = sysmalloc_usable_pages(original_ptr);
+  const size_t old_npages = NUM_SPANNED_PAGES(original_ptr, sysmalloc_usable_size(original_ptr));
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
@@ -286,6 +285,11 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (newp == original_ptr) {
     // we can potentially do it in-place
+
+    //const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
+    const size_t new_npages = NUM_SPANNED_PAGES(newp, new_size);
+
+    LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 
 #if DANGLESS_CONFIG_DEBUG_DGLMALLOC
     // verify that the physical page also didn't change
@@ -300,9 +304,11 @@ void *dangless_realloc(void *p, size_t new_size) {
       HOOK_RETURN(p);
     } else if (new_npages < old_npages) {
       // shrink in-place: only invalidate the pages at the end
-      void *const pinvalid = PG_OFFSET(p, new_npages);
+      //void *const p_invalidate_from = PG_OFFSET(p, new_npages);
+      void *const p_invalidate_from = (void *)ROUND_UP((vaddr_t)p + new_size, PGSIZE);
       const size_t num_invalid_pages = old_npages - new_npages;
-      virtual_invalidate(pinvalid, num_invalid_pages);
+
+      virtual_invalidate(p_invalidate_from, num_invalid_pages);
       LOG("shrinking in-place realloc => %p\n", p);
       HOOK_RETURN(p);
     }
