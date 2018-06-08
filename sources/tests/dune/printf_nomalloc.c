@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "dangless/printf_nomalloc.h"
+#include "dangless/common/printf_nomalloc.h"
 
 #include "testfx/testfx.h"
 
@@ -16,10 +16,22 @@ TEST_SUITE("nomalloc_printf") {
     ASSERT_EQUALS_STR("0x10FA74BC", sprintf_nomalloc("%p", (void *)0x10FA74BCul));
   }
 
-  TEST("sprintf_nomalloc modifiers") {
+  TEST("sprintf_nomalloc int length modifiers") {
     ASSERT_EQUALS_STR("99", sprintf_nomalloc("%ld", 99l));
     ASSERT_EQUALS_STR("578", sprintf_nomalloc("%lu", 578ul));
     ASSERT_EQUALS_STR("9897123", sprintf_nomalloc("%zu", (size_t)9897123));
+  }
+
+  TEST("sprintf_nomalloc min field size modifiers") {
+    ASSERT_EQUALS_STR("  xyz", sprintf_nomalloc("%5s", "xyz"));
+    ASSERT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-5s", "xyz"));
+    ASSERT_EQUALS_STR("00042", sprintf_nomalloc("%05d", 42));
+  }
+
+  TEST("sprintf_nomalloc custom min field size modifier") {
+    ASSERT_EQUALS_STR("  xyz", sprintf_nomalloc("%*s", 5, "xyz"));
+    ASSERT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-*s", 5, "xyz"));
+    ASSERT_EQUALS_STR("00042", sprintf_nomalloc("%0*d", 5, 42));
   }
 
   TEST("sprintf_nomalloc complex") {

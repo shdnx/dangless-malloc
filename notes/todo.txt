@@ -1,11 +1,9 @@
  - we could build in some heuristics to process_syscall_ptr_arg(): if we can tell from a pointer that it's a stack pointer or global variable (in .data or .bss) then we shouldn't pagewalk it
  - printf_nomalloc() seems to have some problems, e.g. try using init.c with it; looks like a concurrency issue, but it couldn't be??
- - LOG_CONTEXT(), LOG_CONTEXT_BEGIN(), LOG_CONTEXT_END()
  - nicer output for the unit testing framework: colors, indentations, empty lines
- - split up the dangless common.h into multiple files, e.g. common/types.h, common/math.h, common/tracing.h, common/assert.h, etc.
 
 Maybe later:
- - open-source scripts/generate_syscallmeta.py
+ - open-source scripts/generate_syscallmeta.py as linux-syscallmeta
  - open-source testfx as a separate library
  - more memory allocation functions: aligned_alloc(), memalign(), valloc(), etc. https://linux.die.net/man/3/memalign ?
 

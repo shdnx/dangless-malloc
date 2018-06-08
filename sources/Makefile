@@ -45,7 +45,7 @@ BIN := $(BIN_DIR)/libdangless.a
 BASE_OBJS_DIR := $(BIN_DIR)/obj
 
 CORE_SRCS_DIR := src
-CORE_SRCS := $(wildcard src/*.c)
+CORE_SRCS := $(wildcard $(CORE_SRCS_DIR)/*.c) $(wildcard $(CORE_SRCS_DIR)/common/*.c)
 CORE_OBJS_DIR := $(BASE_OBJS_DIR)/core
 CORE_OBJS := $(patsubst $(CORE_SRCS_DIR)/%.c,$(CORE_OBJS_DIR)/%.o,$(CORE_SRCS))
 
@@ -68,7 +68,7 @@ include $(PLATFORM_SRCS_DIR)/Makefile.frag.mk
 
 include make/buildconfig.mk
 
-$(BIN_DIR) $(dir $(SYSCALLMETA_FILE)) $(dir $(BUILDCONFIG_HEADER_FILE)) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR):
+$(BIN_DIR) $(dir $(SYSCALLMETA_FILE)) $(dir $(BUILDCONFIG_HEADER_FILE)) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
 
 $(SYSCALLMETA_FILE): $(dir $(SYSCALLMETA_FILE)) scripts/generate_syscallmeta.py
@@ -80,7 +80,7 @@ $(CORE_OBJS_DIR)/%.o: src/%.c
 $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(OBJS)
+$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 	$(RANLIB) $@
 

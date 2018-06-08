@@ -1,6 +1,13 @@
-#include <pthread.h>
+#define _GNU_SOURCE
 
 #include "dangless/config.h"
+
+#if DANGLESS_CONFIG_TRACE_HOOKS_BACKTRACE
+  #include <execinfo.h>
+#endif
+
+#include <pthread.h>
+
 #include "dangless/common.h"
 #include "dangless/dangless_malloc.h"
 #include "dangless/virtmem.h"
@@ -55,16 +62,17 @@ static void auto_dedicate_vmem(void) {
 }
 
 static THREAD_LOCAL unsigned g_hook_depth = 0;
+static THREAD_LOCAL const char *g_hook_funcname = NULL;
 
 bool dangless_is_hook_running(void) {
   return g_hook_depth > 0;
 }
 
-static bool do_hook_enter(const char *func_name) {
+static bool do_hook_enter(const char *func_name, void *retaddr) {
   //LOG_NOMALLOC("entering hook %s...\n", func_name);
 
   if (UNLIKELY(dangless_is_hook_running())) {
-    LOG_NOMALLOC("failed to enter hook %s: already running a hook at depth %d\n", func_name, g_hook_depth);
+    LOG_NOMALLOC("failed to enter %s: already running %s\n", func_name, g_hook_funcname);
     return false;
   }
 
@@ -74,26 +82,46 @@ static bool do_hook_enter(const char *func_name) {
   }
 
   g_hook_depth++;
+  g_hook_funcname = func_name;
 
 #if DANGLESS_CONFIG_TRACE_HOOKS
-  vdprintf("entering %s\n", func_name);
+  #if DANGLESS_CONFIG_TRACE_HOOKS_BACKTRACE
+    vdprintf("\nentering %s\n", func_name);
+    dprintf_scope_enter(func_name);
+
+    void *backtrace_buffer[DANGLESS_CONFIG_TRACE_HOOKS_BACKTRACE_BUFSIZE];
+    const int backtrace_len = backtrace(REF backtrace_buffer, ARRAY_LENGTH(backtrace_buffer));
+
+    dprintf("-- backtrace (%d frames) --\n", backtrace_len);
+    // we don't want to use backtrace_symbols(), as it involves a call to malloc()
+    backtrace_symbols_fd(backtrace_buffer, backtrace_len, /*fd=*/2 /*stderr*/);
+    dprintf("-- end backtrace --\n\n");
+  #else
+    dprintf("\nentering %s (called from %p)\n", func_name, retaddr);
+    dprintf_scope_enter(func_name);
+  #endif
 #endif
 
   return true;
 }
 
-static void do_hook_exit(const char *func_name) {
+static void do_hook_exit(const char *func_name, void *retaddr) {
   ASSERT(dangless_is_hook_running(), "Unbalanced HOOK_ENTER/HOOK_EXIT?!");
 
   g_hook_depth--;
+  g_hook_funcname = NULL;
 
 #if DANGLESS_CONFIG_TRACE_HOOKS
-  vdprintf("exited %s\n", func_name);
+  dprintf_scope_exit(func_name);
+  vdprintf("exited %s (returning to %p)\n", func_name, retaddr);
 #endif
 }
 
-#define HOOK_ENTER() do_hook_enter(__func__)
-#define HOOK_EXIT() do_hook_exit(__func__)
+// GCC extension
+#define RETURN_ADDR() __builtin_extract_return_addr(__builtin_return_address(0))
+
+#define HOOK_ENTER() do_hook_enter(__func__, RETURN_ADDR())
+#define HOOK_EXIT() do_hook_exit(__func__, RETURN_ADDR())
 
 #define HOOK_RETURN(V) \
   do { \
