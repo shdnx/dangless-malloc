@@ -1,6 +1,8 @@
 #ifndef DANGLESS_COMMON_DPRINTF_H
 #define DANGLESS_COMMON_DPRINTF_H
 
+#include <stdbool.h>
+
 #ifdef NDEBUG
   #define dprintf(...) /* empty */
   #define dprintf_nomalloc(...) /* empty */
@@ -8,13 +10,20 @@
   #define dprintf_scope_enter(LABEL) /* empty */
   #define dprintf_scope_exit(LABEL) /* empty */
 
+  static inline void dprintf_enable(void) { /* empty */ }
+  static inline void dprintf_disable(void) { /* empty */ }
+
   #define vdprintf(...) /* empty */
   #define vdprintf_nomalloc(...) /* empty */
 #else // !defined(NDEBUG)
   // we have to have stdio.h included BEFORE we define dprintf() and vdprintf(), because apparently those are function names in it, causing fun mayhem
   #include <stdio.h>
 
+  extern bool dprintf_enabled;
   extern int dprintf_scope_depth;
+
+  static inline void dprintf_enable(void) { dprintf_enabled = true; }
+  static inline void dprintf_disable(void) { dprintf_enabled = false; }
 
   #define dprintf_scope_enter(LABEL) (++dprintf_scope_depth)
   #define dprintf_scope_exit(LABEL) (--dprintf_scope_depth)

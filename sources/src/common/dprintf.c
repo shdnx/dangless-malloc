@@ -19,6 +19,7 @@ enum {
   INDENT_SIZE = 4
 };
 
+bool dprintf_enabled = true;
 int dprintf_scope_depth = 0;
 
 static bool g_had_newline = false;
@@ -34,6 +35,9 @@ static bool g_had_newline = false;
   } while (0)
 
 void _dprintf(const char *restrict format, ...) {
+  if (!dprintf_enabled)
+    return;
+
   va_list args;
   va_start(args, format);
   _DPRINTF_IMPL(fprintf, format, args);
@@ -41,6 +45,9 @@ void _dprintf(const char *restrict format, ...) {
 }
 
 void _dprintf_nomalloc(const char *restrict format, ...) {
+  if (!dprintf_enabled)
+    return;
+
   va_list args;
   va_start(args, format);
   _DPRINTF_IMPL(fprintf_nomalloc, format, args);
@@ -54,9 +61,15 @@ void _dprintf_nomalloc(const char *restrict format, ...) {
   } while (0)
 
 void _print_caller_info(const char *file, const char *func, int line) {
+  if (!dprintf_enabled)
+    return;
+
   _PRINT_CALLER_INFO_IMPL(_dprintf);
 }
 
 void _print_caller_info_nomalloc(const char *file, const char *func, int line) {
+  if (!dprintf_enabled)
+    return;
+
   _PRINT_CALLER_INFO_IMPL(_dprintf_nomalloc);
 }

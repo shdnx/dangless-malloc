@@ -12,6 +12,7 @@ static inline TEST_TEARDOWN() { /* empty */ }
 
 struct test_case {
   char *name;
+  bool is_enabled;
   test_case_func_t func;
 };
 
@@ -29,10 +30,12 @@ struct test_suite {
   char *file;
   char *name;
   test_suite_func_t func;
+  bool is_enabled;
 
   size_t num_cases;
   size_t num_case_results;
   size_t num_failed_cases;
+  size_t num_skipped_cases;
   struct test_case_result *case_results;
   struct test_suite *next_suite;
 };
@@ -58,9 +61,11 @@ struct test_suite {
     /*file=*/__FILE__, \
     /*name=*/NAME, \
     /*func=*/&FNAME, \
+    /*is_enabled=*/true, \
     /*num_cases=*/0, \
     /*num_case_results=*/0, \
     /*num_failed_cases=*/0, \
+    /*num_skipped_cases=*/0, \
     /*case_results=*/NULL, \
     /*next_suite=*/NULL \
   }; \
@@ -80,6 +85,7 @@ struct test_suite {
   { \
     struct test_case _TEST_CASE_VARNAME(FNAME) = { \
       /*name=*/NAME, \
+      /*is_enabled=*/true, \
       /*func=*/&FNAME \
     }; \
     struct test_case_result *_result = NULL; \

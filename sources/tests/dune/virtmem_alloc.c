@@ -20,7 +20,7 @@ TEST_SUITE("Virtual page allocator") {
     abort();
   }
 
-  TEST("Simple one-page alloc/free") {
+  /*TEST("Simple one-page alloc/free") {
     // allocate two pages, they should be the first two pages of the region
     void *p1, *p2;
     ASSERT_EQUALS(region_start, p1 = vp_alloc(1));
@@ -34,5 +34,5 @@ TEST_SUITE("Virtual page allocator") {
     void *p3;
     ASSERT_EQUALS(region_start, p3 = vp_alloc(2));
     ASSERT_EQUALS(vp_free(p3, 2), 0);
-  }
+  }*/
 }

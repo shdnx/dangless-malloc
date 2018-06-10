@@ -127,7 +127,7 @@ size_t sysmalloc_usable_size(void *p) {
   return malloc_usable_size(p);
 }
 
-size_t sysmalloc_usable_pages(void *p) {
+size_t sysmalloc_spanned_pages(void *p) {
   const size_t sz = sysmalloc_usable_size(p);
-  return ROUND_UP(sz, PGSIZE) / PGSIZE;
+  return NUM_SPANNED_PAGES(p, sz);
 }

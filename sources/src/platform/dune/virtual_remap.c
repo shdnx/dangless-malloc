@@ -140,7 +140,10 @@ const char *vremap_get_diag(int code) {
   if (code < _VREM_MIN || _VREM_MAX < code)
     return "Invalid result code";
 
-  return code < 0
-    ? g_result_diagnostics[-code]
+  const char *msg = code < 0
+    ? g_result_diagnostics[_VREM_MAX + -code]
     : g_result_diagnostics[code];
+
+  LOG("code = %d, diag = %s\n", code, msg);
+  return msg;
 }

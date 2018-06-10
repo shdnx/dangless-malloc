@@ -32,4 +32,12 @@
 
 #define ARRAY_LENGTH(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 
+#define _CODE_CONTEXT_IMPL(VARNAME, START_EXPR, END_EXPR) \
+  for (bool VARNAME = true; \
+       VARNAME ? ((START_EXPR), true) : ((END_EXPR), false); \
+       VARNAME = false)
+
+#define CODE_CONTEXT(START_EXPR, END_EXPR) \
+    _CODE_CONTEXT_IMPL(CONCAT2(_cctx_, __COUNTER__), START_EXPR, END_EXPR)
+
 #endif

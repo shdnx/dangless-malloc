@@ -59,6 +59,8 @@ static void auto_dedicate_vmem(void) {
   }
 
   LOG("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
+
+  g_initialized = true;
 }
 
 static THREAD_LOCAL unsigned g_hook_depth = 0;
@@ -135,8 +137,14 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
   if (!p || !sz)
     return NULL;
 
+  // we need to grab the actual allocated size, because it can be higher than the requested size, and the difference can sometimes fall across a page boundary, making it important
+  const size_t actual_sz = sysmalloc_usable_size(p);
+
+  int result;
   void *remapped_ptr;
-  int result = vremap_map(p, sz, OUT &remapped_ptr);
+
+retry:
+  result = vremap_map(p, actual_sz, OUT &remapped_ptr);
 
   if (UNLIKELY(result == EVREM_NO_VM && !g_initialized)) {
     LOG("auto-dedicating available virtual memory to dangless...\n");
@@ -144,9 +152,9 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
     pthread_once(&g_auto_dedicate_once, auto_dedicate_vmem);
 
     LOG("re-trying vremap...\n");
-    return do_vremap(p, sz, func_name);
+    goto retry;
   } else if (result < 0) {
-    LOG("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, sz, result);
+    LOG("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, actual_sz, result);
     return p;
   }
 
@@ -230,7 +238,7 @@ void dangless_free(void *p) {
   LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(), result, original_ptr);
 
   if (result == 0) {
-    const size_t npages = sysmalloc_usable_pages(original_ptr);
+    const size_t npages = sysmalloc_spanned_pages(original_ptr);
     virtual_invalidate(p, npages);
   } else /*if (result < 0) {
     LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
@@ -255,8 +263,10 @@ void *dangless_realloc(void *p, size_t new_size) {
   bool was_remapped = false;
 
   if (p) {
-    int result = vremap_resolve(p, OUT &original_ptr);
+    // TODO: there's some bullshit going on here, LOG() is screwing up "result"???
+    const int result = vremap_resolve(p, OUT &original_ptr);
     LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(), result, original_ptr);
+    //fprintf(stderr, "2 vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(), result, original_ptr);
 
     if (result == 0) {
       was_remapped = true;
@@ -274,20 +284,29 @@ void *dangless_realloc(void *p, size_t new_size) {
     HOOK_RETURN(newp);
   }
 
+  const size_t actual_old_size = sysmalloc_usable_size(original_ptr);
+
   //const size_t old_npages = sysmalloc_usable_pages(original_ptr);
-  const size_t old_npages = NUM_SPANNED_PAGES(original_ptr, sysmalloc_usable_size(original_ptr));
+  const size_t old_npages = NUM_SPANNED_PAGES(original_ptr, actual_old_size);
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)
     HOOK_RETURN(NULL);
 
-  LOG("original_ptr = %p, newp = %p\n", original_ptr, newp);
+  // unfortunately, realloc() is allowed to give more space than requested for; e.g. a realloc() asking for 4080 bytes, it might get 4088 bytes - and those extra bytes can be past a page boundary, meaning we have to account for them...
+  const size_t actual_new_size = sysmalloc_usable_size(newp);
+
+  LOG("original_ptr = %p (usable size: %zu), newp = %p (usable size: %zu)\n", original_ptr, actual_old_size, newp, actual_new_size);
+
+  ASSERT0(actual_new_size >= new_size);
+
+  //ASSERT(new_size == actual_new_size, "Wtf are you doing, sysrealloc()? new_size = %zu, malloc_usable_size => %zu\n", new_size, actual_new_size);
 
   if (newp == original_ptr) {
     // we can potentially do it in-place
 
     //const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
-    const size_t new_npages = NUM_SPANNED_PAGES(newp, new_size);
+    const size_t new_npages = NUM_SPANNED_PAGES(newp, actual_new_size);
 
     LOG("new_npages = %zu, old_npages = %zu\n", new_npages, old_npages);
 

@@ -11,4 +11,9 @@
 #define MB (1024uL * KB)
 #define GB (1024uL * MB)
 
+// For some reason, when compiling in release mode, off_t is undefined in libdune/dune.h.
+#if DANGLESS_CONFIG_PROFILE == release
+typedef ptrdiff_t off_t;
+#endif
+
 #endif

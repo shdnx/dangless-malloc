@@ -8,8 +8,10 @@ struct test_case *g_current_test = NULL;
 struct test_case_result *g_current_result = NULL;
 
 static size_t g_num_testsuites = 0;
+static size_t g_num_testsuites_skipped = 0;
 static size_t g_num_testcases_total = 0;
 static size_t g_num_testcases_failed = 0;
+static size_t g_num_testcases_skipped = 0;
 
 static struct test_suite *g_testsuites = NULL;
 
@@ -50,23 +52,24 @@ struct test_case_result *testcase_result_alloc(void) {
 }
 
 bool testcase_prepare_run(struct test_suite *tsuite, struct test_case *tcase, /*OUT*/ struct test_case_result **presult) {
-  LOG("Running testcase: \"%s\"\n", tcase->name);
-
+  g_num_testcases_total++;
   tsuite->num_cases++;
 
-  // TODO: check if test case should be run (filtering) - return false if it shouldn't
-
-  g_num_testcases_total++;
-  tsuite->num_case_results++;
-
-  //LOG("\t%s... ", tcase->name);
+  if (!tcase->is_enabled) {
+    g_num_testcases_skipped++;
+    tsuite->num_skipped_cases++;
+    return false;
+  }
 
   // prepare the result
   struct test_case_result *result = testcase_result_alloc();
   result->case_name = tcase->name;
 
+  tsuite->num_case_results++;
+
   /*OUT*/ *presult = result;
 
+  //LOG("Running testcase: \"%s\"\n", tcase->name);
   g_current_suite = tsuite;
   g_current_test = tcase;
   g_current_result = result;
@@ -104,10 +107,26 @@ void testcase_register_run(struct test_suite *tsuite, struct test_case *tcase, s
 }
 
 int main(int argc, const char **argv) {
+  // parse arguments
+  /*bool default_enabled = true;
+  const char **names = NULL;
+
+  int arg = 1;
+  if (argc > arg && strcmp(argv[arg], "--exclude")) {
+    arg++;
+    default_enabled = false;
+  }
+
+  names = &argv[arg];*/
+
   // TODO: testsuite/testcase filters, e.g. by filename prefix?
   struct test_suite *ts;
   for (ts = g_testsuites; ts != NULL; ts = ts->next_suite) {
-    testsuite_run(ts);
+    if (ts->is_enabled) {
+      testsuite_run(ts);
+    } else {
+      g_num_testcases_skipped++;
+    }
   }
 
   if (g_num_testcases_failed > 0) {
