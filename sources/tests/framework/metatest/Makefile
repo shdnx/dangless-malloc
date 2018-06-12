@@ -1,8 +1,8 @@
-include ../bin/testfx.mk
+include ../build/ctestfx.mk
 
-CC := $(TESTFX_USER_CC)
-CFLAGS := $(TESTFX_USER_CFLAGS)
-LDFLAGS := $(TESTFX_USER_LDFLAGS)
+CC := $(CTESTFX_USER_CC)
+CFLAGS := $(CTESTFX_USER_CFLAGS)
+LDFLAGS := $(CTESTFX_USER_LDFLAGS)
 
 BIN := bin/metatest
 
@@ -20,7 +20,7 @@ bin obj preproc:
 obj/%.o: %.c obj
 	$(CC) $(CFLAGS) -c $< -o $@
 
-preproc/%.c: src/%.c preproc
+preproc/%.c: %.c preproc
 	$(CC) $(CFLAGS) -E $< -o $@
 
 $(BIN): $(OBJS) bin

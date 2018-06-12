@@ -7,9 +7,9 @@ RANLIB := ranlib
 CFLAGS := -std=gnu11 -O0 -ggdb -Wall -Wextra -Wno-unused-parameter -DDEBUG -MMD -MP
 INCLUDES := -Iinclude
 
-LIBNAME := testfx
+LIBNAME := ctestfx
 BIN := build/lib$(LIBNAME).a
-MKCONFIG = build/testfx.mk
+MKCONFIG = build/ctestfx.mk
 
 SRCS = $(wildcard src/*.c)
 OBJS = $(patsubst src/%.c,build/obj/%.o,$(SRCS))
@@ -32,16 +32,16 @@ $(BIN): $(OBJS) build
 	$(RANLIB) $@
 
 define MKCONFIG_DATA :=
-TESTFX_ROOT := $(CURDIR)
+CTESTFX_ROOT := $(CURDIR)
 
-TESTFX_BIN_LIBNAME := $(LIBNAME)
-TESTFX_BIN := $(CURDIR)/$(BIN)
-TESTFX_BIN_DIR := $(CURDIR)/build
-TESTFX_INCLUDE_DIR := $(CURDIR)/include
+CTESTFX_BIN_LIBNAME := $(LIBNAME)
+CTESTFX_BIN := $(CURDIR)/$(BIN)
+CTESTFX_BIN_DIR := $(CURDIR)/build
+CTESTFX_INCLUDE_DIR := $(CURDIR)/include
 
-TESTFX_USER_CC = gcc
-TESTFX_USER_CFLAGS = -std=gnu11 -O0 -ggdb -DDEBUG -Wno-unused-parameter -I$$(TESTFX_INCLUDE_DIR)
-TESTFX_USER_LDFLAGS = -L$$(TESTFX_BIN_DIR) -l$$(TESTFX_BIN_LIBNAME)
+CTESTFX_USER_CC = gcc
+CTESTFX_USER_CFLAGS = -std=gnu11 -O0 -ggdb -DDEBUG -Wno-unused-parameter -I$$(CTESTFX_INCLUDE_DIR)
+CTESTFX_USER_LDFLAGS = -L$$(CTESTFX_BIN_DIR) -l$$(CTESTFX_BIN_LIBNAME)
 endef
 
 clean:

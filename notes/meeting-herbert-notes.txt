@@ -1,0 +1,14 @@
+1) performance and memory overhead measurements of SPEC
+2) multi-threading support
+3) test multi-threaded applications
+  web servers: nginx, lighttp, Apache, ...
+  for performance testing for them:
+   - A/B benchmark
+   - Apache benchmark
+   - httperf
+  check: previous vusec papers to see which ones they traditionally use
+  don't just measure pure throughput: measure at least 2: latency, throughput, CPU utilization, memory utilization (physical and virtual)
+
+  Redis, memcached
+
+4) use huge-pages when possible for the virtual remapped thing; could have a huge impact on performance
