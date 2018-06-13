@@ -59,32 +59,76 @@ void _testcase_register(struct test_case *tcase) {
   LOG_DEBUG("--- Registered test case %s\n", tcase->case_id);
 }
 
+__attribute__((noreturn))
+static void fail_out_of_memory(void) {
+  fprintf(stderr, "!!! Failed to record test failure: out of memory!\n");
+  perror("Allocation error: ");
+  abort();
+}
+
+char *_ctestfx_preformat_fail_message(const char *format, ...) {
+  static char *s_tmp_buffer;
+  static size_t s_tmp_buffer_size = 512;
+
+  if (!s_tmp_buffer) {
+    s_tmp_buffer = malloc(s_tmp_buffer_size);
+
+    if (!s_tmp_buffer)
+      fail_out_of_memory();
+  }
+
+  // we need 2 copies of the argument list, because the first vsnprintf() call that is needed to compute the buffer size will consume args1
+  va_list args, args2;
+  va_start(args, format);
+  va_copy(args2, args);
+
+  int preformat_msg_size = vsnprintf(s_tmp_buffer, s_tmp_buffer_size, format, args);
+  if (preformat_msg_size > s_tmp_buffer_size) {
+    // the string writing got truncated, we need to extend it
+    s_tmp_buffer_size = preformat_msg_size + 1; // don't forget the null terminator!
+    s_tmp_buffer = realloc(s_tmp_buffer, s_tmp_buffer_size);
+    if (!s_tmp_buffer)
+      fail_out_of_memory();
+
+    preformat_msg_size = vsnprintf(s_tmp_buffer, s_tmp_buffer_size, format, args2);
+  }
+
+  va_end(args2);
+  va_end(args);
+
+  return s_tmp_buffer;
+}
+
+// As msg_format, this takes a string pre-formatted by _ctestfx_preformat_fail_message().
+// We have to do formatting in two steps, otherwise we run into an annoying GCC bug with version 5.4.0 whereby it fucks up va_list forwarding (see vafwd-gcc-bug.c).
+static char *create_fail_message(char *msg_format, va_list args) {
+  va_list args2;
+  va_copy(args2, args);
+
+  const int msg_size = vsnprintf(NULL, 0, msg_format, args);
+
+  char *msg = malloc(msg_size + 1);
+  if (!msg)
+    fail_out_of_memory();
+
+  vsnprintf(msg, msg_size + 1, msg_format, args2);
+  va_end(args2);
+
+  return msg;
+}
+
 void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ...) {
   g_current_test->status = TEST_CASE_FAILED;
 
   g_current_test->fail_func = func;
   g_current_test->fail_line = line;
 
-  va_list args1;
-  va_start(args1, msg_format);
+  va_list args, args2;
+  va_start(args, msg_format);
+  g_current_test->fail_message = create_fail_message(msg_format, args);
+  va_end(args);
 
-  // we need 2 copies of the argument list, because the first vsnprintf() call that is needed to compute the buffer size will consume args1
-  va_list args2;
-  va_copy(args2, args1);
-
-  const int fail_msg_size = vsnprintf(NULL, 0, msg_format, args1);
-  va_end(args1);
-
-  g_current_test->fail_message = malloc((fail_msg_size + 1) * sizeof(char));
-  if (!g_current_test->fail_message) {
-    fprintf(stderr, "!!! Failed to record test failure: out of memory!\n");
-    perror("malloc error: ");
-    abort();
-  }
-
-  vsnprintf(g_current_test->fail_message, fail_msg_size + 1, msg_format, args2);
-  va_end(args2);
-
+  fputs("!! EXPECTATION FAILED: ", stderr);
   fputs(g_current_test->fail_message, stderr);
 }
 
@@ -109,7 +153,7 @@ int main(int argc, const char *argv[]) {
 
     struct test_case *tc;
     for (tc = ts->cases; tc != NULL; tc = tc->next_case) {
-      printf("\n--- Test %s running...\n", tc->case_id);
+      printf("\n--- Test %s running...\n\n", tc->case_id);
 
       g_current_test = tc;
 
@@ -126,7 +170,7 @@ int main(int argc, const char *argv[]) {
 
       // will be set to TEST_CASE_FAILED by _ctestfx_expect_fail() if the test fails
       tc->status = TEST_CASE_PASSED;
-      tc->func(&ctx);
+      tc->func();
 
       if (tc->status == TEST_CASE_FAILED) {
         ts->num_cases_failed++;
@@ -152,14 +196,14 @@ int main(int argc, const char *argv[]) {
   printf("\nSUMMARY:\n");
 
   for (ts = testsuite_list; ts != NULL; ts = ts->next_suite) {
-    printf("\nSuite %s in %s: ", ts->suite_id, ts->file);
+    printf("\nSuite %s in %s", ts->suite_id, ts->file);
 
     if (ts->num_cases_run == 0) {
-      printf("Skipped\n");
+      printf(": Skipped\n");
       continue;
     }
 
-    printf("%zu / %zu (%zu skipped):\n", ts->num_cases_run - ts->num_cases_failed, ts->num_cases_run, ts->num_cases_total - ts->num_cases_run);
+    printf(" (%zu / %zu passed, %zu skipped):\n", ts->num_cases_run - ts->num_cases_failed, ts->num_cases_run, ts->num_cases_total - ts->num_cases_run);
 
     struct test_case *tc;
     for (tc = ts->cases; tc != NULL; tc = tc->next_case) {
@@ -169,7 +213,7 @@ int main(int argc, const char *argv[]) {
       case TEST_CASE_SKIPPED: printf("Skipped\n"); break;
       case TEST_CASE_PASSED: printf("Pass\n"); break;
       case TEST_CASE_FAILED:
-        printf("FAIL at %s:%d in %s: %s!\n", ts->file, tc->fail_line, tc->fail_func, tc->fail_message);
+        printf("FAIL at %s:%d in %s: %s\n", ts->file, tc->fail_line, tc->fail_func, tc->fail_message);
         break;
       }
     }

@@ -4,27 +4,32 @@
 #include <stdbool.h>
 #include <string.h> // strcmp
 
-#define _CTESTFX_SUBST_FORMATSPEC(PRE, VAL, ...) \
-  _Generic((VAL), \
-    bool: PRE "%d" __VA_ARGS__, \
-    char: PRE "%c" __VA_ARGS__, \
-    unsigned char: PRE "%hhu" __VA_ARGS__, \
-    short: PRE "%hd" __VA_ARGS__, \
-    int: PRE "%d" __VA_ARGS__, \
-    long: PRE "%ld" __VA_ARGS__, \
-    long long: PRE "%lld" __VA_ARGS__, \
-    unsigned short: PRE "%hu" __VA_ARGS__, \
-    unsigned int: PRE "%u" __VA_ARGS__, \
-    unsigned long: PRE "%lu" __VA_ARGS__, \
-    unsigned long long: PRE "%llu" __VA_ARGS__, \
-    char *: PRE "\"%s\"" __VA_ARGS__, \
-    const char *: PRE "\"%s\"" __VA_ARGS__, \
-    void *: PRE "%p" __VA_ARGS__, \
-    const void *: PRE "%p" __VA_ARGS__, \
-    void (*)(): PRE "%p" __VA_ARGS__ \
+#define _CTESTFX_STRINGIFY_IMPL(V) #V
+#define _CTESTFX_STRINGIFY(V) _CTESTFX_STRINGIFY_IMPL(V)
+
+#define _CTESTFX_FMT(V) \
+  _Generic((V), \
+    bool: "%d", \
+    char: "%c", \
+    unsigned char: "%hhu", \
+    short: "%hd", \
+    int: "%d", \
+    long: "%ld", \
+    long long: "%lld", \
+    unsigned short: "%hu", \
+    unsigned int: "%u", \
+    unsigned long: "%lu", \
+    unsigned long long: "%llu", \
+    char *: "\"%s\"", \
+    const char *: "\"%s\"", \
+    void *: "%p", \
+    const void *: "%p", \
+    void (*)(): "%p" \
   )
 
-void _ctestfx_expect_fail(const char *func, int line, const char *message, ...);
+// We cannot do the whole formatting with just one function call, because we run into a GCC 5.4.0 compiler bug with va_list. See vafwd-gcc-bug.c.
+char *_ctestfx_preformat_fail_message(const char *format, ...);
+void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ...);
 
 #define _CTESTFX_EXPECT_FAIL(...) \
   _ctestfx_expect_fail(__func__, __LINE__, __VA_ARGS__)
@@ -33,7 +38,8 @@ void _ctestfx_expect_fail(const char *func, int line, const char *message, ...);
   do { \
     typeof((A)) _result = (A); \
     if (!COND(_result)) { \
-      _CTESTFX_EXPECT_FAIL(_CTESTFX_SUBST_FORMATSPEC("%s\n\t%s = ", _result, "\n", MESSAGE, #A, _result)); \
+      char *_fmt = _ctestfx_preformat_fail_message("%s, but got:\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _CTESTFX_FMT(_result)); \
+      _CTESTFX_EXPECT_FAIL(_fmt, _result); \
       return; \
     } \
   } while (0)
@@ -43,7 +49,8 @@ void _ctestfx_expect_fail(const char *func, int line, const char *message, ...);
     typeof((A)) _result_a = (A); \
     typeof((B)) _result_b = (B); \
     if (!COND(_result_a, _result_b)) { \
-      _CTESTFX_EXPECT_FAIL(_CTESTFX_SUBST_FORMATSPEC(_CTESTFX_SUBST_FORMATSPEC("%s\n\t%s = ", _result_a, "\n\t%s = "), _result_b, "\n", MESSAGE, #A, _result_a, #B, _result_b)); \
+      char *_fmt = _ctestfx_preformat_fail_message("%s, but got:\n\t%s = %s\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _CTESTFX_FMT(_result_a), _CTESTFX_STRINGIFY(B), _CTESTFX_FMT(_result_b)); \
+      _CTESTFX_EXPECT_FAIL(_fmt, _result_a, _result_b); \
       return; \
     } \
   } while (0)
