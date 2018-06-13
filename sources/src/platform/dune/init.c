@@ -41,7 +41,7 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
       LOG("syscall %lu arg %lu: ", syscall, ptr_arg_index);
     #endif
 
-    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_diag(), result);
+    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_diag(result), result);
   }
 }
 

@@ -235,7 +235,7 @@ void dangless_free(void *p) {
 
   void *original_ptr = p;
   int result = vremap_resolve(p, OUT &original_ptr);
-  LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(), result, original_ptr);
+  LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(result), result, original_ptr);
 
   if (result == 0) {
     const size_t npages = sysmalloc_spanned_pages(original_ptr);
@@ -265,8 +265,8 @@ void *dangless_realloc(void *p, size_t new_size) {
   if (p) {
     // TODO: there's some bullshit going on here, LOG() is screwing up "result"???
     const int result = vremap_resolve(p, OUT &original_ptr);
-    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(), result, original_ptr);
-    //fprintf(stderr, "2 vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(), result, original_ptr);
+    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(result), result, original_ptr);
+    //fprintf(stderr, "2 vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(result), result, original_ptr);
 
     if (result == 0) {
       was_remapped = true;
@@ -347,7 +347,7 @@ void *dangless_get_canonical(void *p) {
   void *original_ptr;
   int result = vremap_resolve(p, OUT &original_ptr);
   if (result < 0) {
-    LOG("vremap_resolve failed: %s (%d)\n", vremap_diag(), result);
+    LOG("vremap_resolve failed: %s (%d)\n", vremap_diag(result), result);
     return NULL;
   }
 

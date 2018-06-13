@@ -1,0 +1,47 @@
+ - huge pages? 1 GB?
+    upon deallocation, the huge pages would have to be broken up anyway; so only use huge-pages for big allocations
+ - how to measure performance overhead properly of SPEC2006? I also need physical memory overhead and guest virtual memory overhead
+ - process_syscall_ptr_arg() heuristics? we should be able to detect stack, .bss, .data, etc. pointers, right?
+ - LOG() problem in dangless_malloc.c:267
+
+gather statistics:
+ - number of syscalls with arguments that are from stack, .bss, .data, etc. - is it worth optimizing for?
+ - how many 2 MB / 1 GBB allocations are happening that would make using huge pages useful?
+
+proper SPEC2006 benchmarking:
+ - runspec --size "ref" (or omit it); this will take hours
+ - runspec --iterations 5 (this will take ages)
+
+to benchmark properly: (see vusec/infra project: targets/spec2006/__init__.py)
+ - disable transparent huge pages (nothp; github/vusec/instructation-infra/tools/nothp)
+ - pin spec to a core; taskset -c <core number>
+ - set cpu to performance mode? sudo cpufreq-set -g performance -c <core/hyperthread number> (part of cpufrequtils package)
+ - maybe add killwrap_tree?
+
+taddeus: he's responsible for the vusec/instrumentation-infra
+just try to use that; the only thing I need is to create Instance-s since I just need to add some LDFLAGS; try to stick with using GCC, but maybe can try to compile with Clang?
+
+for physical memory overhead, we want to measure RSS (resident set size): instrumentation-infra/tools/benchmark-utils/rusage.c already does this
+
+for virtual memory overhead: have my own accounting (probably in a separate run)
+
+for proper benchmarking, make sure we never run out of virtual memory to remap to, because that will screw up the numbers; just abort if we would
+
+---
+
+Competition papers:
+ - Efficiently Detecting All Dangling Pointer Uses in Production Servers
+ - Ocar (I already have it); I should do all optimizations that they do
+
+ - CUP: Comprehensive User-Space Protection for C/C++
+ - CETS: Compiler-Enforced Temporal Safety for C
+ - Simple, fast and safe manual memory management (C#)
+ - DangSan
+
+---
+
+is Dune thread-safe?
+
+multi-threading benchmarking tools: parsec, phoenix, SPEC2017
+
+thread-safety: make it stupidly thread-safe first (if Dune is); then maybe optimize it by having per-thread arena of page tables to mess with

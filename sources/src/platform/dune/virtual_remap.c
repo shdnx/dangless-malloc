@@ -13,13 +13,13 @@
   #define LOG(...) /* empty */
 #endif
 
-int vremap_result = 0;
+int vremap_last_result = 0;
 
-//#define RETURN(CODE) return vremap_result = (CODE)
+//#define RETURN(CODE) return vremap_last_result = (CODE)
 #define RETURN(CODE) \
   do { \
-    vremap_result = (CODE); \
-    return vremap_result; \
+    vremap_last_result = (CODE); \
+    return vremap_last_result; \
   } while (0)
 
 // TODO: this is basically the same code as for rumprun (except this is now better, because it supports size > PGSIZE), except for dune_va_to_pa() call - refactor
@@ -129,21 +129,21 @@ int vremap_resolve(void *ptr, OUT void **original_ptr) {
 }
 
 static const char *const g_result_diagnostics[] = {
-  "No error",
+  [VREM_OK] = "No error",
   [VREM_NOT_REMAPPED] = "Pointer is not a remapped one",
   [_VREM_MAX + -EVREM_NO_VM] = "Out of virtual memory",
   [_VREM_MAX + -EVREM_VIRT_MAP] = "Failed to map virtual memory",
   [_VREM_MAX + -EVREM_NO_PHYS_BACK] = "Pointer is not backed by physical memory"
 };
 
-const char *vremap_get_diag(int code) {
+const char *vremap_diag(int code) {
   if (code < _VREM_MIN || _VREM_MAX < code)
-    return "Invalid result code";
+    return "Invalid vremap result code";
 
   const char *msg = code < 0
     ? g_result_diagnostics[_VREM_MAX + -code]
     : g_result_diagnostics[code];
 
-  LOG("code = %d, diag = %s\n", code, msg);
+  //LOG("code = %d, diag = %s\n", code, msg);
   return msg;
 }

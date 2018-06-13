@@ -1,6 +1,6 @@
  - there seems to be a problem with LOG() in dangless_malloc.c; vremap_result seems to be not always printed correctly
  - improve the unit testing framework, so that we can run only specific test cases/suites; this will require bigger changes
- - we could build in some heuristics to process_syscall_ptr_arg(): if we can tell from a pointer that it's a stack pointer or global variable (in .data or .bss) then we shouldn't pagewalk it
+ - we could build in some heuristics to process_syscall_ptr_arg(): if we can tell from a pointer that it's a stack pointer or global variable (in .data or .bss) then we shouldn't pagewalk it - take a look at dune_va_to_pa()
  - printf_nomalloc() seems to have some problems, e.g. try using init.c with it; looks like a concurrency issue, but it couldn't be??
  - nicer output for the unit testing framework: colors, indentations, empty lines
 

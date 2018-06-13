@@ -23,12 +23,12 @@ enum {
   _VREM_MAX = VREM_NOT_REMAPPED
 };
 
-extern int vremap_result;
+extern int vremap_last_result;
 
-const char *vremap_get_diag(int code);
+const char *vremap_diag(int code);
 
-static inline const char *vremap_diag(void) {
-  return vremap_get_diag(vremap_result);
+static inline const char *vremap_last_diag(void) {
+  return vremap_diag(vremap_last_result);
 }
 
 // Given a pointer to a valid allocation and its size, re-maps the backing physical memory into a new virtual memory region, provided by the virtual memory allocator.
