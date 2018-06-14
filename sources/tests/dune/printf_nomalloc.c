@@ -3,46 +3,46 @@
 
 #include "dangless/common/printf_nomalloc.h"
 
-#include "testfx/testfx.h"
+#include "ctestfx/ctestfx.h"
 
-TEST_SUITE("nomalloc_printf") {
-  TEST("sprintf_nomalloc simple") {
-    ASSERT_EQUALS_STR("42", sprintf_nomalloc("%d", 42));
-    ASSERT_EQUALS_STR("-42", sprintf_nomalloc("%d", -42));
-    ASSERT_EQUALS_STR("potato", sprintf_nomalloc("%s", "potato"));
-    ASSERT_EQUALS_STR("q", sprintf_nomalloc("%c", 'q'));
+TEST_SUITE(printf_nomalloc);
 
-    ASSERT_EQUALS_STR("0x0", sprintf_nomalloc("%p", NULL));
-    ASSERT_EQUALS_STR("0x10FA74BC", sprintf_nomalloc("%p", (void *)0x10FA74BCul));
-  }
+TEST_CASE(simple) {
+  EXPECT_EQUALS_STR("42", sprintf_nomalloc("%d", 42));
+  EXPECT_EQUALS_STR("-42", sprintf_nomalloc("%d", -42));
+  EXPECT_EQUALS_STR("potato", sprintf_nomalloc("%s", "potato"));
+  EXPECT_EQUALS_STR("q", sprintf_nomalloc("%c", 'q'));
 
-  TEST("sprintf_nomalloc int length modifiers") {
-    ASSERT_EQUALS_STR("99", sprintf_nomalloc("%ld", 99l));
-    ASSERT_EQUALS_STR("578", sprintf_nomalloc("%lu", 578ul));
-    ASSERT_EQUALS_STR("9897123", sprintf_nomalloc("%zu", (size_t)9897123));
-  }
+  EXPECT_EQUALS_STR("0x0", sprintf_nomalloc("%p", NULL));
+  EXPECT_EQUALS_STR("0x10FA74BC", sprintf_nomalloc("%p", (void *)0x10FA74BCul));
+}
 
-  TEST("sprintf_nomalloc min field size modifiers") {
-    ASSERT_EQUALS_STR("  xyz", sprintf_nomalloc("%5s", "xyz"));
-    ASSERT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-5s", "xyz"));
-    ASSERT_EQUALS_STR("00042", sprintf_nomalloc("%05d", 42));
-  }
+TEST_CASE(mod_intlen) {
+  EXPECT_EQUALS_STR("99", sprintf_nomalloc("%ld", 99l));
+  EXPECT_EQUALS_STR("578", sprintf_nomalloc("%lu", 578ul));
+  EXPECT_EQUALS_STR("9897123", sprintf_nomalloc("%zu", (size_t)9897123));
+}
 
-  TEST("sprintf_nomalloc custom min field size modifier") {
-    ASSERT_EQUALS_STR("  xyz", sprintf_nomalloc("%*s", 5, "xyz"));
-    ASSERT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-*s", 5, "xyz"));
-    ASSERT_EQUALS_STR("00042", sprintf_nomalloc("%0*d", 5, 42));
-  }
+TEST_CASE(mod_minfieldwidth) {
+  EXPECT_EQUALS_STR("  xyz", sprintf_nomalloc("%5s", "xyz"));
+  EXPECT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-5s", "xyz"));
+  EXPECT_EQUALS_STR("00042", sprintf_nomalloc("%05d", 42));
+}
 
-  TEST("sprintf_nomalloc complex") {
-    ASSERT_EQUALS_STR("qxc", sprintf_nomalloc("%c%c%c", 'q', 'x', 'c'));
-    ASSERT_EQUALS_STR("potatos", sprintf_nomalloc("%s%c", "potato", 's'));
-    ASSERT_EQUALS_STR("potato92", sprintf_nomalloc("%s%d", "potato", 92));
-    ASSERT_EQUALS_STR("42 0xFA potato", sprintf_nomalloc("%u 0x%x %s", 42, 0xFA, "potato"));
-  }
+TEST_CASE(mod_minfieldwidth_custom) {
+  EXPECT_EQUALS_STR("  xyz", sprintf_nomalloc("%*s", 5, "xyz"));
+  EXPECT_EQUALS_STR("xyz  ", sprintf_nomalloc("%-*s", 5, "xyz"));
+  EXPECT_EQUALS_STR("00042", sprintf_nomalloc("%0*d", 5, 42));
+}
 
-  TEST("printing test") {
-    fprintf_nomalloc(stdout, "stdout Hello world!\n");
-    fprintf_nomalloc(stderr, "stderr Some numbers: %d %u\n", 42, 92u);
-  }
+TEST_CASE(complex) {
+  EXPECT_EQUALS_STR("qxc", sprintf_nomalloc("%c%c%c", 'q', 'x', 'c'));
+  EXPECT_EQUALS_STR("potatos", sprintf_nomalloc("%s%c", "potato", 's'));
+  EXPECT_EQUALS_STR("potato92", sprintf_nomalloc("%s%d", "potato", 92));
+  EXPECT_EQUALS_STR("42 0xFA potato", sprintf_nomalloc("%u 0x%x %s", 42, 0xFA, "potato"));
+}
+
+TEST_CASE(printing) {
+  fprintf_nomalloc(stdout, "stdout Hello world!\n");
+  fprintf_nomalloc(stderr, "stderr Some numbers: %d %u\n", 42, 92u);
 }

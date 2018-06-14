@@ -94,7 +94,7 @@ clean-all:
 
 test: $(BIN)
 	$(MAKE) -C tests/framework
-	$(MAKE) -C tests/$(PLATFORM) run
+	$(MAKE) -C tests/$(PLATFORM) run ARGS="$(ARGS)"
 
 testapp: $(BIN)
 	$(MAKE) -C testapps/$(APP) run

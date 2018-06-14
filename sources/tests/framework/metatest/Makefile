@@ -1,6 +1,6 @@
 include ../build/ctestfx.mk
 
-CC := $(CTESTFX_USER_CC)
+CC ?= gcc
 CFLAGS := $(CTESTFX_USER_CFLAGS) -MMD -MP
 LDFLAGS := $(CTESTFX_USER_LDFLAGS)
 

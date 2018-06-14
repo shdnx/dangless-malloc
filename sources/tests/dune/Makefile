@@ -12,16 +12,16 @@ include $(DANGLESS_BIN_DIR)/user.mk
 include $(DANGLESS_BIN_DIR)/config.mk
 
 FX_BIN_DIR = $(FX_ROOT)/build
-include $(FX_BIN_DIR)/testfx.mk
+include $(FX_BIN_DIR)/ctestfx.mk
 
-BIN := build/dangless-dune-test
+BIN := build/dangless-dune-tests
 
-CC := $(TESTFX_USER_CC)
+CC ?= gcc
 
 # DANGLESS_USER_CFLAGS doesn't include the include paths for dune, or dangless itself, because normal users don't need these things, they can just malloc() et al and not think about dangless or Dune
 INCLUDES := -I$(DUNE_ROOT) $(DANGLESS_INCLUDES)
-CFLAGS := $(TESTFX_USER_CFLAGS) $(DANGLESS_USER_CFLAGS) -MMD -MP
-LDFLAGS := $(TESTFX_USER_LDFLAGS) $(DANGLESS_USER_LDFLAGS)
+CFLAGS := $(CTESTFX_USER_CFLAGS) $(DANGLESS_USER_CFLAGS) -MMD -MP
+LDFLAGS := $(CTESTFX_USER_LDFLAGS) $(DANGLESS_USER_LDFLAGS)
 
 SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c,build/obj/%.o,$(SRCS))
@@ -44,7 +44,7 @@ $(BIN): $(OBJS) $(DANGLESS_BIN) build
 	$(CC) $(OBJS) -o $@ $(LDFLAGS)
 
 run: $(BIN)
-	$(BIN)
+	$(BIN) $(ARGS)
 
 # debug
 print-%  : ; @echo $* = $($*)
