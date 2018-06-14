@@ -1,7 +1,9 @@
 #include <pthread.h>
 
-#include "dangless/common.h"
 #include "dangless/config.h"
+#include "dangless/common.h"
+#include "dangless/common/statistics.h"
+
 #include "dangless/queue.h"
 #include "dangless/virtmem_alloc.h"
 #include "dangless/platform/mem.h"
@@ -12,6 +14,10 @@
 #else
   #define LOG(...) /* empty */
 #endif
+
+STATISTIC_DEFINE(size_t, num_allocations);
+STATISTIC_DEFINE(size_t, num_allocations_failed);
+STATISTIC_DEFINE(size_t, num_allocated_pages);
 
 struct vp_span {
   vaddr_t start;
@@ -36,7 +42,7 @@ struct vp_freelist {
 
   pthread_mutex_t mutex;
 
-  // only used if DANGLESS_CONFIG_VIRTMEMALLOC_STATS == 1
+  // only used if DANGLESS_CONFIG_COLLECT_STATISTICS == 1
   size_t nallocs;
 };
 
@@ -60,16 +66,26 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   if (UNLIKELY(span == LIST_END(&list->items))) {
     LOG("could not allocate %zu pages: freelist empty\n", npages);
     pthread_mutex_unlock(&list->mutex);
+
+    STATISTIC_UPDATE() {
+      num_allocations_failed++;
+    }
+
     return NULL;
+  }
+
+  STATISTIC_UPDATE() {
+    num_allocations++;
+    num_allocated_pages += npages;
   }
 
   ASSERT0(span);
   vaddr_t va = span->start;
   span->start += npages * PGSIZE;
 
-#if DANGLESS_CONFIG_VIRTMEMALLOC_STATS
-  list->nallocs++;
-#endif
+  STATISTIC_UPDATE() {
+    list->nallocs++;
+  }
 
   LOG("satisfying %zu page alloc from span %p => 0x%lx\n", npages, span, va);
 

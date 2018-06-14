@@ -61,15 +61,11 @@ void _dprintf_nomalloc(const char *restrict format, ...) {
   } while (0)
 
 void _print_caller_info(const char *file, const char *func, int line) {
-  if (!dprintf_enabled)
-    return;
-
   _PRINT_CALLER_INFO_IMPL(_dprintf);
 }
 
 void _print_caller_info_nomalloc(const char *file, const char *func, int line) {
-  if (!dprintf_enabled)
-    return;
-
   _PRINT_CALLER_INFO_IMPL(_dprintf_nomalloc);
 }
+
+#undef _PRINT_CALLER_INFO_IMPL

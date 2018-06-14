@@ -1,6 +1,7 @@
 #include <pthread.h>
 
 #include "dangless/common.h"
+#include "dangless/common/statistics.h"
 #include "dangless/virtmem.h"
 #include "dangless/platform/physmem_alloc.h"
 
@@ -9,6 +10,8 @@
 #else
   #define LOG(...) /* empty */
 #endif
+
+STATISTIC_DEFINE(size_t, num_pagetables_allocated);
 
 static pthread_mutex_t g_pt_mapping_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -104,6 +107,10 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   case PT_L4: CREATE_LEVEL(PT_L3);
   case PT_L3: CREATE_LEVEL(PT_L2);
   case PT_L2: CREATE_LEVEL(PT_L1);
+  }
+
+  STATISTIC_UPDATE() {
+    num_pagetables_allocated += level;
   }
 
 #undef CREATE_LEVEL

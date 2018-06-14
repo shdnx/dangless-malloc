@@ -3,6 +3,17 @@
 
 #include <stdbool.h>
 
+void _print_caller_info(const char *file, const char *func, int line);
+void _print_caller_info_nomalloc(const char *file, const char *func, int line);
+
+// NOTE: this could be optimized, since we can turn all of these into string literals
+#define _CALLER_INFO_ARGS \
+  __FILE__, __func__, __LINE__
+
+#define print_loc_info() _print_caller_info(_CALLER_INFO_ARGS)
+#define print_loc_info_nomalloc() _print_caller_info_nomalloc(_CALLER_INFO_ARGS)
+
+
 #ifdef NDEBUG
   #define dprintf(...) /* empty */
   #define dprintf_nomalloc(...) /* empty */
@@ -34,22 +45,15 @@
   #define dprintf(...) _dprintf(__VA_ARGS__)
   #define dprintf_nomalloc(...) _dprintf_nomalloc(__VA_ARGS__)
 
-  void _print_caller_info(const char *file, const char *func, int line);
-  void _print_caller_info_nomalloc(const char *file, const char *func, int line);
-
-  // NOTE: this could be optimized, since we can turn all of these into string literals
-  #define _CALLER_INFO_ARGS \
-    __FILE__, __func__, __LINE__
-
   #define vdprintf(...) \
     do { \
-      _print_caller_info(_CALLER_INFO_ARGS); \
+      print_loc_info(); \
       dprintf(__VA_ARGS__); \
     } while (0)
 
   #define vdprintf_nomalloc(...) \
     do { \
-      _print_caller_info_nomalloc(_CALLER_INFO_ARGS); \
+      print_loc_info_nomalloc(); \
       dprintf_nomalloc(__VA_ARGS__); \
     } while (0)
 #endif // !defined(NDEBUG)

@@ -5,6 +5,7 @@
 
 #include "dangless/config.h"
 #include "dangless/common.h"
+#include "dangless/common/statistics.h"
 #include "dangless/syscallmeta.h"
 #include "dangless/virtmem.h"
 #include "dangless/platform/virtual_remap.h"
@@ -19,6 +20,10 @@
   #define LOG_NOMALLOC(...) /* empty */
 #endif
 
+STATISTIC_DEFINE(size_t, vmcall_count);
+STATISTIC_DEFINE(size_t, vmcall_ptrarg_rewrites);
+STATISTIC_DEFINE(size_t, vmcall_ptrarg_rewrite_misses);
+
 static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg_index) {
   ASSERT(ptr_arg_index < SYSCALL_MAX_ARGS, "System call argument index %lu out of range!", ptr_arg_index);
 
@@ -26,6 +31,10 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
 
   if (!arg_ptr)
     return; // null pointer
+
+  STATISTIC_UPDATE() {
+    vmcall_ptrarg_rewrites++;
+  }
 
   void *canonical_ptr;
   int result = vremap_resolve(arg_ptr, OUT &canonical_ptr);
@@ -35,8 +44,18 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
 
     REF args[ptr_arg_index] = (u64)canonical_ptr;
   } else if (result != VREM_NOT_REMAPPED) {
+    STATISTIC_UPDATE() {
+      vmcall_ptrarg_rewrite_misses++;
+    }
+
     #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
-      LOG("syscall %s arg %lu (%s %s): ", syscall_get_name(syscall), ptr_arg_index, syscall_get_info(syscall)->params[ptr_arg_index].name, syscall_get_info(syscall)->params[ptr_arg_index].type);
+      const struct syscall_info *sinfo = syscall_get_info(syscall);
+
+      LOG("syscall %s arg %lu (%s %s): ",
+        sinfo->name,
+        ptr_arg_index,
+        sinfo->params[ptr_arg_index].name,
+        sinfo->params[ptr_arg_index].type);
     #else
       LOG("syscall %lu arg %lu: ", syscall, ptr_arg_index);
     #endif
@@ -49,6 +68,7 @@ static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
 #if DANGLESS_CONFIG_TRACE_SYSCALLS
   #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
     const struct syscall_info *info = syscall_get_info(syscall);
+
     vdprintf("syscall: %s(\n", info->name);
     for (index_t i = 0; i < info->num_params; i++) {
       dprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
@@ -62,6 +82,10 @@ static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
     dprintf(")\n");
   #endif
 #endif
+
+  STATISTIC_UPDATE() {
+    vmcall_count++;
+  }
 
   for (const i8 *ptrparam_no = syscall_get_userptr_params(syscall);
        ptrparam_no && *ptrparam_no > 0;

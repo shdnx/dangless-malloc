@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #include "dangless/common.h"
+#include "dangless/common/statistics.h"
 #include "dangless/dangless_malloc.h"
 #include "dangless/virtmem.h"
 #include "dangless/virtmem_alloc.h"
@@ -26,6 +27,9 @@
 
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+
+STATISTIC_DEFINE(size_t, num_2mb_plus_allocs);
+STATISTIC_DEFINE(size_t, num_1gb_plus_allocs);
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -139,6 +143,14 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
 
   // we need to grab the actual allocated size, because it can be higher than the requested size, and the difference can sometimes fall across a page boundary, making it important
   const size_t actual_sz = sysmalloc_usable_size(p);
+
+  STATISTIC_UPDATE() {
+    if (actual_sz >= 1024 * 1024 * 1024) {
+      num_1gb_plus_allocs++;
+    } else if (actual_sz >= 2 * 1024 * 1024) {
+      num_2mb_plus_allocs++;
+    }
+  }
 
   int result;
   void *remapped_ptr;

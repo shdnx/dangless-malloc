@@ -26,13 +26,12 @@ BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH)/dangless/buil
 
 include make/buildconfig-defaults.mk
 
-# TODO: shouldn't this be moved to the top? otherwise I can't see how the platform-specific makefile could override it
-CC := gcc
-AR := ar
-RANLIB := ranlib
+CC ?= gcc
+AR ?= ar
+RANLIB ?= ranlib
 
 INCLUDES := -I$(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH) -I$(BUILDCONFIG_COMMON_INCLUDE_PATH) -Iinclude
-CFLAGS += -std=gnu11 -Wall -Wextra -Wno-format-zero-length -Wno-sign-compare -pthread -MMD -MP
+CFLAGS += -std=gnu11 -Wall -Wextra -Wno-format-zero-length -Wno-sign-compare -Wno-macro-redefined -pthread -MMD -MP
 
 ifeq ($(PROFILE),debug)
 	CFLAGS += -DDEBUG -ggdb -O0
