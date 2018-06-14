@@ -1,6 +1,11 @@
-#include <pthread.h>
-
 #include "dangless/config.h"
+
+#if DANGLESS_CONFIG_SUPPORT_MULTITHREADING
+  #include <pthread.h>
+#else
+  #include "dangless/pthread_mock.h"
+#endif
+
 #include "dangless/common.h"
 #include "dangless/common/statistics.h"
 

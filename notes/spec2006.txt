@@ -1,6 +1,4 @@
-configurations: dangless-baseline, dangless-dune, dangless-dangless
-
-$ zsh
+configurations: dangless-baseline, dangless-dune, dangless-dangless-debug, dangless-dangless-release
 
 $ runspec --config=dangless-baseline --action build --rebuild all_c
 $ runspec --config=dangless-baseline --nobuild --iterations 1 --ignore-errors --size test all_c
@@ -10,9 +8,6 @@ $ runspec --config=dangless-dune --nobuild --iterations 1 --ignore-errors --size
 
 $ runspec --config=dangless-dangless-debug --action build --rebuild --ignore-errors all_c all_cpp
 $ runspec --config=dangless-dangless-debug --nobuild --iterations 1 --ignore-errors --size test all_c all_cpp
-
-Error: 1x400.perlbench 1x403.gcc 1x445.gobmk 1x447.dealII 1x450.soplex 1x453.povray 1x456.hmmer 1x462.libquantum 1x473.astar
-Success: 1x401.bzip2 1x429.mcf 1x433.milc 1x444.namd 1x458.sjeng 1x464.h264ref 1x470.lbm 1x471.omnetpp 1x482.sphinx3 1x483.xalancbmk 1x998.specrand 1x999.specrand
 
 $ runspec --config=dangless-dangless-release --action build --rebuild --ignore-errors all_c all_cpp
 $ runspec --config=dangless-dangless-release --nobuild --iterations 1 --ignore-errors --size test all_c all_cpp

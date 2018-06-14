@@ -1,12 +1,13 @@
- - there seems to be a problem with LOG() in dangless_malloc.c; vremap_result seems to be not always printed correctly
- - improve the unit testing framework, so that we can run only specific test cases/suites; this will require bigger changes
+ - statistics printing has %zu baked in
+ - ctestfx: split the header files, so that the user API is not mixed with implementation details
  - we could build in some heuristics to process_syscall_ptr_arg(): if we can tell from a pointer that it's a stack pointer or global variable (in .data or .bss) then we shouldn't pagewalk it - take a look at dune_va_to_pa()
  - printf_nomalloc() seems to have some problems, e.g. try using init.c with it; looks like a concurrency issue, but it couldn't be??
  - nicer output for the unit testing framework: colors, indentations, empty lines
 
 Maybe later:
+ - using _Generic() and the _CTESTFX_FMT() macro from ctestfx, we could build a wrapper for printf that is closer to std::cout
  - open-source scripts/generate_syscallmeta.py as linux-syscallmeta
- - open-source testfx as a separate library
+ - open-source ctestfx as a separate library
  - more memory allocation functions: aligned_alloc(), memalign(), valloc(), etc. https://linux.die.net/man/3/memalign ?
 
 ------------------ old stuff ---------------
