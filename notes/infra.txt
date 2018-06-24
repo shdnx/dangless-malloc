@@ -1,0 +1,11 @@
+Clean:
+$ ./setup.py clean --packages libdune-autoenter libdangless --targets spec2006
+
+Build:
+$ ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc
+
+Test run:
+$ ./setup.py run spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
+
+Reference run:
+$ ./setup.py run --iterations=5 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp

@@ -4,6 +4,8 @@
  - printf_nomalloc() seems to have some problems, e.g. try using init.c with it; looks like a concurrency issue, but it couldn't be??
  - nicer output for the unit testing framework: colors, indentations, empty lines
 
+Check out https://github.com/project-dune/dune/ and maybe try switching to that, as it seems more actively maintained?
+
 Maybe later:
  - using _Generic() and the _CTESTFX_FMT() macro from ctestfx, we could build a wrapper for printf that is closer to std::cout
  - open-source scripts/generate_syscallmeta.py as linux-syscallmeta

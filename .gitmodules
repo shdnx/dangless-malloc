@@ -1,9 +1,12 @@
-[submodule "sources/vendor/dune-ix"]
+[submodule "vendor/dune-ix"]
 	path = vendor/dune-ix
 	url = git@github.com:ix-project/dune.git
-[submodule "sources/vendor/rumprun"]
+[submodule "vendor/rumprun"]
 	path = vendor/rumprun
 	url = git@github.com:rumpkernel/rumprun.git
-[submodule "sources/vendor/dune-vusec"]
+[submodule "vendor/dune-vusec"]
 	path = vendor/dune-vusec
 	url = git@github.com:vusec/dune.git
+[submodule "vendor/infra"]
+	path = vendor/infra
+	url = git@github.com:vusec/instrumentation-infra.git
