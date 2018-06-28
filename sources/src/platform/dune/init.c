@@ -165,5 +165,5 @@ void dangless_init(void) {
 
 #if DANGLESS_CONFIG_REGISTER_PREINIT
   __attribute__((section(".preinit_array")))
-  static void (*preinit_entry)(void) = &dangless_init;
+  void (*preinit_entry)(void) = &dangless_init;
 #endif

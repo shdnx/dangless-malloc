@@ -20,7 +20,6 @@ struct syscall_param_info {
 struct syscall_info {
   u64 number;
   const char *name;
-  const char *return_type;
 
   size_t num_params;
   struct syscall_param_info params[SYSCALL_MAX_ARGS];

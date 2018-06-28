@@ -21,6 +21,7 @@ BUILDCONFIG_COMMON_INCLUDE_PATH := $(BUILD_DIR)/include
 BUILDCONFIG_SPECIALIZED_INCLUDE_PATH := $(BIN_DIR)/include
 
 SYSCALLMETA_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/syscallmeta.inc
+SYSCALL_USERPTR_INFO_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/syscall_userptr_info.inc
 
 BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH)/dangless/build/spec/config.h
 
@@ -70,8 +71,13 @@ include make/buildconfig.mk
 $(BIN_DIR) $(dir $(SYSCALLMETA_FILE)) $(dir $(BUILDCONFIG_HEADER_FILE)) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR):
 	mkdir -p $@
 
-$(SYSCALLMETA_FILE): $(dir $(SYSCALLMETA_FILE)) scripts/generate_syscallmeta.py
-	python3 scripts/generate_syscallmeta.py /usr/src/linux-headers-`uname -r` > $@
+LINUX_HEADERS_PATH := $(shell echo /usr/src/linux-headers-`uname -r`)
+
+$(SYSCALLMETA_FILE): $(dir $(SYSCALLMETA_FILE))
+	python3 ../vendor/linux-syscallmd/generate_c_header.py $(LINUX_HEADERS_PATH) > $@
+
+$(SYSCALL_USERPTR_INFO_FILE): $(dir $(SYSCALL_USERPTR_INFO_FILE)) scripts/gen_syscall_userptr_info.py
+	python3 scripts/gen_syscall_userptr_info.py $(LINUX_HEADERS_PATH) > $@
 
 $(CORE_OBJS_DIR)/%.o: src/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
@@ -79,7 +85,7 @@ $(CORE_OBJS_DIR)/%.o: src/%.c
 $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
 
-$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(OBJS)
+$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(SYSCALL_USERPTR_INFO_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 	$(RANLIB) $@
 

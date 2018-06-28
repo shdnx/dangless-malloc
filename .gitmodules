@@ -10,3 +10,6 @@
 [submodule "vendor/infra"]
 	path = vendor/infra
 	url = git@github.com:vusec/instrumentation-infra.git
+[submodule "vendor/dune-new"]
+	path = vendor/dune-new
+	url = git@github.com:project-dune/dune.git

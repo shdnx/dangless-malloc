@@ -5,7 +5,15 @@ Build:
 $ ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc
 
 Test run:
-$ ./setup.py run spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
+$ ./setup.py run --parallel=proc spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
 
-Reference run:
-$ ./setup.py run --iterations=5 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp
+Reportable reference run:
+$ ./setup.py run --parallel=proc --parallelmax=1 --iterations=3 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp
+
+Report on results:
+$ ./setup.py report spec2006 results/*
+
+----------
+
+runspec finished at Sun Jun 24 18:58:42 2018; 16911 total seconds elapsed
+./setup.py run --iterations=1 spec2006 baseline dune-only dangless-malloc     50056.71s user 50.94s system 97% cpu 14:19:25.35 total
