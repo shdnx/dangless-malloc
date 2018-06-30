@@ -26,11 +26,43 @@ Most requirements are posed by [Dune](https://github.com/ix-project/dune):
  - Kernel version of 4.4.0 or older
  - Installed kernel headers for the running kernel
  - Root privileges
- - Enabled transparent hugepages:
-    - `/sys/kernel/mm/transparent_hugepage/enabled` is set to `madvise` or `always`
-    - `/proc/sys/vm/nr_hugepages` is a sufficiently large number (200 does the trick on my machine)
+ - Enabled and sufficient number of hugepages (see below)
+ - A recent C compiler that supports C11 and the GNU extensions (either GCC or Clang will work)
 
-Besides this, my code requires a relatively recent version of GCC (or a compiler that supports the GNU extensions to C11). GCC version 5 or newer should work.
+## Hugepages
+
+Besides the above, Dune requires some 2 MB hugepages to be available.
+
+To make sure that some huge pages remain available, it's recommended to limit or disable transparent hugepages by setting `/sys/kernel/mm/transparent_hugepage/enabled` to `madvise` or `never` (you will need to use `su` if you want to change it).
+
+Then, you can check the number of huge pages available:
+
+```bash
+$ cat /proc/meminfo | grep Huge
+AnonHugePages:     49152 kB
+HugePages_Total:     512
+HugePages_Free:      512
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+```
+
+In my tests, it appears that at minimum **71** free huge pages are required to satisfy Dune. (TODO: why?)
+
+You can dedicate more huge pages by modifying `/proc/sys/vm/nr_hugepages` (again, you'll need to use `su` to do so), or by executing:
+
+```bash
+sudo sysctl -w vm.nr_hugepages=<NUM>
+```
+
+... where `<NUM>` should be replaced by the desired number, of course.
+
+When there isn't sufficient number of huge pages available, Dangless will fail while trying to enter into Dune mode, and you will see output much like this:
+
+> dune: failed to mmap() hugepage of size 2097152 for safe stack 0
+> dune: setup_safe_stack() failed
+> dune: create_percpu() failed
+> Dangless: failed to enter Dune mode: Cannot allocate memory
 
 # Setup
 
@@ -73,6 +105,14 @@ make test
 # run "Hello world" test app
 make testapp APP=hello-world
 ```
+
+# Troubleshooting
+
+## Applications getting stuck
+
+On occasion, the Dune kernel module seems to get moody, and applications in Dune mode trying to terminate fail to do so, regardless of their method of exit (`exit()`, `signal()`, `abort()`, etc.) and get stuck. At this point, any process attempting to interact with `/dev/dune` will get stuck as well.
+
+Unfortunately, killing the processes seems ineffective, as is `rmmod dune -f`. The only workaround that I know of is restarting the computer.
 
 # License
 
