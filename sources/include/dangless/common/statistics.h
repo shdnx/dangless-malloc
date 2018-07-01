@@ -16,8 +16,8 @@
 #endif
 
 #if DANGLESS_CONFIG_COLLECT_STATISTICS
-  #define STATISTIC_DEFINE(TYPE, NAME) \
-    static DANGLESS_ATOMIC(TYPE) NAME; \
+  #define STATISTIC_DEFINE_COUNTER(NAME) \
+    static DANGLESS_ATOMIC(size_t) NAME; \
     \
     __attribute__((destructor)) \
     static void CONCAT2(_stat_report_, NAME)(void) { \
@@ -27,7 +27,7 @@
   #define STATISTIC_UPDATE() /* empty */
 #else
   // we still need to define the variables, since the code has to compile - hopefully it'll be eliminated by the compiler/linker
-  #define STATISTIC_DEFINE(TYPE, NAME) static TYPE NAME;
+  #define STATISTIC_DEFINE_COUNTER(NAME) static size_t NAME;
   #define STATISTIC_UPDATE() if (false)
 #endif
 

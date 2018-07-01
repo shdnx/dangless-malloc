@@ -4,6 +4,7 @@ import sys
 import os.path
 import shutil
 
+DEBUG = True
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if not os.path.exists(os.path.join(CURRENT_DIR, "README.md")):

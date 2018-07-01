@@ -11,7 +11,7 @@
   #define LOG(...) /* empty */
 #endif
 
-STATISTIC_DEFINE(size_t, num_pagetables_allocated);
+STATISTIC_DEFINE_COUNTER(st_num_pagetables_allocated);
 
 static pthread_mutex_t g_pt_mapping_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -110,7 +110,7 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   }
 
   STATISTIC_UPDATE() {
-    num_pagetables_allocated += level;
+    st_num_pagetables_allocated += level;
   }
 
 #undef CREATE_LEVEL

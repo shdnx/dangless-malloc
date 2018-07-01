@@ -20,4 +20,4 @@ static void dune_autoenter(void) {
 }
 
 __attribute__((section(".preinit_array")))
-void (*preinit_entry)(void) = &dune_autoenter;
+void (*dune_autoenter_preinit_entry)(void) = &dune_autoenter;

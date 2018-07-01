@@ -20,9 +20,9 @@
   #define LOG(...) /* empty */
 #endif
 
-STATISTIC_DEFINE(size_t, num_allocations);
-STATISTIC_DEFINE(size_t, num_allocations_failed);
-STATISTIC_DEFINE(size_t, num_allocated_pages);
+STATISTIC_DEFINE_COUNTER(st_num_allocations);
+STATISTIC_DEFINE_COUNTER(st_num_allocations_failed);
+STATISTIC_DEFINE_COUNTER(st_num_allocated_pages);
 
 struct vp_span {
   vaddr_t start;
@@ -73,15 +73,15 @@ static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
     pthread_mutex_unlock(&list->mutex);
 
     STATISTIC_UPDATE() {
-      num_allocations_failed++;
+      st_num_allocations_failed++;
     }
 
     return NULL;
   }
 
   STATISTIC_UPDATE() {
-    num_allocations++;
-    num_allocated_pages += npages;
+    st_num_allocations++;
+    st_num_allocated_pages += npages;
   }
 
   ASSERT0(span);

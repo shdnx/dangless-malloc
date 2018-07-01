@@ -6,6 +6,7 @@
   #include <execinfo.h>
 #endif
 
+#include <stdlib.h> // abort
 #include <pthread.h>
 
 #include "dangless/common.h"
@@ -28,8 +29,8 @@
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
-STATISTIC_DEFINE(size_t, num_2mb_plus_allocs);
-STATISTIC_DEFINE(size_t, num_1gb_plus_allocs);
+STATISTIC_DEFINE_COUNTER(st_num_2mb_plus_allocs);
+STATISTIC_DEFINE_COUNTER(st_num_1gb_plus_allocs);
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -146,9 +147,9 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
 
   STATISTIC_UPDATE() {
     if (actual_sz >= 1024 * 1024 * 1024) {
-      num_1gb_plus_allocs++;
+      st_num_1gb_plus_allocs++;
     } else if (actual_sz >= 2 * 1024 * 1024) {
-      num_2mb_plus_allocs++;
+      st_num_2mb_plus_allocs++;
     }
   }
 
@@ -166,8 +167,13 @@ retry:
     LOG("re-trying vremap...\n");
     goto retry;
   } else if (result < 0) {
-    LOG("failed to remap %s's %p of size %zu; falling back to proxying (result %d)\n", func_name, p, actual_sz, result);
-    return p;
+    #if DANGLESS_CONFIG_ALLOW_SYSMALLOC_FALLBACK
+      LOG("failed to remap %s's %p of size %zu: %s (code %d); falling back to proxying sysmalloc\n", func_name, p, actual_sz, vremap_diag(result), result);
+      return p;
+    #else
+      fprintf_nomalloc(stderr, "Dangless: FATAL ERROR: failed to remap %s's %p of size %zu: %s (code %d); falling back to sysmalloc proxying is disallowed, failing\n", func_name, p, actual_sz, vremap_diag(result), result);
+      abort();
+    #endif
   }
 
   return remapped_ptr;

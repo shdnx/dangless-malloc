@@ -20,9 +20,11 @@
   #define LOG_NOMALLOC(...) /* empty */
 #endif
 
-STATISTIC_DEFINE(size_t, vmcall_count);
-STATISTIC_DEFINE(size_t, vmcall_ptrarg_rewrites);
-STATISTIC_DEFINE(size_t, vmcall_ptrarg_rewrite_misses);
+STATISTIC_DEFINE_COUNTER(st_vmcall_count);
+STATISTIC_DEFINE_COUNTER(st_vmcall_ptrarg_rewrites);
+STATISTIC_DEFINE_COUNTER(st_vmcall_ptrarg_rewrite_misses);
+
+STATISTIC_DEFINE_COUNTER(st_init_happened);
 
 static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg_index) {
   ASSERT(ptr_arg_index < SYSCALL_MAX_ARGS, "System call argument index %lu out of range!", ptr_arg_index);
@@ -33,7 +35,7 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
     return; // null pointer
 
   STATISTIC_UPDATE() {
-    vmcall_ptrarg_rewrites++;
+    st_vmcall_ptrarg_rewrites++;
   }
 
   void *canonical_ptr;
@@ -45,7 +47,7 @@ static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg
     REF args[ptr_arg_index] = (u64)canonical_ptr;
   } else if (result != VREM_NOT_REMAPPED) {
     STATISTIC_UPDATE() {
-      vmcall_ptrarg_rewrite_misses++;
+      st_vmcall_ptrarg_rewrite_misses++;
     }
 
     #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
@@ -84,7 +86,7 @@ static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
 #endif
 
   STATISTIC_UPDATE() {
-    vmcall_count++;
+    st_vmcall_count++;
   }
 
   for (const i8 *ptrparam_no = syscall_get_userptr_params(syscall);
@@ -130,6 +132,10 @@ static void dangless_pagefault_handler(vaddr_t addr_, u64 flags, struct dune_tf 
 }
 
 void dangless_init(void) {
+  STATISTIC_UPDATE() {
+    st_init_happened++;
+  }
+
   static bool s_initalized = false;
   if (s_initalized)
     return;
@@ -165,5 +171,5 @@ void dangless_init(void) {
 
 #if DANGLESS_CONFIG_REGISTER_PREINIT
   __attribute__((section(".preinit_array")))
-  void (*preinit_entry)(void) = &dangless_init;
+  void (*dangless_preinit_entry)(void) = &dangless_init;
 #endif
