@@ -1,6 +1,8 @@
 #ifndef DANGLESS_COMMON_DPRINTF_H
 #define DANGLESS_COMMON_DPRINTF_H
 
+#include "dangless/config.h"
+
 // we have to have stdio.h included BEFORE we define dprintf() and vdprintf(), because apparently those are function names in it, causing fun mayhem
 #include <stdio.h>
 #include <stdbool.h>
@@ -16,19 +18,7 @@ void _print_caller_info_nomalloc(const char *file, const char *func, int line);
 #define print_loc_info_nomalloc() _print_caller_info_nomalloc(_CALLER_INFO_ARGS)
 
 
-#ifdef NDEBUG
-  #define dprintf(...) /* empty */
-  #define dprintf_nomalloc(...) /* empty */
-
-  #define dprintf_scope_enter(LABEL) /* empty */
-  #define dprintf_scope_exit(LABEL) /* empty */
-
-  static inline void dprintf_enable(void) { /* empty */ }
-  static inline void dprintf_disable(void) { /* empty */ }
-
-  #define vdprintf(...) /* empty */
-  #define vdprintf_nomalloc(...) /* empty */
-#else // !defined(NDEBUG)
+#if DANGLESS_CONFIG_DPRINTF_ENABLED
   extern bool dprintf_enabled;
   extern int dprintf_scope_depth;
 
@@ -55,6 +45,18 @@ void _print_caller_info_nomalloc(const char *file, const char *func, int line);
       print_loc_info_nomalloc(); \
       dprintf_nomalloc(__VA_ARGS__); \
     } while (0)
-#endif // !defined(NDEBUG)
+#else
+  #define dprintf(...) /* empty */
+  #define dprintf_nomalloc(...) /* empty */
+
+  #define dprintf_scope_enter(LABEL) /* empty */
+  #define dprintf_scope_exit(LABEL) /* empty */
+
+  static inline void dprintf_enable(void) { /* empty */ }
+  static inline void dprintf_disable(void) { /* empty */ }
+
+  #define vdprintf(...) /* empty */
+  #define vdprintf_nomalloc(...) /* empty */
+#endif
 
 #endif
