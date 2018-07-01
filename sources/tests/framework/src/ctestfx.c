@@ -105,42 +105,67 @@ static void fail_out_of_memory(void) {
   abort();
 }
 
-char *_ctestfx_preformat_fail_message(const char *format, ...) {
-  static char *s_tmp_buffer;
-  static size_t s_tmp_buffer_size = 512;
-
-  if (!s_tmp_buffer) {
-    s_tmp_buffer = malloc(s_tmp_buffer_size);
-
-    if (!s_tmp_buffer)
-      fail_out_of_memory();
-  }
-
-  // we need 2 copies of the argument list, because the first vsnprintf() call that is needed to compute the buffer size will consume args1
-  va_list args, args2;
-  va_start(args, format);
+char *_ctestfx_vsprintf(const char *format, va_list args) {
+  // we need 2 copies of the argument list, because the first vsnprintf() call that is needed to compute the buffer size will consume 'args'
+  va_list args2;
   va_copy(args2, args);
 
-  int preformat_msg_size = vsnprintf(s_tmp_buffer, s_tmp_buffer_size, format, args);
-  if (preformat_msg_size > s_tmp_buffer_size) {
-    // the string writing got truncated, we need to extend it
-    s_tmp_buffer_size = preformat_msg_size + 1; // don't forget the null terminator!
-    s_tmp_buffer = realloc(s_tmp_buffer, s_tmp_buffer_size);
-    if (!s_tmp_buffer)
-      fail_out_of_memory();
+  int len = vsnprintf(NULL, 0, format, args);
+  len++; // null terminator
 
-    preformat_msg_size = vsnprintf(s_tmp_buffer, s_tmp_buffer_size, format, args2);
+  char *buff = malloc(len);
+  if (!buff)
+    fail_out_of_memory();
+
+  vsnprintf(buff, len, format, args2);
+  va_end(args2);
+
+  return buff;
+}
+
+char *_ctestfx_sprintf(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  char *result = _ctestfx_vsprintf(format, args);
+  va_end(args);
+  return result;
+}
+
+// Note: a more elegant implementation would use malloc() and realloc() to make sure there's always a buffer available of sufficient size. However, since we're messing with malloc() in the program under test, that's not exactly a life insurance... So we get by with this and hope it doesn't break.
+#define EMPHEMERAL_BUFFER_COUNT 8
+#define EMPHEMERAL_BUFFER_SIZE 4096
+
+const char *_ctestfx_vsprintf_ephemeral(const char *format, va_list args) {
+  static char s_buffers[EMPHEMERAL_BUFFER_SIZE][EMPHEMERAL_BUFFER_COUNT];
+  static unsigned s_next_buffer = 0;
+
+  char *buffer = s_buffers[s_next_buffer];
+  s_next_buffer = (s_next_buffer + 1) % EMPHEMERAL_BUFFER_COUNT;
+
+  // note: vsprintf_s() would be better, but that gives a linker error
+  int len = vsnprintf(buffer, EMPHEMERAL_BUFFER_SIZE, format, args);
+
+  if (len >= EMPHEMERAL_BUFFER_SIZE) {
+    fputs("_ctestfx_sprintf_ephemeral: buffer size insufficient!\n", stderr);
+    abort();
   }
 
-  va_end(args2);
-  va_end(args);
+  return buffer;
+}
 
-  return s_tmp_buffer;
+const char *_ctestfx_sprintf_ephemeral(const char *format, ...) {
+  va_list args;
+  va_start(args, format);
+  const char *result = _ctestfx_vsprintf_ephemeral(format, args);
+  va_end(args);
+  return result;
 }
 
 // As msg_format, this takes a string pre-formatted by _ctestfx_preformat_fail_message().
 // We have to do formatting in two steps, otherwise we run into an annoying GCC bug with version 5.4.0 whereby it fucks up va_list forwarding (see vafwd-gcc-bug.c).
 static char *create_fail_message(const char *msg_format, va_list args) {
+  //return _ctestfx_vsprintf_ephemeral(msg_format, args);
+
   va_list args2;
   va_copy(args2, args);
 
@@ -164,11 +189,15 @@ void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ..
 
   va_list args;
   va_start(args, msg_format);
-  g_current_test->fail_message = create_fail_message(msg_format, args);
+  char *msg = create_fail_message(msg_format, args);
   va_end(args);
 
+  g_current_test->fail_message = msg;
+
   fputs("!! EXPECTATION FAILED: ", stderr);
-  fputs(g_current_test->fail_message, stderr);
+  int res = fputs(msg, stderr);
+  if (res == EOF)
+    perror("fputs for failure message"); // TODO: why do we get "Bad address" here??
 }
 
 static struct test_suite *find_suite(const char *id) {

@@ -13,7 +13,8 @@ TEST_CASE(simple) {
   EXPECT_EQUALS_STR("potato", sprintf_nomalloc("%s", "potato"));
   EXPECT_EQUALS_STR("q", sprintf_nomalloc("%c", 'q'));
 
-  EXPECT_EQUALS_STR("0x0", sprintf_nomalloc("%p", NULL));
+  EXPECT_EQUALS_STR("(null ptr)", sprintf_nomalloc("%p", NULL));
+  EXPECT_EQUALS_STR("(null str)", sprintf_nomalloc("%s", NULL));
   EXPECT_EQUALS_STR("0x10FA74BC", sprintf_nomalloc("%p", (void *)0x10FA74BCul));
 }
 
@@ -40,6 +41,19 @@ TEST_CASE(complex) {
   EXPECT_EQUALS_STR("potatos", sprintf_nomalloc("%s%c", "potato", 's'));
   EXPECT_EQUALS_STR("potato92", sprintf_nomalloc("%s%d", "potato", 92));
   EXPECT_EQUALS_STR("42 0xFA potato", sprintf_nomalloc("%u 0x%x %s", 42, 0xFA, "potato"));
+}
+
+TEST_CASE(long_complex) {
+  const char *func_name = "foobar";
+  void *p = (void *)0xDEADBEEF;
+  size_t actual_sz = 417;
+  int result = -2;
+  const char *d = "potato failure";
+
+  EXPECT_EQUALS_STR(
+    "Dangless: FATAL ERROR: failed to remap foobar's 0xDEADBEEF of size 417: potato failure (code -2); falling back to sysmalloc proxying is disallowed, failing\n",
+    sprintf_nomalloc("Dangless: FATAL ERROR: failed to remap %s's %p of size %zu: %s (code %d); falling back to sysmalloc proxying is disallowed, failing\n", func_name, p, actual_sz, d, result)
+  );
 }
 
 TEST_CASE(printing) {

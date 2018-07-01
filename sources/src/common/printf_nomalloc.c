@@ -40,8 +40,18 @@ static int translate_file(FILE *f) {
   else SAFE_UNREACHABLE("Bad file descriptor: only stdout and stderr are supported!");
 }
 
+static size_t print_str(char *dest, const char *src) {
+  char *const dest_org = dest;
+
+  while (*src) {
+    *dest++ = *src++;
+  }
+
+  return dest - dest_org;
+}
+
 static size_t print_int(char *dest, i64 num, int base) {
-  SAFE_ASSERT(num != LLONG_MIN, "Implementation limitation");
+  SAFE_ASSERT(num != LLONG_MIN, "Implementation limitation, cannot print LLONG_MIN");
 
   size_t nchars = 0;
 
@@ -163,22 +173,30 @@ static size_t handle_format(
       dest += print_uint(dest, fetch_uint_arg(modifiers, args), 16);
       break;
 
-    case 'p':
-      *dest++ = '0';
-      *dest++ = 'x';
-      dest += print_uint(dest, (u64)va_arg(args, void *), 16);
+    case 'p': {
+      void *arg_ptr = va_arg(args, void *);
+
+      if (arg_ptr) {
+        dest += print_str(dest, "0x");
+        dest += print_uint(dest, (u64)arg_ptr, 16);
+      } else {
+        dest += print_str(dest, "(null ptr)");
+      }
       break;
+    }
 
     case 'c':
+      // note: va_arg(args, char) makes no sense and will cause a segmentation fault - integer promotion happens
       *dest++ = (char)va_arg(args, int);
       break;
 
     case 's': {
-      const char *restrict str_ptr = va_arg(args, const char *restrict);
-      for (; *str_ptr; str_ptr++, dest++) {
-        *dest = *str_ptr;
+      const char *const arg_str = va_arg(args, char *);
+      if (arg_str) {
+        dest += print_str(dest, arg_str);
+      } else {
+        dest += print_str(dest, "(null str)");
       }
-
       break;
     }
 

@@ -27,8 +27,14 @@
     void (*)(): "%p" \
   )
 
+char *_ctestfx_sprintf(const char *format, ...);
+const char *_ctestfx_sprintf_ephemeral(const char *fmt, ...);
+
+#define _CTESTFX_VAR_TO_STRING(VARNAME) \
+  _ctestfx_sprintf_ephemeral(_CTESTFX_FMT(VARNAME), VARNAME)
+
 // We cannot do the whole formatting with just one function call, because we run into a GCC 5.4.0 compiler bug with va_list. See vafwd-gcc-bug.c.
-char *_ctestfx_preformat_fail_message(const char *format, ...);
+//char *_ctestfx_preformat_fail_message(const char *format, ...);
 void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ...);
 
 #define _CTESTFX_EXPECT_FAIL(...) \
@@ -38,8 +44,8 @@ void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ..
   do { \
     typeof((A)) _result = (A); \
     if (!COND(_result)) { \
-      char *_fmt = _ctestfx_preformat_fail_message("%s, but got:\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _CTESTFX_FMT(_result)); \
-      _CTESTFX_EXPECT_FAIL(_fmt, _result); \
+      const char *_result_str = _CTESTFX_VAR_TO_STRING(_result); \
+      _CTESTFX_EXPECT_FAIL("%s, but got:\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _result_str); \
       return; \
     } \
   } while (0)
@@ -49,8 +55,9 @@ void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ..
     typeof((A)) _result_a = (A); \
     typeof((B)) _result_b = (B); \
     if (!COND(_result_a, _result_b)) { \
-      char *_fmt = _ctestfx_preformat_fail_message("%s, but got:\n\t%s = %s\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _CTESTFX_FMT(_result_a), _CTESTFX_STRINGIFY(B), _CTESTFX_FMT(_result_b)); \
-      _CTESTFX_EXPECT_FAIL(_fmt, _result_a, _result_b); \
+      const char *_result_a_str = _CTESTFX_VAR_TO_STRING(_result_a); \
+      const char *_result_b_str = _CTESTFX_VAR_TO_STRING(_result_b); \
+      _CTESTFX_EXPECT_FAIL("%s, but got:\n\t%s = %s\n\t%s = %s\n", (MESSAGE), _CTESTFX_STRINGIFY(A), _result_a_str, _CTESTFX_STRINGIFY(B), _result_b_str); \
       return; \
     } \
   } while (0)

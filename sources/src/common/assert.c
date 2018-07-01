@@ -1,9 +1,9 @@
 #define _GNU_SOURCE
 
 #include <stdlib.h>
-#include <signal.h> // raise, SIGINT
+//#include <signal.h> // raise, SIGINT
 
 void _dangless_assert_fail(void) {
-  raise(SIGINT);
+  //raise(SIGINT);
   abort();
 }
