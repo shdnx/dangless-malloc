@@ -40,12 +40,22 @@ class DanglessMalloc(infra.Instance):
             help="Dangless platform to use (equivalent to passing PLATFORM=value to 'make config'): 'dune' or 'rumprun'. Defaults to 'dune'."
         )
 
+        parser.add_argument("--dangless-debug",
+            action="store_true",
+            dest="dangless_debug",
+            default=False,
+            help="Activates debug mode for Dangless. Sets PROFILE=debug regardless of --dangless-profile, and disables optimizations. Defaults to False."
+        )
+
         parser.add_argument("--dangless-config",
             action="append",
             dest="dangless_config",
             default=[],
             help="Dangless configuration options, to be passed to 'make config' as-is."
         )
+
+    def add_run_args(self, parser):
+        pass
 
     def dependencies(self):
         yield self._runtime
@@ -136,8 +146,14 @@ class LibDanglessMalloc(infra.Package):
         self._source_dir = os.path.join(CURRENT_DIR, "sources")
         self._build_dir = os.path.join(self._source_dir, "build")
 
+    def get_profile(self, ctx):
+        return ctx.args.dangless_profile if not ctx.args.dangless_debug else "debug"
+
+    def get_platform(self, ctx):
+        return ctx.args.dangless_platform
+
     def _get_bin_dir(self, ctx):
-        return os.path.join(self._build_dir, ctx.args.dangless_platform + "_" + ctx.args.dangless_profile)
+        return os.path.join(self._build_dir, self.get_platform(ctx) + "_" + self.get_profile(ctx))
 
     def _get_bin_path(self, ctx):
         return os.path.join(self._get_bin_dir(ctx), "libdangless.a")
@@ -163,8 +179,8 @@ class LibDanglessMalloc(infra.Package):
         infra.util.run(ctx, [
             "make",
             "config",
-            "PLATFORM=" + ctx.args.dangless_platform,
-            "PROFILE=" + ctx.args.dangless_profile
+            "PLATFORM=" + self.get_platform(ctx),
+            "PROFILE=" + self.get_profile(ctx)
         ] + ctx.args.dangless_config)
 
         infra.util.run(ctx, [
@@ -202,6 +218,24 @@ class LibDanglessMalloc(infra.Package):
         ])
 
     def configure(self, ctx):
+        if ctx.args.dangless_debug:
+            # we cannot define -DDEBUG, because -DNDEBUG is unconditionally added by infra
+            debug_flags = [
+                "-O0",
+                "-ggdb"
+            ]
+
+            ctx.cflags += debug_flags
+            ctx.cxxflags += debug_flags
+
+
+        common_flags = [
+            "-pthread"
+        ]
+
+        ctx.cflags += common_flags
+        ctx.cxxflags += common_flags
+
         ctx.ldflags += [
             "-L" + self.path(ctx, "install"),
             "-Wl,-whole-archive",

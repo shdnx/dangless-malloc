@@ -59,12 +59,17 @@ sudo sysctl -w vm.nr_hugepages=<NUM>
 
 When there isn't sufficient number of huge pages available, Dangless will fail while trying to enter into Dune mode, and you will see output much like this:
 
-> dune: failed to mmap() hugepage of size 2097152 for safe stack 0
-> dune: setup_safe_stack() failed
-> dune: create_percpu() failed
-> Dangless: failed to enter Dune mode: Cannot allocate memory
+>
+  dune: failed to mmap() hugepage of size 2097152 for safe stack 0
+  dune: setup_safe_stack() failed
+  dune: create_percpu() failed
+  Dangless: failed to enter Dune mode: Cannot allocate memory
 
 # Setup
+
+## Building
+
+Building Dangless and its dependencies, you have to do this only once:
 
 ```bash
 # initialize and download dependencies (notably dune)
@@ -85,12 +90,6 @@ git apply ../dune-ix-nosigterm.patch
 # need sudo, because it's building a kernel module
 sudo make
 
-# insert the Dune kernel module
-sudo insmod kern/dune.ko
-
-# change permissions on /dev/dune so we can run Dune apps without 'sudo'
-sudo chmod a+rw /dev/dune
-
 cd ../../sources
 
 # currently only the dune platform is really supported
@@ -98,11 +97,29 @@ cd ../../sources
 # use PROFILE=release for benchmarking and so
 make config PROFILE=debug PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
 make
+```
 
+## Every time the machine is rebooted
+
+The Dune kernel module has to be loaded and permissions relaxed on `/dev/dune` (unless you want to keep using `sudo` for everything that uses Dune):
+
+```bash
+cd vendor/dune-ix
+
+# insert the Dune kernel module
+sudo insmod kern/dune.ko
+
+# change permissions on /dev/dune so we can run Dune apps without 'sudo'
+sudo chmod a+rw /dev/dune
+```
+
+## Testing
+
+```bash
 # run unit tests
 make test
 
-# run "Hello world" test app
+# run the trivially simple "Hello world" test app
 make testapp APP=hello-world
 ```
 

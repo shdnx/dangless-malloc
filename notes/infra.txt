@@ -6,6 +6,9 @@ $ ./setup.py clean --packages libdune-autoenter libdangless --targets spec2006
 Build:
 $ ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc
 
+Build for testing/debugging:
+$ ./setup.py build --dangless-debug --targets spec2006 --instances dangless-malloc
+
 Test run:
 $ ./setup.py run --parallel=proc spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
 
@@ -25,3 +28,34 @@ $ sudo sysctl -w vm.nr_hugepages=512
 
 Check huge page availability:
 $ cat /proc/meminfo | grep Huge
+
+----------
+
+Test run:
+
+Error: 1x400.perlbench 1x447.dealII
+Success: 1x401.bzip2 1x403.gcc 1x429.mcf 1x433.milc 1x444.namd 1x445.gobmk 1x450.soplex 1x453.povray 1x456.hmmer 1x458.sjeng 1x462.libquantum 1x464.h264ref 1x470.lbm 1x471.omnetpp 1x473.astar 1x482.sphinx3 1x483.xalancbmk
+
+400.perlbench:
+
+*** The following output file was expected, but does not exist:
+      /home/gabor/remote/thesis/vendor/spec2006/benchspec/CPU2006/400.perlbench/run/run_base_test_infra-dangless-malloc.0000/append.out
+    This often means that the benchmark did not start, or failed so
+    quickly that some output files were not even opened.  Check whether
+    you have run out of memory or have run out of disk space.
+
+447.dealII
+
+Exception on processing:
+--------------------------------------------------------
+An error occurred in line <2591> of file <data_out_base.cc> in function
+    unknown
+The violated condition was:
+    out
+The name and call sequence of the exception was:
+    ExcIO()
+Additional Information:
+(none)
+--------------------------------------------------------
+
+Aborting!
