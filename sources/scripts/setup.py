@@ -77,6 +77,14 @@ class Dune(infra.Package):
         )
         self._lib_path = os.path.join(self._dir, "libdune", "libdune.a")
 
+    @property
+    def root_dir(self):
+        return self._dir
+
+    @property
+    def libpath(self):
+        return self._lib_path
+
     def ident(self):
         return self._variant
 
@@ -180,7 +188,8 @@ class LibDanglessMalloc(infra.Package):
             "make",
             "config",
             "PLATFORM=" + self.get_platform(ctx),
-            "PROFILE=" + self.get_profile(ctx)
+            "PROFILE=" + self.get_profile(ctx),
+            "DUNE_ROOT=" + self._dune.root_dir
         ] + ctx.args.dangless_config)
 
         infra.util.run(ctx, [
@@ -254,6 +263,14 @@ class DuneOnly(infra.Instance):
     def __init__(self, dune=None):
         self._runtime = LibDuneAutoEnter(dune)
 
+    def add_build_args(self, parser):
+        parser.add_argument("--dune-only-debug",
+            action="store_true",
+            dest="duneonly_debug",
+            default=False,
+            help="Activates debug mode for dune-autoenter, causing it to print a message to stderr upon initializing and entering Dune. Defaults to False."
+        )
+
     def dependencies(self):
         yield self._runtime
 
@@ -293,10 +310,15 @@ class LibDuneAutoEnter(infra.Package):
     def build(self, ctx):
         os.chdir(self._dir)
 
+        extra_args = []
+        if ctx.args.duneonly_debug:
+            extra_args.append("PROFILE=debug")
+
         infra.util.run(ctx, [
             "make",
-            "-j" + str(ctx.jobs)
-        ])
+            "-j" + str(ctx.jobs),
+            "DUNE_ROOT=" + self._dune.root_dir
+        ] + extra_args)
 
     def is_installed(self, ctx):
         install_dir = self.path(ctx, "install")

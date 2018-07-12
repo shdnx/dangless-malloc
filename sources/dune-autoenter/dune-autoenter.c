@@ -7,16 +7,18 @@
 static void dune_autoenter(void) {
   int result;
   if ((result = dune_init(/*map_full=*/true)) != 0) {
-    perror("Dune-autoenter: failed to initialize Dune");
+    perror("[dune-autoenter] Failed to initialize Dune");
     abort();
   }
 
   if ((result = dune_enter()) != 0) {
-    perror("Dune-autoenter: failed to enter Dune mode");
+    perror("[dune-autoenter] Failed to enter Dune mode");
     abort();
   }
 
-  //fprintf(stderr, "Dune-autoenter: now in Dune mode!\n");
+#if DEBUG
+  fprintf(stderr, "[dune-autoenter] Now running in Dune mode!\n");
+#endif
 }
 
 __attribute__((section(".preinit_array")))

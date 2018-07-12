@@ -1,8 +1,5 @@
 .SUFFIXES:
 
-DANGLESS_ROOT := ..
-include $(DANGLESS_ROOT)/build/last-config.mk
-
 BUILD_DIR := build
 BIN := $(BUILD_DIR)/libdune-autoenter.a
 
