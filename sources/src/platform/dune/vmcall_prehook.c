@@ -20,42 +20,61 @@ STATISTIC_DEFINE_COUNTER(st_vmcall_count);
 
 static THREAD_LOCAL int g_vmcall_hook_depth = 0;
 
+u64 g_current_syscallno;
+u64 *g_current_syscall_args;
+
 bool is_vmcall_hook_running(void) {
   return g_vmcall_hook_depth > 0;
 }
 
 bool in_internal_vmcall(void) {
+  ASSERT0(is_vmcall_hook_running());
+
   return dangless_is_hook_running();
 }
 
-static void syscall_log_trace(u64 syscallno, u64 args[]) {
+bool vmcall_should_trace_current(void) {
+  ASSERT0(is_vmcall_hook_running());
+
+  if (in_internal_vmcall())
+    return false;
+
   // Usually we'll want to ignore write() with fd = stdout or stderr because there tend to be many of them during debugging that make it difficult to spot the interesting output.
 
   #if DANGLESS_CONFIG_TRACE_SYSCALLS_NO_WRITE_STDOUT
-    if (syscallno == 1 && args[0] == 1)
-      return;
+    if (g_current_syscallno == 1 && g_current_syscall_args[0] == 1)
+      return false;
   #endif
 
   #if DANGLESS_CONFIG_TRACE_SYSCALLS_NO_WRITE_STDERR
-    if (syscallno == 1 && args[0] == 2)
-      return;
+    if (g_current_syscallno == 1 && g_current_syscall_args[0] == 2)
+      return false;
   #endif
 
-  syscall_log(syscallno, args);
+  return true;
+}
+
+void vmcall_dump_current(void) {
+  ASSERT0(is_vmcall_hook_running());
+  syscall_log(g_current_syscallno, g_current_syscall_args);
 }
 
 void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
   ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall prehook calls?");
   g_vmcall_hook_depth++;
 
-  if (in_external_vmcall()) {
-    #if DANGLESS_CONFIG_TRACE_SYSCALLS
-      syscall_log_trace(syscallno, args);
-    #endif
+  g_current_syscallno = syscallno;
+  g_current_syscall_args = args;
 
-    STATISTIC_UPDATE() {
+  STATISTIC_UPDATE() {
+    if (in_external_vmcall())
       st_vmcall_count++;
-    }
+  }
+
+  if (vmcall_should_trace_current()) {
+    #if DANGLESS_CONFIG_TRACE_SYSCALLS
+      vmcall_dump_current();
+    #endif
 
     // some system calls are particularly interesting, such as fork() and execve(), log them separately
     switch (syscallno) {
@@ -86,6 +105,10 @@ void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
 
   // The host kernel will choke on memory addresses that have been remapped by dangless, since those memory regions are only mapped inside the guest virtual memory, but do not appear in the host virtual memory. Therefore, for the vmcalls, we have to detect such memory addresses referenced directly or indirectly (e.g. through a struct) by their arguments and replace them with their canonical counterparts.
   vmcall_fixup_args(syscallno, REF args);
+
+  if (vmcall_should_trace_current()) {
+    LOG("VMCall hook returning...\n");
+  }
 
   g_vmcall_hook_depth--;
 }

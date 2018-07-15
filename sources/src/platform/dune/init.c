@@ -56,6 +56,12 @@ static void dangless_pagefault_handler(vaddr_t addr_, u64 flags, struct dune_tf 
   dune_die(); // RIP
 }
 
+static void dangless_sigsegv_handler(struct dune_tf *tf) {
+  PRINTF_SAFE("!!! SIGSEGV at IP = %p\n", (void *)tf->rip);
+  dune_dump_trap_frame(tf);
+  dune_die(); // RIP
+}
+
 void dangless_init(void) {
   STATISTIC_UPDATE() {
     st_init_happened++;
@@ -92,6 +98,9 @@ void dangless_init(void) {
 
   // Register page-fault handler, for diagnostic purposes
   dune_register_pgflt_handler(&dangless_pagefault_handler);
+
+  // Register SIGSEGV handler for debugging
+  dune_register_signal_handler(11, &dangless_sigsegv_handler);
 
   LOG("Running...\n");
 }

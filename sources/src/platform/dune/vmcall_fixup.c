@@ -8,6 +8,7 @@
 #include "dangless/common/dprintf.h"
 #include "dangless/common/statistics.h"
 #include "dangless/common/util.h"
+#include "dangless/common/debug.h"
 #include "dangless/syscallmeta.h"
 #include "dangless/platform/virtual_remap.h"
 
@@ -15,7 +16,9 @@
 #include "vmcall_fixup.h"
 
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
-  #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
+  #define LOG(...) \
+    if (vmcall_should_trace_current()) \
+      vdprintf_nomalloc(__VA_ARGS__)
 #else
   #define LOG(...) /* empty */
 #endif
@@ -42,8 +45,12 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
     return VREM_NOT_REMAPPED;
   }
 
+  LOG("Fixing up ptr %p...\n", ptr);
+
   void *canonical_ptr;
   int result = vremap_resolve(ptr, OUT &canonical_ptr);
+
+  LOG("vremap_resolve => %p; %s\n", canonical_ptr, vremap_diag(result));
 
   if (result == VREM_OK) {
     REF *pptr = canonical_ptr;
@@ -91,15 +98,27 @@ static int fixup_ptr_ptr_nullterm(REF void ***pptrs) {
   if (!is_valid_ptr)
     return -1;
 
+  g_is_running_nested_fixups = true;
   void **ptrs = *pptrs;
 
+  if (vmcall_should_trace_current()) {
+    LOG("Fixing up null-terminated ptr array of ");
+    size_t num_items;
+    for (num_items = 0; ptrs[num_items]; num_items++)
+      /*empty*/;
+    dprintf("%zu items\n", num_items);
+  }
+
   for (size_t i = 0; ptrs[i]; i++) {
+    LOG("Fixing up item %zu...\n", i);
     if (fixup_ptr(REF &ptrs[i], OUT_IGNORE) < 0) {
       LOG("Failed to fix-up item %zu in null-terminated pointer array %p\n", i, (void *)ptrs);
       result--;
     }
   }
 
+  LOG("Done, result: %d\n", result);
+  g_is_running_nested_fixups = false;
   return result;
 }
 
@@ -121,13 +140,21 @@ static int fixup_iovec_array(REF struct iovec ARRAY **piovecs, size_t num_iovecs
   if (!is_valid_ptr)
     return -1;
 
+  g_is_running_nested_fixups = true;
+
+  LOG("Fixing up iovec array of %zu items:\n", num_iovecs);
+  dump_mem_region(*piovecs, num_iovecs * sizeof(struct iovec));
+
   for (size_t i = 0; i < num_iovecs; i++) {
+    LOG("Fixing up item %zu...\n", i);
     if (fixup_ptr(REF &(*piovecs)[i].iov_base, OUT_IGNORE) < 0) {
       LOG("Failed to fix-up item %zu of iovec array %p\n", i, (void *)*piovecs);
       result--;
     }
   }
 
+  LOG("Done, result: %d\n", result);
+  g_is_running_nested_fixups = false;
   return result;
 }
 
@@ -154,22 +181,34 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
     return -1;
 
   struct msghdr *msghdr = *pmsghdr;
+  g_is_running_nested_fixups = true;
+
+  LOG("Fixing up msghdr:\n");
+  DUMP_VAR_MEM(*msghdr);
+
+  LOG("msg_name...\n");
 
   if (fixup_ptr((void **)&msghdr->msg_name, OUT_IGNORE) < 0) {
     LOG("Failed to fix-up msg_name of msghdr %p\n", (void *)msghdr);
     result--;
   }
 
+  LOG("msg_iov...\n");
+
   if (fixup_iovec_array(REF &msghdr->msg_iov, msghdr->msg_iovlen) != 0) {
     LOG("Failed to fix-up msg_iov of msghdr %p\n", (void *)msghdr);
     result--;
   }
+
+  LOG("msg_control...\n");
 
   if (fixup_ptr(msghdr->msg_control, OUT_IGNORE) < 0) {
     LOG("Failed to fix-up msg_control of msghdr %p\n", (void *)msghdr);
     result--;
   }
 
+  g_is_running_nested_fixups = false;
+  LOG("Done, result: %d\n", result);
   return result;
 }
 
@@ -246,8 +285,13 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
         st_vmcall_arg_needed_fixups++;
     }
 
+    if (vmcall_should_trace_current()) {
+      LOG("Fixup of arg %zu = %lx with flags: ", arg_index, args[arg_index]);
+      syscall_param_fixup_flags_dump(pfixup_flags);
+      dprintf("\n");
+    }
+
     u64 *parg = &args[arg_index];
-    g_is_running_nested_fixups = true;
 
     int result;
     if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_IOVEC)) {
@@ -260,11 +304,10 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
       result = fixup_msghdr(REF (struct msghdr **)parg);
     } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_USER_PTR)) {
       // NOTE: all of the above fixups already take care of this, so we only want to do raw fixup_ptr() if that's the ONLY thing we have to do
-      g_is_running_nested_fixups = false;
       result = fixup_ptr(REF (void **)parg, OUT_IGNORE);
     }
 
-    g_is_running_nested_fixups = false;
+    LOG("Done fixup of arg %zu\n", arg_index);
 
     if (result < 0) {
       final_result--;
@@ -272,13 +315,13 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
       #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
         const struct syscall_info *sinfo = syscall_get_info(syscallno);
 
-        LOG("Failed to fixup syscall %s arg %lu (%s %s): ",
+        LOG("Failed to fixup syscall %s arg %zu (%s %s): ",
           sinfo->name,
           arg_index,
           sinfo->params[arg_index].name,
           sinfo->params[arg_index].type);
       #else
-        LOG("Failed to fixup syscall %lu arg %lu: ", syscallno, arg_index);
+        LOG("Failed to fixup syscall %lu arg %zu: ", syscallno, arg_index);
       #endif
 
       syscall_log(syscallno, args);
@@ -287,11 +330,6 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
     }
 
 loop_continue:
-    /*if (!(arg_index < SYSCALL_MAX_ARGS - 1 || FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_LAST)))
-      syscall_log(syscallno, args);*/
-
-    ASSERT(arg_index < SYSCALL_MAX_ARGS - 1 || FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_LAST), "SYSCALL_PARAM_LAST didn't appear on the last parameter's flags!!");
-
     if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_LAST))
       break;
   } // end for
