@@ -70,7 +70,7 @@ void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
   #else
     #define INTERESTING_VMCALL(NO, NAME) \
       case NO: \
-        syscall_log(syscall, args); \
+        syscall_log(syscallno, args); \
         _INTERESTING_VMCALL_IMPL(NO, NAME)
   #endif
 
