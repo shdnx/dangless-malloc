@@ -15,6 +15,7 @@ void _dangless_assert_fail(void);
       if (UNLIKELY(!(COND))) { \
         vdprintf_nomalloc("Assertion %s failed: ", #COND); \
         dprintf_nomalloc(__VA_ARGS__); \
+        dprintf_nomalloc("\n"); \
         _dangless_assert_fail(); \
       } \
     } while (0)
@@ -32,6 +33,7 @@ void _dangless_assert_fail(void);
     do { \
       vdprintf_nomalloc("Unreachable executed: "); \
       dprintf_nomalloc(__VA_ARGS__); \
+      dprintf_nomalloc("\n"); \
       __builtin_unreachable(); \
     } while (0)
 #endif

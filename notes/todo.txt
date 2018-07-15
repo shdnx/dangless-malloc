@@ -1,3 +1,5 @@
+high priority: write unit test cases for vmcall argument pointer fixup (both the simple case and the nested cases, and verify that it doesn't crash even with an invalid pointer)
+
  - statistics printing has %zu baked in
  - ctestfx: split the header files, so that the user API is not mixed with implementation details
  - we could build in some heuristics to process_syscall_ptr_arg(): if we can tell from a pointer that it's a stack pointer or global variable (in .data or .bss) then we shouldn't pagewalk it - take a look at dune_va_to_pa()

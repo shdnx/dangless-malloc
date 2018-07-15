@@ -6,11 +6,9 @@
 #include "dangless/config.h"
 #include "dangless/common.h"
 #include "dangless/common/statistics.h"
-#include "dangless/syscallmeta.h"
 #include "dangless/virtmem.h"
-#include "dangless/dangless_malloc.h"
-#include "dangless/platform/virtual_remap.h"
 
+#include "vmcall_prehook.h"
 #include "dune.h"
 
 #if DANGLESS_CONFIG_DEBUG_INIT
@@ -19,136 +17,7 @@
   #define LOG(...) /* empty */
 #endif
 
-STATISTIC_DEFINE_COUNTER(st_vmcall_count);
-STATISTIC_DEFINE_COUNTER(st_vmcall_ptrarg_rewrites);
-STATISTIC_DEFINE_COUNTER(st_vmcall_ptrarg_rewrite_misses);
-
 STATISTIC_DEFINE_COUNTER(st_init_happened);
-
-static int g_vmcall_hook_depth = 0;
-
-// Determines whether the vmcall currently intercepted was initiated internally.
-static bool is_internal_vmcall(void) {
-  return g_vmcall_hook_depth > 1 || dangless_is_hook_running();
-}
-
-// Determines whether the vmcall currently intercepted was initiated externally, i.e. not inside dangless.
-static bool is_external_vmcall(void) {
-  return !is_internal_vmcall();
-}
-
-static void syscall_log(u64 syscallno, u64 args[]) {
-  #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
-    const struct syscall_info *info = syscall_get_info(syscallno);
-
-    dprintf("syscall: %s(\n", info->name);
-    for (index_t i = 0; i < info->num_params; i++) {
-      dprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
-    }
-    dprintf(")\n");
-  #else
-    dprintf("syscall: %1$lu (0x%1$lx) (\n", syscallno);
-    for (index_t i = 0; i < SYSCALL_MAX_ARGS; i++) {
-      dprintf("\targ%1$ld = %2$lu (0x%2$lx)\n", i, args[i]);
-    }
-    dprintf(")\n");
-  #endif
-}
-
-static void process_syscall_ptr_arg(u64 syscall, REF u64 args[], index_t ptr_arg_index) {
-  ASSERT(ptr_arg_index < SYSCALL_MAX_ARGS, "System call argument index %lu out of range!", ptr_arg_index);
-
-  const u64 arg_ptr_raw = args[ptr_arg_index];
-  void *const arg_ptr = (void *)arg_ptr_raw;
-
-  // filter out typical null pointer, and often also just garbage for syscall args that are ignored (because e.g. they would only be used with certain flags)
-  if (arg_ptr_raw < PGSIZE)
-    return;
-
-  STATISTIC_UPDATE() {
-    if (is_external_vmcall())
-      st_vmcall_ptrarg_rewrites++;
-  }
-
-  void *canonical_ptr;
-  int result = vremap_resolve(arg_ptr, OUT &canonical_ptr);
-
-  if (result == VREM_OK) {
-    //LOG("%p => canonical %p\n", arg_ptr, canonical_ptr);
-
-    REF args[ptr_arg_index] = (u64)canonical_ptr;
-  } else if (result != VREM_NOT_REMAPPED && is_external_vmcall()) {
-    STATISTIC_UPDATE() {
-      st_vmcall_ptrarg_rewrite_misses++;
-    }
-
-    syscall_log(syscall, args);
-
-    #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
-      const struct syscall_info *sinfo = syscall_get_info(syscall);
-
-      LOG("syscall %s arg %lu (%s %s): ",
-        sinfo->name,
-        ptr_arg_index,
-        sinfo->params[ptr_arg_index].name,
-        sinfo->params[ptr_arg_index].type);
-    #else
-      LOG("syscall %lu arg %lu: ", syscall, ptr_arg_index);
-    #endif
-
-    LOG("could not translate %p: %s (code %d)\n", arg_ptr, vremap_diag(result), result);
-  }
-}
-
-static void dangless_vmcall_prehook(u64 syscall, REF u64 args[]) {
-  g_vmcall_hook_depth++;
-  ASSERT(g_vmcall_hook_depth == 1, "VMCall hook recursion??");
-
-  if (is_external_vmcall()) {
-    #if DANGLESS_CONFIG_TRACE_SYSCALLS
-      syscall_log(syscall, args);
-    #endif
-
-    STATISTIC_UPDATE() {
-      st_vmcall_count++;
-    }
-
-    // some system calls are particularly interesting, such as fork() and execve(), log them separately
-    switch (syscall) {
-  #define _INTERESTING_VMCALL_IMPL(NO, NAME) \
-      LOG("INTERESTING VMCALL: " #NAME " (" STRINGIFY(NO) ")!\n"); \
-      break
-
-  #if DANGLESS_CONFIG_TRACE_SYSCALLS
-    #define INTERESTING_VMCALL(NO, NAME) \
-      case NO: \
-        _INTERESTING_VMCALL_IMPL(NO, NAME)
-  #else
-    #define INTERESTING_VMCALL(NO, NAME) \
-      case NO: \
-        syscall_log(syscall, args); \
-        _INTERESTING_VMCALL_IMPL(NO, NAME);
-  #endif
-
-    INTERESTING_VMCALL(56, clone);
-    INTERESTING_VMCALL(57, fork);
-    INTERESTING_VMCALL(58, vfork);
-    INTERESTING_VMCALL(59, execve);
-
-  #undef _INTERESTING_VMCALL_IMPL
-  #undef INTERESTING_VMCALL
-    }
-  }
-
-  // Rewrite virtually remapped pointer arguments to their canonical variants, as the host kernel cannot possibly know anything about things that only exists in the guest's virtual memory, therefore those user pointers would appear invalid for it.
-  for (const i8 *ptrparam_no = syscall_get_userptr_params(syscall);
-       ptrparam_no && *ptrparam_no > 0;
-       ptrparam_no++) {
-    process_syscall_ptr_arg(syscall, REF args, (index_t)*ptrparam_no - 1);
-  }
-
-  g_vmcall_hook_depth--;
-}
 
 enum {
   PGFLT_FLAG_ISPRESENT  = 0x1,
@@ -217,7 +86,7 @@ void dangless_init(void) {
 
   LOG("Dune ready!\n");
 
-  // Function to run before system calls originating in ring 0 are passed on to the host kernel.
+  // Function to run before system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_prehook.c.
   // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
   __dune_vmcall_prehook = &dangless_vmcall_prehook;
 

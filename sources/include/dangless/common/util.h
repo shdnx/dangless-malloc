@@ -3,10 +3,16 @@
 
 #include <stdbool.h>
 
+#include "dangless/config.h"
+
 #define LIKELY(COND) __builtin_expect((COND), 1)
 #define UNLIKELY(COND) __builtin_expect((COND), 0)
 
-#define THREAD_LOCAL __thread
+#if DANGLESS_CONFIG_SUPPORT_MULTITHREADING
+  #define THREAD_LOCAL __thread
+#else
+  #define THREAD_LOCAL /*empty*/
+#endif
 
 #define EXPAND(V) V
 
