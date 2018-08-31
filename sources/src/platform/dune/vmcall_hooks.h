@@ -1,5 +1,5 @@
-#ifndef DANGLESS_DUNE_VMCALL_PREHOOK_H
-#define DANGLESS_DUNE_VMCALL_PREHOOK_H
+#ifndef DANGLESS_DUNE_VMCALL_HOOKS_H
+#define DANGLESS_DUNE_VMCALL_HOOKS_H
 
 #include "dangless/common/types.h"
 
@@ -15,7 +15,7 @@ static inline bool in_external_vmcall(void) {
 }
 
 extern u64 g_current_syscallno;
-extern u64 *g_current_syscall_args;
+extern u64 g_current_syscall_args[];
 
 // Determines whether the current vmcall should be traced.
 bool vmcall_should_trace_current(void);
@@ -24,5 +24,6 @@ bool vmcall_should_trace_current(void);
 void vmcall_dump_current(void);
 
 void dangless_vmcall_prehook(u64 syscall, REF u64 args[]);
+void dangless_vmcall_posthook(u64 result);
 
 #endif

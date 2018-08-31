@@ -1,3 +1,5 @@
+#include <string.h> // memcpy
+
 #include "dangless/config.h"
 #include "dangless/common/types.h"
 #include "dangless/common/assert.h"
@@ -7,7 +9,7 @@
 #include "dangless/syscallmeta.h"
 #include "dangless/dangless_malloc.h"
 
-#include "vmcall_prehook.h"
+#include "vmcall_hooks.h"
 #include "vmcall_fixup.h"
 
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_PREHOOK
@@ -21,7 +23,7 @@ STATISTIC_DEFINE_COUNTER(st_vmcall_count);
 static THREAD_LOCAL int g_vmcall_hook_depth = 0;
 
 u64 g_current_syscallno;
-u64 *g_current_syscall_args;
+u64 g_current_syscall_args[SYSCALL_MAX_ARGS];
 
 bool is_vmcall_hook_running(void) {
   return g_vmcall_hook_depth > 0;
@@ -37,6 +39,10 @@ bool vmcall_should_trace_current(void) {
   ASSERT0(is_vmcall_hook_running());
 
   if (in_internal_vmcall())
+    return false;
+
+  // ignore gettid()
+  if (g_current_syscallno == 186)
     return false;
 
   // Usually we'll want to ignore write() with fd = stdout or stderr because there tend to be many of them during debugging that make it difficult to spot the interesting output.
@@ -60,11 +66,11 @@ void vmcall_dump_current(void) {
 }
 
 void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
-  ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall prehook calls?");
+  ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
   g_vmcall_hook_depth++;
 
   g_current_syscallno = syscallno;
-  g_current_syscall_args = args;
+  memcpy(g_current_syscall_args, args, sizeof(args[0]) * SYSCALL_MAX_ARGS);
 
   STATISTIC_UPDATE() {
     if (in_external_vmcall())
@@ -107,7 +113,18 @@ void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
   vmcall_fixup_args(syscallno, REF args);
 
   if (vmcall_should_trace_current()) {
-    LOG("VMCall hook returning...\n");
+    LOG("VMCall pre-hook returning...\n");
+  }
+
+  g_vmcall_hook_depth--;
+}
+
+void dangless_vmcall_posthook(u64 result) {
+  ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
+  g_vmcall_hook_depth++;
+
+  if (vmcall_should_trace_current()) {
+    LOG("VMCall post-hook running with result: 0x%lx (%lu)...\n", result, result);
   }
 
   g_vmcall_hook_depth--;

@@ -1,9 +1,12 @@
+#include "dangless/config.h"
 #include "dangless/virtmem_alloc.h" // vp_reset()
 #include "dangless/dangless_malloc.h"
 
 #include "dunetest.h"
 
 TEST_SUITE(sysmalloc_fallback);
+
+#if DANGLESS_CONFIG_ALLOW_SYSMALLOC_FALLBACK
 
 TEST_SUITE_SETUP() {
   dunetest_init();
@@ -25,3 +28,5 @@ TEST_CASE(1) {
 
   TFREE(p);
 }
+
+#endif

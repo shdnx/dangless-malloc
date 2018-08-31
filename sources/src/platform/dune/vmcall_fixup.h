@@ -3,6 +3,7 @@
 
 #include "dangless/common/types.h"
 
+bool vmcall_fixup_is_running(void);
 int vmcall_fixup_args(u64 syscallno, u64 args[]);
 
 #endif

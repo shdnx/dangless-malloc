@@ -12,7 +12,7 @@
 #include "dangless/syscallmeta.h"
 #include "dangless/platform/virtual_remap.h"
 
-#include "vmcall_prehook.h"
+#include "vmcall_hooks.h"
 #include "vmcall_fixup.h"
 
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
@@ -32,12 +32,25 @@ STATISTIC_DEFINE_COUNTER(st_vmcall_invalid_ptrs);
 
 // NOTE: we have to make sure that we don't crash if we encounter an invalid pointer, we just have to leave those alone.
 
-static THREAD_LOCAL bool g_is_running_nested_fixups = false;
+static THREAD_LOCAL int g_fixup_depth = 0;
+
+bool vmcall_fixup_is_running(void) { return g_fixup_depth > 0; }
+
+static bool is_running_nested_fixup(void) { return g_fixup_depth > 1; }
+static void fixup_enter(void *ptr) { g_fixup_depth++; }
+
+static void fixup_leave(void *ptr) {
+  ASSERT(g_fixup_depth > 0, "Unmatched fixup_enter() and fixup_leave()? Depth is at %d", g_fixup_depth);
+  g_fixup_depth--;
+}
+
+#define FIXUP_SCOPE(PTR) CODE_CONTEXT(fixup_enter((PTR)), fixup_leave((PTR)))
 
 static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
   ASSERT0(pptr);
   void *ptr = *pptr;
 
+  // fast-path for NULL and obviously invalid pointers (often generated through e.g. member accesses through NULL pointers)
   if ((uintptr_t)ptr < PGSIZE) {
     if (is_valid)
       OUT *is_valid = false;
@@ -59,7 +72,7 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
       if (in_external_vmcall()) {
         st_vmcall_ptr_fixups++;
 
-        if (g_is_running_nested_fixups)
+        if (is_running_nested_fixup())
           st_vmcall_nested_ptr_fixups++;
       }
     }
@@ -98,27 +111,29 @@ static int fixup_ptr_ptr_nullterm(REF void ***pptrs) {
   if (!is_valid_ptr)
     return -1;
 
-  g_is_running_nested_fixups = true;
   void **ptrs = *pptrs;
 
   if (vmcall_should_trace_current()) {
     LOG("Fixing up null-terminated ptr array of ");
+
     size_t num_items;
     for (num_items = 0; ptrs[num_items]; num_items++)
       /*empty*/;
+
     dprintf("%zu items\n", num_items);
   }
 
-  for (size_t i = 0; ptrs[i]; i++) {
-    LOG("Fixing up item %zu...\n", i);
-    if (fixup_ptr(REF &ptrs[i], OUT_IGNORE) < 0) {
-      LOG("Failed to fix-up item %zu in null-terminated pointer array %p\n", i, (void *)ptrs);
-      result--;
+  FIXUP_SCOPE(pptrs) {
+    for (size_t i = 0; ptrs[i]; i++) {
+      LOG("Fixing up item %zu...\n", i);
+      if (fixup_ptr(REF &ptrs[i], OUT_IGNORE) < 0) {
+        LOG("Failed to fix-up item %zu in null-terminated pointer array %p\n", i, (void *)ptrs);
+        result--;
+      }
     }
   }
 
   LOG("Done, result: %d\n", result);
-  g_is_running_nested_fixups = false;
   return result;
 }
 
@@ -140,21 +155,20 @@ static int fixup_iovec_array(REF struct iovec ARRAY **piovecs, size_t num_iovecs
   if (!is_valid_ptr)
     return -1;
 
-  g_is_running_nested_fixups = true;
-
   LOG("Fixing up iovec array of %zu items:\n", num_iovecs);
   dump_mem_region(*piovecs, num_iovecs * sizeof(struct iovec));
 
-  for (size_t i = 0; i < num_iovecs; i++) {
-    LOG("Fixing up item %zu...\n", i);
-    if (fixup_ptr(REF &(*piovecs)[i].iov_base, OUT_IGNORE) < 0) {
-      LOG("Failed to fix-up item %zu of iovec array %p\n", i, (void *)*piovecs);
-      result--;
+  FIXUP_SCOPE(piovecs) {
+    for (size_t i = 0; i < num_iovecs; i++) {
+      LOG("Fixing up item %zu...\n", i);
+      if (fixup_ptr(REF &(*piovecs)[i].iov_base, OUT_IGNORE) < 0) {
+        LOG("Failed to fix-up item %zu of iovec array %p\n", i, (void *)*piovecs);
+        result--;
+      }
     }
   }
 
   LOG("Done, result: %d\n", result);
-  g_is_running_nested_fixups = false;
   return result;
 }
 
@@ -181,33 +195,35 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
     return -1;
 
   struct msghdr *msghdr = *pmsghdr;
-  g_is_running_nested_fixups = true;
 
   LOG("Fixing up msghdr:\n");
   DUMP_VAR_MEM(*msghdr);
 
-  LOG("msg_name...\n");
+  FIXUP_SCOPE(pmsghdr) {
+    LOG("msg_name...\n");
 
-  if (fixup_ptr((void **)&msghdr->msg_name, OUT_IGNORE) < 0) {
-    LOG("Failed to fix-up msg_name of msghdr %p\n", (void *)msghdr);
-    result--;
+    if (fixup_ptr(REF (void **)&msghdr->msg_name, OUT_IGNORE) < 0) {
+      LOG("Failed to fix-up msg_name of msghdr %p\n", (void *)msghdr);
+      result--;
+    }
+
+    LOG("msg_iov...\n");
+
+    if (fixup_iovec_array(REF &msghdr->msg_iov, msghdr->msg_iovlen) < 0) {
+      LOG("Failed to fix-up msg_iov of msghdr %p\n", (void *)msghdr);
+      result--;
+    }
+
+    LOG("msg_control...\n");
+
+    // TODO: why was this like this??
+    //if (fixup_ptr(msghdr->msg_control, OUT_IGNORE) < 0) {
+    if (fixup_ptr(REF &msghdr->msg_control, OUT_IGNORE) < 0) {
+      LOG("Failed to fix-up msg_control of msghdr %p\n", (void *)msghdr);
+      result--;
+    }
   }
 
-  LOG("msg_iov...\n");
-
-  if (fixup_iovec_array(REF &msghdr->msg_iov, msghdr->msg_iovlen) != 0) {
-    LOG("Failed to fix-up msg_iov of msghdr %p\n", (void *)msghdr);
-    result--;
-  }
-
-  LOG("msg_control...\n");
-
-  if (fixup_ptr(msghdr->msg_control, OUT_IGNORE) < 0) {
-    LOG("Failed to fix-up msg_control of msghdr %p\n", (void *)msghdr);
-    result--;
-  }
-
-  g_is_running_nested_fixups = false;
   LOG("Done, result: %d\n", result);
   return result;
 }
@@ -215,6 +231,7 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
 enum syscall_param_fixup_flags {
   SYSCALL_PARAM_VALID     = 1 << 0,
 
+  // TODO: these are all mutually exclusive, so we don't need one dedicated bit for each, we can just use a counter
   SYSCALL_PARAM_USER_PTR  = 1 << 1,
   SYSCALL_PARAM_IOVEC     = 1 << 2,
   SYSCALL_PARAM_PTR_PTR   = 1 << 3,
@@ -239,6 +256,8 @@ static void syscall_param_fixup_flags_dump(enum syscall_param_fixup_flags flags)
   HANDLE_FLAG(PTR_PTR);
   HANDLE_FLAG(MSGHDR);
   HANDLE_FLAG(LAST);
+
+  #undef HANDLE_FLAG
 
   dprintf(")");
 }
@@ -292,19 +311,23 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
     }
 
     u64 *parg = &args[arg_index];
-
     int result;
-    if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_IOVEC)) {
-      // the length of the iovec array seems to be always passed in as the next argument
-      size_t num_iovecs = (size_t)args[arg_index + 1];
-      result = fixup_iovec_array(REF (struct iovec **)parg, num_iovecs);
-    } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_PTR_PTR)) {
-      result = fixup_ptr_ptr_nullterm(REF (void ***)parg);
-    } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_MSGHDR)) {
-      result = fixup_msghdr(REF (struct msghdr **)parg);
-    } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_USER_PTR)) {
-      // NOTE: all of the above fixups already take care of this, so we only want to do raw fixup_ptr() if that's the ONLY thing we have to do
-      result = fixup_ptr(REF (void **)parg, OUT_IGNORE);
+
+    FIXUP_SCOPE(parg) {
+      if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_IOVEC)) {
+        // the length of the iovec array seems to be always passed in as the next argument
+        size_t num_iovecs = (size_t)args[arg_index + 1];
+        result = fixup_iovec_array(REF (struct iovec **)parg, num_iovecs);
+      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_PTR_PTR)) {
+        result = fixup_ptr_ptr_nullterm(REF (void ***)parg);
+      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_MSGHDR)) {
+        result = fixup_msghdr(REF (struct msghdr **)parg);
+      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_USER_PTR)) {
+        // NOTE: all of the above fixups already take care of this, so we only want to do raw fixup_ptr() if that's the ONLY thing we have to do
+        result = fixup_ptr(REF (void **)parg, OUT_IGNORE);
+      } else {
+        UNREACHABLE("Unhandled fixup flags: %d", pfixup_flags);
+      }
     }
 
     LOG("Done fixup of arg %zu\n", arg_index);

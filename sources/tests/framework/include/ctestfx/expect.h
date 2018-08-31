@@ -79,10 +79,10 @@ void _ctestfx_expect_fail(const char *func, int line, const char *msg_format, ..
   CTESTFX_EXPECT1(A, _COND_FALSE, "expected " #A " to be false");
 
 #define EXPECT_NULL(A) \
-  CTESTFX_EXPECT1(A, _COND_NULL, "expected " #A " to be null");
+  CTESTFX_EXPECT1((const void *)(A), _COND_NULL, "expected " #A " to be null");
 
 #define EXPECT_NOT_NULL(A) \
-  CTESTFX_EXPECT1(A, _COND_NOT_NULL, "expected " #A " to be non-null");
+  CTESTFX_EXPECT1((const void *)(A), _COND_NOT_NULL, "expected " #A " to be non-null");
 
 #define EXPECT_EQUALS(A, B) \
   CTESTFX_EXPECT2(A, B, _COND_EQ, "expected " #A " to equal " #B)

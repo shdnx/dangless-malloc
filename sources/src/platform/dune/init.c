@@ -8,7 +8,7 @@
 #include "dangless/common/statistics.h"
 #include "dangless/virtmem.h"
 
-#include "vmcall_prehook.h"
+#include "vmcall_hooks.h"
 #include "dune.h"
 
 #if DANGLESS_CONFIG_DEBUG_INIT
@@ -95,6 +95,7 @@ void dangless_init(void) {
   // Function to run before system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_prehook.c.
   // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
   __dune_vmcall_prehook = &dangless_vmcall_prehook;
+  __dune_vmcall_posthook = &dangless_vmcall_posthook;
 
   // Register page-fault handler, for diagnostic purposes
   dune_register_pgflt_handler(&dangless_pagefault_handler);

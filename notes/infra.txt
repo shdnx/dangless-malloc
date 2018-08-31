@@ -9,8 +9,13 @@ $ ./setup.py build --dangless-profile="release" --targets spec2006 --instances b
 Build for testing/debugging:
 $ ./setup.py build --dangless-debug --targets spec2006 --instances dangless-malloc
 
+Don't use --parallel=proc while Dune still needs hugepages, it won't end well!
+
 Test run:
-$ ./setup.py run --parallel=proc spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
+$ ./setup.py run spec2006 baseline dune-only dangless-malloc --test --benchmarks all_c all_cpp
+
+Test run only with Dangless:
+$ ./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
 
 Test run for a particular few benchmarks only with Dangless:
 $ ./setup.py run spec2006 dangless-malloc --test --benchmarks 462.libquantum
