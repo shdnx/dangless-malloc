@@ -16,6 +16,7 @@ static inline bool in_external_vmcall(void) {
 
 extern u64 g_current_syscallno;
 extern u64 g_current_syscall_args[];
+extern u64 g_current_syscall_return_addr;
 
 // Determines whether the current vmcall should be traced.
 bool vmcall_should_trace_current(void);

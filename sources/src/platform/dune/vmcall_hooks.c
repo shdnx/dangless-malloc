@@ -11,6 +11,7 @@
 
 #include "vmcall_hooks.h"
 #include "vmcall_fixup.h"
+#include "vmcall_handle_fork.h"
 
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_PREHOOK
   #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
@@ -24,6 +25,7 @@ static THREAD_LOCAL int g_vmcall_hook_depth = 0;
 
 u64 g_current_syscallno;
 u64 g_current_syscall_args[SYSCALL_MAX_ARGS];
+u64 g_current_syscall_return_addr;
 
 bool is_vmcall_hook_running(void) {
   return g_vmcall_hook_depth > 0;
@@ -67,12 +69,13 @@ void vmcall_dump_current(void) {
   syscall_log(g_current_syscallno, g_current_syscall_args);
 }
 
-void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
+void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *pretaddr) {
   ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
   g_vmcall_hook_depth++;
 
-  g_current_syscallno = syscallno;
+  g_current_syscallno = *psyscallno;
   memcpy(g_current_syscall_args, args, sizeof(args[0]) * SYSCALL_MAX_ARGS);
+  g_current_syscall_return_addr = *pretaddr;
 
   STATISTIC_UPDATE() {
     if (in_external_vmcall())
@@ -113,6 +116,13 @@ void dangless_vmcall_prehook(u64 syscallno, REF u64 args[]) {
 
   // The host kernel will choke on memory addresses that have been remapped by dangless, since those memory regions are only mapped inside the guest virtual memory, but do not appear in the host virtual memory. Therefore, for the vmcalls, we have to detect such memory addresses referenced directly or indirectly (e.g. through a struct) by their arguments and replace them with their canonical counterparts.
   vmcall_fixup_args(syscallno, REF args);
+
+  // handle clone(), fork() and vfork() respectively
+  if (syscallno == (u64)56
+      || syscallno == (u64)57
+      || syscallno == (u64)58) {
+    vmcall_handle_fork(REF pretaddr);
+  }
 
   if (vmcall_should_trace_current()) {
     LOG("VMCall pre-hook returning...\n");
