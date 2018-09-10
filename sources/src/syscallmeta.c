@@ -56,20 +56,29 @@ const i8 *syscall_get_userptr_params(index_t syscallno) {
 
 #endif // DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
 
+static void syscall_log_noinfo(u64 syscallno, u64 args[]) {
+  dprintf_nomalloc("syscall [%lu]: (\n", syscallno);
+  for (index_t i = 0; i < SYSCALL_MAX_ARGS; i++) {
+    dprintf_nomalloc("\targ%ld = %lu (0x%lx)\n", i, args[i], args[i]);
+  }
+  dprintf_nomalloc(")\n");
+}
+
 void syscall_log(u64 syscallno, u64 args[]) {
   #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
     const struct syscall_info *info = syscall_get_info(syscallno);
+    if (!info) {
+      dprintf_nomalloc("UNKNOWN ");
+      syscall_log_noinfo(syscallno, args);
+      return;
+    }
 
-    dprintf("syscall: %s(\n", info->name);
+    dprintf_nomalloc("syscall [%lu]: %s(\n", syscallno, info->name);
     for (index_t i = 0; i < info->num_params; i++) {
-      dprintf("\t%s %s = %lx\n", info->params[i].type, info->params[i].name, args[i]);
+      dprintf_nomalloc("\t%s %s = %lu (0x%lx)\n", info->params[i].type, info->params[i].name, args[i], args[i]);
     }
-    dprintf(")\n");
+    dprintf_nomalloc(")\n");
   #else
-    dprintf("syscall: %1$lu (0x%1$lx) (\n", syscallno);
-    for (index_t i = 0; i < SYSCALL_MAX_ARGS; i++) {
-      dprintf("\targ%1$ld = %2$lu (0x%2$lx)\n", i, args[i]);
-    }
-    dprintf(")\n");
+    syscall_log_noinfo(syscallno, args);
   #endif
 }

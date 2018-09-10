@@ -41,19 +41,21 @@ bool vmcall_should_trace_current(void) {
   if (in_internal_vmcall())
     return false;
 
+  // NOTE: for these comparisons, ALWAYS cast integer literals explicitly to u64, otherwise the check will silently get optimized out by GCC. WTF!!
+
   // ignore gettid()
-  if (g_current_syscallno == 186)
+  if (g_current_syscallno == (u64)186)
     return false;
 
   // Usually we'll want to ignore write() with fd = stdout or stderr because there tend to be many of them during debugging that make it difficult to spot the interesting output.
 
   #if DANGLESS_CONFIG_TRACE_SYSCALLS_NO_WRITE_STDOUT
-    if (g_current_syscallno == 1 && g_current_syscall_args[0] == 1)
+    if (g_current_syscallno == (u64)1 && g_current_syscall_args[0] == (u64)1)
       return false;
   #endif
 
   #if DANGLESS_CONFIG_TRACE_SYSCALLS_NO_WRITE_STDERR
-    if (g_current_syscallno == 1 && g_current_syscall_args[0] == 2)
+    if (g_current_syscallno == (u64)1 && g_current_syscall_args[0] == (u64)2)
       return false;
   #endif
 
