@@ -28,6 +28,7 @@ BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH)/dangless/buil
 include make/buildconfig-defaults.mk
 
 CC ?= gcc
+AS ?= as
 AR ?= ar
 RANLIB ?= ranlib
 
@@ -51,10 +52,12 @@ CORE_OBJS := $(patsubst $(CORE_SRCS_DIR)/%.c,$(CORE_OBJS_DIR)/%.o,$(CORE_SRCS))
 
 PLATFORM_SRCS_DIR := src/platform/$(PLATFORM)
 PLATFORM_SRCS := $(wildcard $(PLATFORM_SRCS_DIR)/*.c)
+PLATFORM_ASM_SRCS := $(wildcard $(PLATFORM_SRCS_DIR)/*.S)
 PLATFORM_OBJS_DIR := $(BASE_OBJS_DIR)/platform
-PLATFORM_OBJS := $(patsubst $(PLATFORM_SRCS_DIR)/%.c,$(PLATFORM_OBJS_DIR)/%.o,$(PLATFORM_SRCS))
+PLATFORM_OBJS := $(patsubst $(PLATFORM_SRCS_DIR)/%.c,$(PLATFORM_OBJS_DIR)/%.o,$(PLATFORM_SRCS)) $(patsubst $(PLATFORM_SRCS_DIR)/%.S,$(PLATFORM_OBJS_DIR)/%_asm.o,$(PLATFORM_ASM_SRCS))
 
 SRCS := $(CORE_SRCS) $(PLATFORM_SRCS)
+ASM_SRCS := $(PLATFORM_ASM_SRCS)
 OBJS := $(CORE_OBJS) $(PLATFORM_OBJS)
 DEPS := $(OBJS:.o=.d)
 
@@ -84,6 +87,9 @@ $(CORE_OBJS_DIR)/%.o: src/%.c
 
 $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
+
+$(PLATFORM_OBJS_DIR)/%_asm.o: src/platform/$(PLATFORM)/%.S
+	$(AS) $< -o $@
 
 $(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(SYSCALL_PARAM_FIXUP_FLAGS_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
