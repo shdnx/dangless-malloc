@@ -14,10 +14,14 @@ paddr_t pp_alloc(size_t npages) {
   ASSERT0(npages == 1);
 
   struct page *pg = dune_page_alloc();
-  if (!pg)
+  if (!pg) {
+    LOG("Failed to allocate physical memory page!\n");
     return 0;
+  }
 
-  return dune_page2pa(pg);
+  paddr_t pa = dune_page2pa(pg);
+  LOG("Allocated physical memory page: %p\n", (void *)pa);
+  return pa;
 }
 
 paddr_t pp_zalloc(size_t npages) {
@@ -35,6 +39,7 @@ paddr_t pp_zalloc(size_t npages) {
 void pp_free(paddr_t pa, size_t npages) {
   ASSERT0(npages == 1);
 
+  LOG("Freeing physical memory region from %p for %zu pages\n", (void *)pa, npages);
   struct page *pg = dune_pa2page(pa);
   ASSERT0(pg->ref == 1);
 

@@ -15,6 +15,9 @@
 #include "vmcall_hooks.h"
 #include "vmcall_fixup.h"
 
+// stack_base, mmap_base, etc.
+#include "dune.h"
+
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
   #define LOG(...) \
     if (vmcall_should_trace_current()) \
@@ -46,6 +49,23 @@ static void fixup_leave(void *ptr) {
 
 #define FIXUP_SCOPE(PTR) CODE_CONTEXT(fixup_enter((PTR)), fixup_leave((PTR)))
 
+static bool is_trivially_not_remapped(void *ptr) {
+  uintptr_t addr = (uintptr_t)ptr;
+
+  // this is all based on dune_va_to_pa() in dune.h
+
+  if (stack_base + GPA_STACK_SIZE <= addr)
+    return false;
+
+  // the stack is trivially never remapped by Dangless
+  if (stack_base <= addr && addr < stack_base + GPA_STACK_SIZE)
+    return true;
+
+  // TODO: the .data and the .bss segments? (static lifestyle variables)
+
+  return false;
+}
+
 static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
   ASSERT0(pptr);
   void *ptr = *pptr;
@@ -59,6 +79,11 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
   }
 
   LOG("Fixing up ptr %p...\n", ptr);
+
+  if (is_trivially_not_remapped(ptr)) {
+    LOG("Trivially not remapped, skipping\n");
+    return 0;
+  }
 
   void *canonical_ptr;
   int result = vremap_resolve(ptr, OUT &canonical_ptr);

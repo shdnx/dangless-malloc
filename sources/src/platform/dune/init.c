@@ -53,6 +53,7 @@ static void dangless_pagefault_handler(vaddr_t addr_, u64 flags, struct dune_tf 
 
   PRINTF_SAFE("\n");
   dune_dump_trap_frame(tf);
+  dune_procmap_dump();
   dune_die(); // RIP
 }
 

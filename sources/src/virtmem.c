@@ -1,4 +1,8 @@
-#include <pthread.h>
+#if DANGLESS_CONFIG_SUPPORT_MULTITHREADING
+  #include <pthread.h>
+#else
+  #include "dangless/pthread_mock.h"
+#endif
 
 #include "dangless/common.h"
 #include "dangless/common/statistics.h"
@@ -82,6 +86,8 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   ASSERT0(pa % PGSIZE == 0);
   ASSERT0(va % PGSIZE == 0);
 
+  LOG("mapping physical page %p to virtual %p with flags %d\n", (void *)pa, (void *)va, flags);
+
   // NOTE: ideally, we would do some more fine-grained locking that would allow unrelated mappings to happen in parallel
   // this would be especially important with having thread-local virtual memory regions dedicated to threads that they can use for remapping
   // for instance, each PML4 entry could have its own mutex
@@ -135,6 +141,8 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
   ASSERT0(pa % PGSIZE == 0);
   ASSERT0(va % PGSIZE == 0);
   ASSERT0(size % PGSIZE == 0);
+
+  LOG("mapping physical region %p to virtual region %p of size %zu with flags %d\n", (void *)pa, (void *)va, size, flags);
 
   // TODO: can use huge-page mapping transparently here if pa, va and size are all multiplies of 2 MB
 
