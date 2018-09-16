@@ -50,6 +50,8 @@ void dump_mappings(FILE *os, vaddr_t va_start, vaddr_t va_end) {
         start = 0;
       }
 
+      //fprintf(os, "Unmapped VA 0x%lx\n", va);
+
       mapped = false;
       identity = false;
       if (!start)

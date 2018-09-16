@@ -52,18 +52,12 @@ static void fixup_leave(void *ptr) {
 static bool is_trivially_not_remapped(void *ptr) {
   uintptr_t addr = (uintptr_t)ptr;
 
-  // this is all based on dune_va_to_pa() in dune.h
+  // TODO: .text, .data, .rodata, .bss
 
-  if (stack_base + GPA_STACK_SIZE <= addr)
-    return false;
-
-  // the stack is trivially never remapped by Dangless
-  if (stack_base <= addr && addr < stack_base + GPA_STACK_SIZE)
-    return true;
-
-  // TODO: the .data and the .bss segments? (static lifestyle variables)
-
-  return false;
+  return
+    // the stack is trivially never remapped by Dangless
+    // this is based on dune_va_to_pa() in dune.h
+    (stack_base <= addr && addr < stack_base + GPA_STACK_SIZE);
 }
 
 static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
@@ -82,7 +76,11 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
 
   if (is_trivially_not_remapped(ptr)) {
     LOG("Trivially not remapped, skipping\n");
-    return 0;
+
+    if (is_valid)
+      OUT *is_valid = true;
+
+    return VREM_NOT_REMAPPED;
   }
 
   void *canonical_ptr;
@@ -139,13 +137,13 @@ static int fixup_ptr_ptr_nullterm(REF void ***pptrs) {
   void **ptrs = *pptrs;
 
   if (vmcall_should_trace_current()) {
-    LOG("Fixing up null-terminated ptr array of ");
+    LOG("Fixing up null-terminated ptr array of...\n");
 
     size_t num_items;
     for (num_items = 0; ptrs[num_items]; num_items++)
       /*empty*/;
 
-    dprintf("%zu items\n", num_items);
+    LOG("... %zu items\n", num_items);
   }
 
   FIXUP_SCOPE(pptrs) {
@@ -296,13 +294,49 @@ static const u8 g_syscall_param_fixup_flags[][SYSCALL_MAX_ARGS] = {
   #include "dangless/build/common/syscall_param_fixup_flags.c"
 };
 
+const u8 *vmcall_get_param_fixup_flags(u64 syscallno) {
+  // workaround: handle clone() specially, because the Python script that generates syscall_param_fixup_flags.c cannot handle the #if-s properly
+  if (syscallno == (u64)56) {
+    /*
+      The raw system call interface on x86-64 and some other architectures (including sh, tile, and alpha) is:
+
+       long clone(unsigned long flags, void *child_stack,
+                  int *ptid, int *ctid,
+                  unsigned long newtls);
+
+      Source: http://man7.org/linux/man-pages/man2/clone.2.html
+    */
+
+    static const u8 clone_flags[SYSCALL_MAX_ARGS] = {
+      // unsigned long flags
+      SYSCALL_PARAM_VALID,
+
+      // void *child_stack
+      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
+
+      // int *ptid
+      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
+
+      // int *ctid
+      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
+
+      // unsigned long newtls
+      SYSCALL_PARAM_VALID | SYSCALL_PARAM_LAST
+    };
+
+    return clone_flags;
+  }
+
+  return g_syscall_param_fixup_flags[syscallno];
+}
+
 int vmcall_fixup_args(u64 syscallno, u64 args[]) {
   // Rewrite virtually remapped pointer arguments to their canonical variants, as the host kernel cannot possibly know anything about things that only exists in the guest's virtual memory, therefore those user pointers would appear invalid for it.
   // Note that pointers can also be nested, e.g. in arrays and even inside various structs.
 
   int final_result = 0;
 
-  const u8 *pparam_fixup_flags = g_syscall_param_fixup_flags[syscallno];
+  const u8 *pparam_fixup_flags = vmcall_get_param_fixup_flags(syscallno);
   for (size_t arg_index = 0;
        FLAG_ISSET(*pparam_fixup_flags, SYSCALL_PARAM_VALID);
        arg_index++, pparam_fixup_flags++

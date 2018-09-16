@@ -73,7 +73,7 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
   ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
   g_vmcall_hook_depth++;
 
-  g_current_syscallno = *psyscallno;
+  u64 syscallno = g_current_syscallno = *psyscallno;
   memcpy(g_current_syscall_args, args, sizeof(args[0]) * SYSCALL_MAX_ARGS);
   g_current_syscall_return_addr = *pretaddr;
 
@@ -118,11 +118,12 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
   vmcall_fixup_args(syscallno, REF args);
 
   // handle clone(), fork() and vfork() respectively
-  if (syscallno == (u64)56
+  // TODO: this is currently broken and disabled
+  /*if (syscallno == (u64)56
       || syscallno == (u64)57
       || syscallno == (u64)58) {
     vmcall_handle_fork(REF pretaddr);
-  }
+  }*/
 
   if (vmcall_should_trace_current()) {
     LOG("VMCall pre-hook returning...\n");

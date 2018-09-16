@@ -53,29 +53,14 @@ static void dangless_pagefault_handler(vaddr_t addr_, u64 flags, struct dune_tf 
 
   PRINTF_SAFE("\n");
   dune_dump_trap_frame(tf);
-  dune_procmap_dump();
-  dune_die(); // RIP
+
+  // this seems to cause the application to hang endlessly, don't do it
+  //dune_procmap_dump();
+
+  dune_die();
 }
 
-static void dangless_sigsegv_handler(struct dune_tf *tf) {
-  PRINTF_SAFE("!!! SIGSEGV at IP = %p\n", (void *)tf->rip);
-  dune_dump_trap_frame(tf);
-  dune_die(); // RIP
-}
-
-void dangless_init(void) {
-  STATISTIC_UPDATE() {
-    st_init_happened++;
-  }
-
-  static bool s_initalized = false;
-  if (s_initalized)
-    return;
-
-  s_initalized = true;
-
-  LOG("Dangless init starting, platform = " STRINGIFY(DANGLESS_CONFIG_PLATFORM) ", profile = " STRINGIFY(DANGLESS_CONFIG_PROFILE) "\n");
-
+void dangless_enter_dune(void) {
   LOG("Initializing Dune...\n");
 
   int result;
@@ -92,8 +77,24 @@ void dangless_init(void) {
   }
 
   LOG("Dune ready!\n");
+}
 
-  // Function to run before system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_prehook.c.
+void dangless_init(void) {
+  STATISTIC_UPDATE() {
+    st_init_happened++;
+  }
+
+  static bool s_initalized = false;
+  if (s_initalized)
+    return;
+
+  s_initalized = true;
+
+  LOG("Dangless init starting, platform = " STRINGIFY(DANGLESS_CONFIG_PLATFORM) ", profile = " STRINGIFY(DANGLESS_CONFIG_PROFILE) "\n");
+
+  dangless_enter_dune();
+
+  // Functions to run before and after system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_hooks.c.
   // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
   __dune_vmcall_prehook = &dangless_vmcall_prehook;
   __dune_vmcall_posthook = &dangless_vmcall_posthook;
@@ -101,8 +102,7 @@ void dangless_init(void) {
   // Register page-fault handler, for diagnostic purposes
   dune_register_pgflt_handler(&dangless_pagefault_handler);
 
-  // Register SIGSEGV handler for debugging
-  dune_register_signal_handler(11, &dangless_sigsegv_handler);
+  // unfortunately signal handling only works for userspace, it's useless for our purposes, otherwise it'd be nice to register a signal handler for SIGSEGV...
 
   LOG("Running...\n");
 }

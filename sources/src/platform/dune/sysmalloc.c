@@ -27,6 +27,7 @@ static void(*addr_sysfree)(void *) = NULL;
 static void populate_addrs(void) {
   ASSERT(!g_populating, "Recursive populate_addrs() call!");
   g_populating = true;
+  LOG("Populating system memory allocator symbols using dlsym()...\n");
 
   void *h;
 
@@ -56,6 +57,7 @@ static void populate_addrs(void) {
 
 #undef HANDLE_SYM
 
+  LOG("Done populating symbols!\n");
   g_populating = false;
 }
 
@@ -63,7 +65,9 @@ void *sysmalloc(size_t sz) {
   if (UNLIKELY(!addr_sysmalloc))
     populate_addrs();
 
-  return addr_sysmalloc(sz);
+  void *p = addr_sysmalloc(sz);
+  LOG("sysmalloc(%zu) => %p\n", sz, p);
+  return p;
 }
 
 static void *syscalloc_special(size_t num, size_t size) {

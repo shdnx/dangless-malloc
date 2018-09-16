@@ -184,7 +184,7 @@ void *dangless_malloc(size_t size) {
   if (!HOOK_ENTER())
     return p;
 
-  LOG("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
+  //LOG("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
 
   HOOK_RETURN(do_vremap(p, size, "malloc"));
 }
@@ -283,7 +283,7 @@ void *dangless_realloc(void *p, size_t new_size) {
   if (p) {
     // TODO: there's some bullshit going on here, LOG() is screwing up "result"???
     const int result = vremap_resolve(p, OUT &original_ptr);
-    LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(result), result, original_ptr);
+    //LOG("vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(result), result, original_ptr);
     //fprintf(stderr, "2 vremap_resolve(%p) => %s (%d), %p\n", p, vremap_diag(result), result, original_ptr);
 
     if (result == 0) {

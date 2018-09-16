@@ -24,7 +24,7 @@ bool vmcall_should_trace_current(void);
 // Dump's information about the current vmcall to stderr.
 void vmcall_dump_current(void);
 
-void dangless_vmcall_prehook(u64 syscall, REF u64 args[]);
+void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *pretaddr);
 void dangless_vmcall_posthook(u64 result);
 
 #endif
