@@ -1,0 +1,138 @@
+diff --git a/libdune/dune.S b/libdune/dune.S
+index a8f34c0..9762d57 100644
+--- a/libdune/dune.S
++++ b/libdune/dune.S
+@@ -268,6 +268,64 @@ __dune_go_dune:
+ 	movq	%rsi, %r13
+ 	jmp	__dune_reenter
+ 
++.macro VMCALL_HOOK_SAVE_REGS
++	// From the System V AMD64 ABI calling convention: "If the callee wishes to use registers RBX, RBP, and R12-R15, it must restore their original values before returning control to the caller. All other registers must be saved by the caller if it wishes to preserve their values."
++	// so we have to save rax, rcx, rdx, rdi, rsi, r8-11 before calling into the C prehook; these are all needed for the system call anyway (r11 with rflags is saved as first thing in this function)
++	pushq %rcx // return address
++	pushq %rax // syscall number
++
++	// save the syscall arguments in an array on the stack
++	pushq %r9  // arg 6
++	pushq %r8  // arg 5
++	pushq %r10 // arg 4
++	pushq %rdx // arg 3
++	pushq %rsi // arg 2
++	pushq %rdi // arg 1
++.endm
++
++.macro VMCALL_HOOK_RESTORE_REGS
++	// restore the syscall arguments
++	popq %rdi // arg 1
++	popq %rsi // arg 2
++	popq %rdx // arg 3
++	popq %r10 // arg 4
++	popq %r8  // arg 5
++	popq %r9  // arg 6
++
++	popq %rax // syscall number
++	popq %rcx // return address
++.endm
++
++// TODO: this probably could be optimized
++// TODO: multi-threading??
++.macro VMCALL_HOOK_TRY_ENTER hook_varname:req, passthrough_label:req
++	// check if a vmcall hook is currently running; if yes, then passthrough
++	pushq %rax
++	movq __dune_vmcall_hook_running, %rax
++	testq %rax, %rax
++	popq %rax
++	jnz \passthrough_label
++
++	// now check if a hook is even registered
++	pushq %rax
++	movq \hook_varname, %rax
++	testq %rax, %rax
++	popq %rax
++	jz \passthrough_label
++
++	// prevent recursive hooks
++	movq $1, __dune_vmcall_hook_running
++
++	// save syscall registers
++	VMCALL_HOOK_SAVE_REGS
++.endm
++
++.macro VMCALL_HOOK_EXIT
++	movq $0, __dune_vmcall_hook_running
++
++	VMCALL_HOOK_RESTORE_REGS
++.endm
++
+ /*
+  * System Call ABI
+  * ---------------
+@@ -291,9 +349,31 @@ __dune_syscall:
+ 	/* handle system calls from G0 */
+ 	testq $1, %gs:IN_USERMODE
+ 	jnz 1f
+-	pushq	%r11
+-	popfq
++
++	pushq %r11 // contains rflags
++
++	VMCALL_HOOK_TRY_ENTER __dune_vmcall_prehook, passthrough_to_host
++
++	leaq 48(%rsp), %rdi // argument 1: pointer to syscall number (48 = 6 * 8)
++	movq %rsp, %rsi // argument 2: syscall arguments array
++	leaq 56(%rsp), %rdx // argument 3: pointer to return address (56 = 7 * 8)
++	call *__dune_vmcall_prehook
++
++	VMCALL_HOOK_EXIT
++
++passthrough_to_host:
++	// forward the syscall to the host kernel
++	popfq // restore rflags (was placed by syscall to %r11 originally)
+ 	vmcall
++
++	VMCALL_HOOK_TRY_ENTER __dune_vmcall_posthook, passthrough_to_user
++
++	movq %rax, %rdi // argument 1: syscall return value
++	call *__dune_vmcall_posthook
++
++	VMCALL_HOOK_EXIT
++
++passthrough_to_user:
+ 	jmp	*%rcx
+ 
+ 1:
+diff --git a/libdune/dune.h b/libdune/dune.h
+index 80bf24d..7b3e94f 100644
+--- a/libdune/dune.h
++++ b/libdune/dune.h
+@@ -356,3 +356,14 @@ static inline int dune_init_and_enter(void)
+ }
+ 
+ extern void dune_control_guest_ints(bool enable);
++
++// Function to run before and after system calls originating in ring 0 are passed on to the host kernel.
++// Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
++// Used in dune.S, defined in trap.c.
++typedef void(*dune_vmcall_prehook_t)(uint64_t *psyscallno, uint64_t args[], uint64_t *pretaddr);
++extern dune_vmcall_prehook_t __dune_vmcall_prehook;
++
++typedef void(*dune_vmcall_posthook_t)(uint64_t result);
++extern dune_vmcall_posthook_t __dune_vmcall_posthook;
++
++extern int __dune_vmcall_hook_running;
+diff --git a/libdune/trap.c b/libdune/trap.c
+index caf8aba..f39b34c 100644
+--- a/libdune/trap.c
++++ b/libdune/trap.c
+@@ -14,6 +14,11 @@ static dune_syscall_cb syscall_cb;
+ static dune_pgflt_cb pgflt_cb;
+ static dune_intr_cb intr_cbs[IDT_ENTRIES];
+ 
++// Function to run before and after system calls originating in ring 0 are passed on to the host kernel. Used in dune.S.
++dune_vmcall_prehook_t __dune_vmcall_prehook;
++dune_vmcall_posthook_t __dune_vmcall_posthook;
++int __dune_vmcall_hook_running;
++
+ static inline unsigned long read_cr2(void)
+ {
+ 	unsigned long val;
