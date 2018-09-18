@@ -1,0 +1,41 @@
+List of benchmarks to run:
+400.perlbench 401.bzip2 403.gcc 429.mcf 433.milc 444.namd 445.gobmk 447.dealII 450.soplex 453.povray 456.hmmer 458.sjeng 462.libquantum 464.h264ref 470.lbm 471.omnetpp 473.astar 483.xalancbmk
+
+-----
+
+Error: 1x403.gcc 1x410.bwaves 1x416.gamess 1x433.milc 1x434.zeusmp 1x435.gromacs 1x436.cactusADM 1x437.leslie3d 1x447.dealII 1x454.calculix 1x459.GemsFDTD 1x465.tonto 1x471.omnetpp 1x481.wrf 1x482.sphinx3 1x483.xalancbmk
+
+Success: 1x401.bzip2 1x429.mcf 1x444.namd 1x445.gobmk 1x450.soplex 1x453.povray 1x456.hmmer 1x458.sjeng 1x462.libquantum 1x464.h264ref 1x470.lbm 1x473.astar
+
+-----
+
+4 GB excession (Unhandled page fault on 0x100000018, flags: 2 [kernel | write | not-present]):
+ - 447.dealII
+ - 471.omnetpp
+ - 482.sphinx3
+ - 483.xalancbmk
+
+OOM killed:
+ - 400.perlbench
+ - 403.gcc
+ - 433.milc
+
+Not run (no run directory):
+ - 481.wtf
+ - 465.tonto
+ - 459.GemsFDTD
+ - 454.calculix
+ - 437.leslie3d
+ - 436.cactusADM
+ - 435.gromacs
+ - 434.zeusmp
+ - 416.gamess
+ - 410.bwaves
+
+-----
+
+Error: 1x400.perlbench 1x403.gcc 1x433.milc 1x447.dealII 1x471.omnetpp 1x482.sphinx3 1x483.xalancbmk
+
+Success: 1x401.bzip2 1x429.mcf 1x444.namd 1x445.gobmk 1x450.soplex 1x453.povray 1x456.hmmer 1x458.sjeng 1x462.libquantum 1x464.h264ref 1x470.lbm 1x473.astar
+
+401.bzip2 429.mcf 444.namd 445.gobmk 450.soplex 453.povray 456.hmmer 458.sjeng 462.libquantum 464.h264ref 470.lbm 473.astar

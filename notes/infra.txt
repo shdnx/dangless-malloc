@@ -36,6 +36,14 @@ $ cat /proc/meminfo | grep Huge
 
 ----------
 
-Test run on all:
+Test run on all (Dangless only):
 
 $ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --dangless-debug --targets spec2006 --instances dangless-malloc && ./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
+
+Non-reportable reference run (Dangless only):
+
+$ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --targets spec2006 --instances dangless-malloc && ./setup.py run spec2006 dangless-malloc --benchmarks all_c all_cpp
+
+Full, reportable reference run (everything, 3 iterations):
+
+$ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc && ./setup.py run --parallel=proc --parallelmax=1 --iterations=3 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp

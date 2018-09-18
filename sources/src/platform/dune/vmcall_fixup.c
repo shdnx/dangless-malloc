@@ -363,11 +363,13 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
         st_vmcall_arg_needed_fixups++;
     }
 
-    if (vmcall_should_trace_current()) {
-      LOG("Fixup of arg %zu = %lx with flags: ", arg_index, args[arg_index]);
-      syscall_param_fixup_flags_dump(pfixup_flags);
-      dprintf("\n");
-    }
+    #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
+      if (vmcall_should_trace_current()) {
+        LOG("Fixup of arg %zu = %lx with flags: ", arg_index, args[arg_index]);
+        syscall_param_fixup_flags_dump(pfixup_flags);
+        dprintf("\n");
+      }
+    #endif
 
     u64 *parg = &args[arg_index];
     int result;
