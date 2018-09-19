@@ -82,6 +82,28 @@ paddr_t pt_resolve(void *p) {
   return pa + get_page_offset((uintptr_t)p, level);
 }
 
+static int pt_map_page_create_level(
+  REF pte_t **pppte,
+  vaddr_t va,
+  enum pt_level level,
+  enum pte_flags flags
+) {
+  paddr_t ptpa = pp_zalloc_one();
+  if (!ptpa) {
+    LOG("failed to allocate pagetable page!\n");
+    return -1;
+  }
+
+  STATISTIC_UPDATE() {
+    st_num_pagetables_allocated++;
+  }
+
+  **pppte = (pte_t)ptpa | flags | PTE_V;
+  REF *pppte = &((pte_t *)pt_paddr2vaddr(ptpa))[pt_level_offset(va, level)];
+
+  return 0;
+}
+
 int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   ASSERT0(pa % PGSIZE == 0);
   ASSERT0(va % PGSIZE == 0);
@@ -101,22 +123,15 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   ASSERT(!FLAG_ISSET(*ppte, PTE_V), "Attempted to replace a hugepage mapping for VA %p at %p (PTE: 0x%lx) with a 4K page mapping to %p!", (void *)va, ppte, *ppte, (void *)pa);
 
 #define CREATE_LEVEL(LVL) \
-    ptpa = pp_zalloc_one(); \
-    if (!ptpa) { \
-      LOG("failed to allocate pagetable page!\n"); \
+  do { \
+    if ((pt_map_page_create_level(REF &ppte, va, LVL, flags)) < 0) \
       goto fail_cleanup; \
-    } \
-    *ppte = (pte_t)ptpa | flags | PTE_V; \
-    ppte = &((pte_t *)pt_paddr2vaddr(ptpa))[pt_level_offset(va, LVL)]
+  } while (0)
 
   switch (level) {
   case PT_L4: CREATE_LEVEL(PT_L3);
   case PT_L3: CREATE_LEVEL(PT_L2);
   case PT_L2: CREATE_LEVEL(PT_L1);
-  }
-
-  STATISTIC_UPDATE() {
-    st_num_pagetables_allocated += level;
   }
 
 #undef CREATE_LEVEL

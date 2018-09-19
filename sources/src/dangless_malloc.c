@@ -29,8 +29,15 @@
 static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
 
-STATISTIC_DEFINE_COUNTER(st_num_2mb_plus_allocs);
-STATISTIC_DEFINE_COUNTER(st_num_1gb_plus_allocs);
+STATISTIC_DEFINE_COUNTER(st_num_allocations);
+STATISTIC_DEFINE_COUNTER(st_num_allocations_2mb_plus);
+STATISTIC_DEFINE_COUNTER(st_num_allocations_1gb_plus);
+
+STATISTIC_DEFINE_COUNTER(st_num_reallocations);
+STATISTIC_DEFINE_COUNTER(st_num_reallocated_vpages);
+
+STATISTIC_DEFINE_COUNTER(st_num_deallocations);
+STATISTIC_DEFINE_COUNTER(st_num_deallocated_vpages);
 
 int dangless_dedicate_vmem(void *start, void *end) {
   g_initialized = true;
@@ -147,9 +154,9 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
 
   STATISTIC_UPDATE() {
     if (actual_sz >= 1024 * 1024 * 1024) {
-      st_num_1gb_plus_allocs++;
+      st_num_allocations_1gb_plus++;
     } else if (actual_sz >= 2 * 1024 * 1024) {
-      st_num_2mb_plus_allocs++;
+      st_num_allocations_2mb_plus++;
     }
   }
 
@@ -184,6 +191,10 @@ void *dangless_malloc(size_t size) {
   if (!HOOK_ENTER())
     return p;
 
+  STATISTIC_UPDATE() {
+    st_num_allocations++;
+  }
+
   //LOG("sysmalloc p = %p, size = %zu, endp = %p\n", p, size, (char *)p + size);
 
   HOOK_RETURN(do_vremap(p, size, "malloc"));
@@ -193,6 +204,10 @@ void *dangless_calloc(size_t num, size_t size) {
   void *p = syscalloc(num, size);
   if (!HOOK_ENTER())
     return p;
+
+  STATISTIC_UPDATE() {
+    st_num_allocations++;
+  }
 
   // TODO: "Due to the alignment requirements, the number of allocated bytes is not necessarily equal to num*size." (http://en.cppreference.com/w/c/memory/calloc)
   HOOK_RETURN(do_vremap(p, num * size, "calloc"));
@@ -251,6 +266,10 @@ void dangless_free(void *p) {
     return;
   }
 
+  STATISTIC_UPDATE() {
+    st_num_deallocations++;
+  }
+
   void *original_ptr = p;
   int result = vremap_resolve(p, OUT &original_ptr);
   LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(result), result, original_ptr);
@@ -258,6 +277,10 @@ void dangless_free(void *p) {
   if (result == 0) {
     const size_t npages = sysmalloc_spanned_pages(original_ptr);
     virtual_invalidate(p, npages);
+
+    STATISTIC_UPDATE() {
+      st_num_deallocated_vpages += npages;
+    }
   } else /*if (result < 0) {
     LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
   } else {
@@ -274,6 +297,14 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (!HOOK_ENTER())
     return sysrealloc(p, new_size);
+
+  STATISTIC_UPDATE() {
+    if (p) {
+      st_num_reallocations++;
+    } else {
+      st_num_allocations++;
+    }
+  }
 
   LOG("realloc(p = %p, new_size = %zu)\n", p, new_size);
 
@@ -306,6 +337,10 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   //const size_t old_npages = sysmalloc_usable_pages(original_ptr);
   const size_t old_npages = NUM_SPANNED_PAGES(original_ptr, actual_old_size);
+
+  STATISTIC_UPDATE() {
+    st_num_reallocated_vpages += old_npages;
+  }
 
   void *newp = sysrealloc(original_ptr, new_size);
   if (!newp)

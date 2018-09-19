@@ -29,7 +29,10 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 
   // have to take into account the offset of the data inside the 4K page, since we're going to be allocating virtual 4K pages
   const size_t inpage_offset = get_page_offset((uintptr_t)ptr, PT_L1);
-  const size_t npages = ROUND_UP(inpage_offset + size, PGSIZE) / PGSIZE;
+
+  //const size_t npages = ROUND_UP(inpage_offset + size, PGSIZE) / PGSIZE;
+  const size_t npages = NUM_SPANNED_PAGES(ptr, size);
+  ASSERT(npages == ROUND_UP(inpage_offset + size, PGSIZE) / PGSIZE, "Incorrect usage of NUM_SPANNED_PAGES!!");
 
   // this assumes that the physical memory backing 'ptr' is contiguous and predictable
   paddr_t pa = dune_va_to_pa(ptr);
