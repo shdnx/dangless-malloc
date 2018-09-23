@@ -1,0 +1,13 @@
+benchmark	Dangless	Oscar	DangSan	DangNull	FreeSentry	CETS
+401.bzip2	0.993      	1.002
+429.mcf		1.131      	1.019
+444.namd	1.000      	1.013
+445.gobmk	0.983      	0.976
+450.soplex	1.027      	0.992
+453.povray	1.009      	0.988
+456.hmmer	1.022      	1.009
+458.sjeng	1.016      	1.004
+462.libquantum	0.993      	0.991
+464.h264ref	0.990      	0.993
+470.lbm		1.010      	1.001
+473.astar	1.284      	1.004

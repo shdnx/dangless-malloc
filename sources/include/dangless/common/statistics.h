@@ -1,11 +1,42 @@
 #ifndef DANGLESS_COMMON_STATISTICS_H
 #define DANGLESS_COMMON_STATISTICS_H
 
-#include <stdio.h>
-
 #include "dangless/config.h"
 #include "dangless/common/util.h"
-#include "dangless/common/printf_nomalloc.h"
+
+int dangless_report_resource_usage(void);
+void dangless_report_statistics(void);
+
+enum statistic_type {
+  ST_COUNTER
+};
+
+struct statistic {
+  const char *name;
+  int line;
+
+  enum statistic_type type;
+  void *data_ptr;
+  size_t data_size;
+
+  struct statistic *next;
+};
+
+struct statistic_file {
+  bool is_linked;
+  const char *filepath;
+
+  struct statistic *first;
+  struct statistic *last;
+  size_t num_statistics;
+
+  struct statistic_file *next;
+};
+
+bool statistic_file_register(struct statistic_file *stfile);
+void statistic_register(struct statistic_file *stfile, struct statistic *stat);
+
+static struct statistic_file statistic_this_file;
 
 #ifdef __STDC_NO_ATOMICS__
   #warning "This compiler doesn't support C11 atomic types - statistics may be unreliable"
@@ -19,9 +50,21 @@
   #define STATISTIC_DEFINE_COUNTER(NAME) \
     static DANGLESS_ATOMIC(size_t) NAME; \
     \
-    __attribute__((destructor)) \
-    static void CONCAT2(_stat_report_, NAME)(void) { \
-      fprintf_nomalloc(stderr, "STAT [" __FILE__ ":" STRINGIFY(__LINE__) "] " #NAME " = %zu\n", NAME); \
+    static struct statistic CONCAT2(_stat_, NAME) = { \
+      .name = #NAME, \
+      .line = __LINE__, \
+      .type = ST_COUNTER, \
+      .data_ptr = &NAME, \
+      .data_size = sizeof(NAME) \
+    }; \
+    \
+    __attribute__((constructor)) \
+    static void CONCAT2(_stat_register_, NAME)(void) { \
+      if (statistic_file_register(&statistic_this_file)) { \
+        statistic_this_file.filepath = __FILE__; \
+      } \
+      \
+      statistic_register(&statistic_this_file, &CONCAT2(_stat_, NAME)); \
     }
 
   #define STATISTIC_UPDATE() /* empty */

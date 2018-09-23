@@ -4,8 +4,9 @@
 #include <dlfcn.h> // dlsym(), RTLD_NEXT, RTLD_DEFAULT
 #include <malloc.h> // malloc_usable_size()
 
-#include "dangless/common.h"
 #include "dangless/config.h"
+#include "dangless/common.h"
+#include "dangless/common/statistics.h"
 #include "dangless/platform/mem.h"
 #include "dangless/platform/sysmalloc.h"
 
@@ -14,6 +15,11 @@
 #else
   #define LOG(...) /* empty */
 #endif
+
+STATISTIC_DEFINE_COUNTER(st_sysmalloc_count);
+STATISTIC_DEFINE_COUNTER(st_syscalloc_count);
+STATISTIC_DEFINE_COUNTER(st_sysrealloc_count);
+STATISTIC_DEFINE_COUNTER(st_sysfree_count);
 
 static bool g_populating = false;
 
@@ -62,6 +68,10 @@ static void populate_addrs(void) {
 }
 
 void *sysmalloc(size_t sz) {
+  STATISTIC_UPDATE() {
+    st_sysmalloc_count++;
+  }
+
   if (UNLIKELY(!addr_sysmalloc))
     populate_addrs();
 
@@ -86,6 +96,10 @@ static void *syscalloc_special(size_t num, size_t size) {
 }
 
 void *syscalloc(size_t num, size_t size) {
+  STATISTIC_UPDATE() {
+    st_syscalloc_count++;
+  }
+
   if (UNLIKELY(!addr_syscalloc)) {
     if (g_populating) {
       // This is only possible when dlsym() was called for the first time, i.e. upon the very first allocation: it calls calloc(). We obviously cannot call populate_addrs(), because that'd cause an infinite recursion. This calloc() has to be implemented manually.
@@ -107,6 +121,10 @@ void *syscalloc(size_t num, size_t size) {
 }
 
 void *sysrealloc(void *p, size_t sz) {
+  STATISTIC_UPDATE() {
+    st_sysrealloc_count++;
+  }
+
   if (UNLIKELY(!addr_sysrealloc))
     populate_addrs();
 
@@ -121,6 +139,10 @@ int sysmemalign(void **pp, size_t align, size_t sz) {
 }
 
 void sysfree(void *p) {
+  STATISTIC_UPDATE() {
+    st_sysfree_count++;
+  }
+
   if (UNLIKELY(!addr_sysfree))
     populate_addrs();
 

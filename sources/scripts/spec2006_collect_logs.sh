@@ -32,4 +32,5 @@ for file_path in `find "$base_dir" -type f -wholename "*/run_base_ref_infra-dang
   fi
 done
 
-zip -r "$root_dir/spec2006_logs.zip" "$result_dir/*"
+#zip -r "$root_dir/spec2006_logs.zip" "$result_dir/*"
+echo "Results are in $result_dir"
