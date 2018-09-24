@@ -129,32 +129,38 @@ TEST_CASE(realloc_shrinking_inplace) {
   TFREE(p2);
 }
 
+#define FILL_PAGES_SIZE(NPAGES) (MALLOC_FILL_PG_SIZE + (NPAGES - 1) * PGSIZE)
+
 TEST_CASE(realloc_shrinking_pages) {
   // NOTE: a PGSIZE worth of malloc()-d area has to be placed on 2 virtual pages, due to the in-page offset: a malloc()-d area will never be on a page boundary, because the malloc header comes before it
 
   // this will allocate minimum 2 pages, but usually 3 pages, given that the allocation will probably start in the middle of a page
-  void *p = TMALLOC(char[2 * MALLOC_FILL_PG_SIZE]);
-  EXPECT_VALID_PTR((uint8_t *)p + 2 * MALLOC_FILL_PG_SIZE - 1);
+  void *p = TMALLOC(char[FILL_PAGES_SIZE(2)]);
+  LOGV("p = %p\n", p);
+  EXPECT_VALID_PTR((uint8_t *)p + FILL_PAGES_SIZE(2) - 1);
 
   // this will definitely be minimum 1, maximum 2 pages, so we're shrinking the allocation by one page (at minimum)
-  void *p2 = TREALLOC(p, char[MALLOC_FILL_PG_SIZE]);
+  void *p2 = TREALLOC(p, char[FILL_PAGES_SIZE(1)]);
+  LOGV("p2 = %p\n", p2);
   EXPECT_EQUALS(p, p2);
 
   // we're not guaranteed that a whole MALLOC_FILL_PG_SIZE worth of memory got invalidated, because we're not guaranteed to get a page-aligned region
   // however, what can definitely be guaranteed is that the last byte of the region will no longer be accessible
-  EXPECT_INVALID_PTR((uint8_t *)p2 + 2 * MALLOC_FILL_PG_SIZE - 1);
+  // TODO: something here with the math is incorrect
+  LOGV("Has to be invalid: %p\n", (void *)((uint8_t *)p2 + PGSIZE - 1));
+  EXPECT_INVALID_PTR((uint8_t *)p2 + PGSIZE - 1);
 
   TFREE(p2);
 }
 
 TEST_CASE(realloc_growing_inplace) {
   // doing it with just 2 * MALLOC_FILL_PG_SIZE wouldn't always work, since depending on how do in-page offsets work out, p1 and p2 might end up spanning the same pages
-  void *p1 = TMALLOC(char[3 * MALLOC_FILL_PG_SIZE]);
-  void *p2 = TREALLOC(p1, char[MALLOC_FILL_PG_SIZE]);
+  void *p1 = TMALLOC(char[FILL_PAGES_SIZE(3)]);
+  void *p2 = TREALLOC(p1, char[FILL_PAGES_SIZE(1)]);
   EXPECT_EQUALS(p1, p2);
 
   // We cannot safely grow in-place, since we still might have a dangling pointer to p1 + 2 * MALLOC_FILL_PG_SIZE! This has to yield a new memory region.
-  void *p3 = TREALLOC(p2, char[3 * MALLOC_FILL_PG_SIZE]);
+  void *p3 = TREALLOC(p2, char[FILL_PAGES_SIZE(3)]);
   EXPECT_NOT_EQUALS(p1, p3);
 
   TFREE(p3);
@@ -162,15 +168,15 @@ TEST_CASE(realloc_growing_inplace) {
 
 TEST_CASE(realloc_growing_reloc) {
   // allocate two consecutive pages
-  void *p1 = TMALLOC(char[MALLOC_FILL_PG_SIZE]);
-  void *p2 = TMALLOC(char[MALLOC_FILL_PG_SIZE]);
+  void *p1 = TMALLOC(char[FILL_PAGES_SIZE(1)]);
+  void *p2 = TMALLOC(char[FILL_PAGES_SIZE(1)]);
 
   // note that the addresses won't be exactly equal, because there'll be a malloc header in between
   // we cannot guarantee they'll be directly after each other; glibc's malloc() for instance allocates somewhat more memory than strictly necessary, sometimes breaking this assumption when it falls across page boundaries
   //EXPECT_SAME_PAGE(PG_OFFSET(p1, 1), p2);
 
   // try to grow p1: this is not possible in-place because p2 is in the way
-  void *p3 = TREALLOC(p1, char[3 * MALLOC_FILL_PG_SIZE]);
+  void *p3 = TREALLOC(p1, char[FILL_PAGES_SIZE(3)]);
   EXPECT_NOT_EQUALS(p3, p1);
   EXPECT_NOT_EQUALS(p3, p2);
 

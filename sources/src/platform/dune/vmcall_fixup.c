@@ -220,7 +220,9 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
   struct msghdr *msghdr = *pmsghdr;
 
   LOG("Fixing up msghdr:\n");
-  DUMP_VAR_MEM(*msghdr);
+  #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
+    DUMP_VAR_MEM(*msghdr);
+  #endif
 
   FIXUP_SCOPE(pmsghdr) {
     LOG("msg_name...\n");

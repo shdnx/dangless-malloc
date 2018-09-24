@@ -1,5 +1,5 @@
 diff --git a/libdune/dune.S b/libdune/dune.S
-index a8f34c0..9762d57 100644
+index a8f34c0..f2fc698 100644
 --- a/libdune/dune.S
 +++ b/libdune/dune.S
 @@ -268,6 +268,64 @@ __dune_go_dune:
@@ -78,7 +78,7 @@ index a8f34c0..9762d57 100644
 +
 +	VMCALL_HOOK_TRY_ENTER __dune_vmcall_prehook, passthrough_to_host
 +
-+	leaq 48(%rsp), %rdi // argument 1: pointer to syscall number (48 = 6 * 8)
++	leaq 48(%rsp), %rdi // argument 1: pointer to syscall number, stored in rax (48 = 6 * 8)
 +	movq %rsp, %rsi // argument 2: syscall arguments array
 +	leaq 56(%rsp), %rdx // argument 3: pointer to return address (56 = 7 * 8)
 +	call *__dune_vmcall_prehook
@@ -92,7 +92,7 @@ index a8f34c0..9762d57 100644
 +
 +	VMCALL_HOOK_TRY_ENTER __dune_vmcall_posthook, passthrough_to_user
 +
-+	movq %rax, %rdi // argument 1: syscall return value
++	leaq 48(%rsp), %rdi // argument 1: pointer to syscall result, stored in rax (48 = 6 * 8)
 +	call *__dune_vmcall_posthook
 +
 +	VMCALL_HOOK_EXIT
@@ -102,7 +102,7 @@ index a8f34c0..9762d57 100644
  
  1:
 diff --git a/libdune/dune.h b/libdune/dune.h
-index 80bf24d..7b3e94f 100644
+index 80bf24d..5a667ff 100644
 --- a/libdune/dune.h
 +++ b/libdune/dune.h
 @@ -356,3 +356,14 @@ static inline int dune_init_and_enter(void)
@@ -116,7 +116,7 @@ index 80bf24d..7b3e94f 100644
 +typedef void(*dune_vmcall_prehook_t)(uint64_t *psyscallno, uint64_t args[], uint64_t *pretaddr);
 +extern dune_vmcall_prehook_t __dune_vmcall_prehook;
 +
-+typedef void(*dune_vmcall_posthook_t)(uint64_t result);
++typedef void(*dune_vmcall_posthook_t)(uint64_t *presult);
 +extern dune_vmcall_posthook_t __dune_vmcall_posthook;
 +
 +extern int __dune_vmcall_hook_running;

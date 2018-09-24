@@ -25,6 +25,6 @@ bool vmcall_should_trace_current(void);
 void vmcall_dump_current(void);
 
 void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *pretaddr);
-void dangless_vmcall_posthook(u64 result);
+void dangless_vmcall_posthook(REF u64 *presult);
 
 #endif

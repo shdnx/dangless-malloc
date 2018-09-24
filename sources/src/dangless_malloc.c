@@ -274,14 +274,14 @@ void dangless_free(void *p) {
   int result = vremap_resolve(p, OUT &original_ptr);
   LOG("vremap_resolve(%p) => %s (%d); %p\n", p, vremap_diag(result), result, original_ptr);
 
-  if (result == 0) {
+  if (result == VREM_OK) {
     const size_t npages = sysmalloc_spanned_pages(original_ptr);
     virtual_invalidate(p, npages);
 
     STATISTIC_UPDATE() {
       st_num_deallocated_vpages += npages;
     }
-  } else /*if (result < 0) {
+  } /*else if (result < 0) {
     LOG("failed to determine whether %p was remapped: assume not (result %d)\n", p, result);
   } else {
     LOG("vremap_resolve returned %d, assume no remapping\n", result);
@@ -377,7 +377,7 @@ void *dangless_realloc(void *p, size_t new_size) {
     } else if (new_npages < old_npages) {
       // shrink in-place: only invalidate the pages at the end
       //void *const p_invalidate_from = PG_OFFSET(p, new_npages);
-      void *const p_invalidate_from = (void *)ROUND_UP((vaddr_t)p + new_size, PGSIZE);
+      void *const p_invalidate_from = (void *)ROUND_UP((vaddr_t)p + actual_new_size, PGSIZE);
       const size_t num_invalid_pages = old_npages - new_npages;
 
       virtual_invalidate(p_invalidate_from, num_invalid_pages);

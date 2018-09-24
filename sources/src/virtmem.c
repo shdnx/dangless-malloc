@@ -41,6 +41,7 @@ enum pt_level pt_walk(void *p, enum pt_level requested_level, OUT pte_t **result
 
 #undef WALK_LEVEL
 
+  // TODO: I think this is actually unreachable code?
   OUT *result_ppte = ppte;
   return 1;
 }

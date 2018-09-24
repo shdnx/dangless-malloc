@@ -1,4 +1,5 @@
 #include <string.h> // memcpy
+#include <errno.h> // errno
 
 #include "dangless/config.h"
 #include "dangless/common/types.h"
@@ -20,6 +21,10 @@
 #endif
 
 STATISTIC_DEFINE_COUNTER(st_vmcall_count);
+
+STATISTIC_DEFINE_COUNTER(st_internal_mmap_total);
+STATISTIC_DEFINE_COUNTER(st_external_mmap_total);
+STATISTIC_DEFINE_COUNTER(st_brk_total);
 
 static THREAD_LOCAL int g_vmcall_hook_depth = 0;
 
@@ -69,6 +74,34 @@ void vmcall_dump_current(void) {
   syscall_log(g_current_syscallno, g_current_syscall_args);
 }
 
+static void update_mem_stats(void) {
+  switch (g_current_syscallno) {
+  case (u64)9: { // mmap()
+    const size_t mmap_len = (size_t)g_current_syscall_args[1];
+    if (in_external_vmcall()) {
+      st_external_mmap_total += mmap_len;
+    } else {
+      st_internal_mmap_total += mmap_len;
+    }
+    break;
+  }
+
+  case (u64)12: { // brk()
+    static u64 s_last_brk;
+
+    const u64 brk_ptr = g_current_syscall_args[0];
+    if (brk_ptr > s_last_brk) {
+      if (s_last_brk) {
+        st_brk_total += brk_ptr - s_last_brk;
+      }
+
+      s_last_brk = brk_ptr;
+    }
+    break;
+  }
+  } // end switch
+}
+
 void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *pretaddr) {
   ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
   g_vmcall_hook_depth++;
@@ -80,6 +113,8 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
   STATISTIC_UPDATE() {
     if (in_external_vmcall())
       st_vmcall_count++;
+
+    update_mem_stats();
   }
 
   if (vmcall_should_trace_current()) {
@@ -88,7 +123,7 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
     #endif
 
     // some system calls are particularly interesting, such as fork() and execve(), log them separately
-    switch (syscallno) {
+    /*switch (syscallno) {
   #define _INTERESTING_VMCALL_IMPL(NO, NAME) \
       LOG("MARK interesting vmcall: " #NAME " (" STRINGIFY(NO) ")!\n"); \
       break
@@ -111,7 +146,7 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
 
   #undef _INTERESTING_VMCALL_IMPL
   #undef INTERESTING_VMCALL
-    }
+    }*/
   }
 
   // The host kernel will choke on memory addresses that have been remapped by dangless, since those memory regions are only mapped inside the guest virtual memory, but do not appear in the host virtual memory. Therefore, for the vmcalls, we have to detect such memory addresses referenced directly or indirectly (e.g. through a struct) by their arguments and replace them with their canonical counterparts.
@@ -132,12 +167,30 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
   g_vmcall_hook_depth--;
 }
 
-void dangless_vmcall_posthook(u64 result) {
+void dangless_vmcall_posthook(REF u64 *presult) {
   ASSERT(g_vmcall_hook_depth == 0, "Nested vmcall hook calls?");
   g_vmcall_hook_depth++;
 
+  const u64 result = *presult;
+
   if (vmcall_should_trace_current()) {
     LOG("VMCall post-hook running with result: 0x%lx (%lu)...\n", result, result);
+  }
+
+  // Hotfix for handling the issue with brk().
+  // Dune by default only identity-maps the first 4 GB of memory.
+  // The default malloc() implementation uses brk() to get more memory for small-ish allocations (tested with 9000 bytes).
+  // If too many small allocations like this occur, at some point brk() will pass the 4 GB mark, and enter into a virtual memory region that's not mapped.
+  // What we do here is, upon detecting that happening, we return 0 from the syscall, pretending it failed. The glibc malloc() implementation will then fall back to using mmap().
+  // It's a cheap solution, and not ideal, but Good Enough (TM) for now.
+
+  // TODO: this should be done in the prehook, and the vmcall not performed
+  if (g_current_syscallno == (u64)12 && g_current_syscall_args[0] > (u64)0x100000000uL) {
+    LOG("brk() call above 4 GB, returning 0 and setting errno (had result: 0x%lx)!\n", result);
+
+    // we're supposed to return the old program break point on failure, but returning 0 seems to be good enough for glibc
+    REF *presult = (u64)0;
+    errno = ENOMEM;
   }
 
   g_vmcall_hook_depth--;
