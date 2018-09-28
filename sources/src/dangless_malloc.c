@@ -11,6 +11,7 @@
 
 #include "dangless/common.h"
 #include "dangless/common/statistics.h"
+#include "dangless/common/printf_nomalloc.h"
 #include "dangless/dangless_malloc.h"
 #include "dangless/virtmem.h"
 #include "dangless/virtmem_alloc.h"

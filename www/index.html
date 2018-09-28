@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta property="og:title" content="Dangless - Safe Dangling Pointer Errors">
+    <meta property="og:description" content="Dangless (dangless-malloc) is a memory allocator that aims to eliminate dangling pointer vulnerabilities at a low overhead, using low-overhead virtualisation. It is being developed as my Computer Science Master's thesis with the VUSec research group.">
+    <meta name="description" content="Dangless (dangless-malloc) is a memory allocator that aims to eliminate dangling pointer vulnerabilities at a low overhead, using low-overhead virtualisation. It is being developed as my Computer Science Master's thesis with the VUSec research group.">
+    <link rel="canonical" href="https://dangless.gaborkozar.me">
+    <title>Dangless Malloc</title>
+    <style type="text/css">
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: large;
+}
+
+#main {
+  width: 800px;
+  max-width: 100%;
+  min-height: 100%;
+  border: 1px solid #808080;
+  border-top: none;
+  border-bottom: none;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+section {
+  width: 100%;
+}
+
+footer {
+  font-style: italic;
+  color: #555;
+}
+
+h1, h2 {
+  margin: 0 -8px;
+  padding: 0 12px;
+}
+
+h1 {
+  border-bottom: 1px solid #404040;
+  margin-top: 0;
+  padding: 8px 18px;
+}
+
+h2 {
+  margin-top: 16px;
+  padding: 0 8px;
+  border-bottom: 1px solid #AAA;
+}
+
+ul {
+  display: flex;
+  justify-content: space-around;
+  list-style-type: none;
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+p {
+  font-size: larger;
+  text-align: justify;
+}
+
+a, a:visited, a:active {
+  color: blue;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+li > a {
+  padding: 4px 16px;
+  border: 1px solid #999;
+  border-top: none;
+}
+
+li > a:hover {
+  text-decoration: none;
+  border: 1px solid blue;
+  border-top: none;
+}
+
+#presentation video, #presentation iframe {
+  display: block;
+  width: 700px;
+  max-width: 95%;
+  height: 510px;
+  max-height: 60vh;
+  margin: 0 auto;
+}
+
+#presentation iframe {
+  margin-top: 12px;
+}
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <header>
+        <h1>Dangless: safe dangling pointer errors</h1>
+        <nav>
+          <ul>
+            <li><a href="#presentation">Presentation</a></li>
+            <li><a href="#abstract">Abstract</a></li>
+            <li><a href="https://github.com/shdnx/dangless-malloc" target="_blank">Project source</a></li>
+          </ul>
+        </nav>
+      </header>
+
+      <section id="intro">
+        <p>Dangless (<em>dangless-malloc</em>) is a memory allocator that aims to eliminate dangling pointer vulnerabilities at a low overhead, using low-overhead virtualisation. It is being developed as my Computer Science Master's thesis with the <a  href="https://vusec.net" target="_blank">VUSec</a> research group.</p>
+        <p>Work on Dangless is currently ongoing.</p>
+      </section>
+
+      <section id="presentation">
+        <a name="presentation"></a>
+        <h2>Presentation</h2>
+        <ul>
+          <li><a href="presentation.pdf" download="presentation.pdf" target="_blank">Slides</a> (PDF)</li>
+          <li><a href="presentation.mp4" download="presentation.mp4" target="_blank">Video</a> (MP4, 1.4 GB)</li>
+          <li><a href="presentation.mov" download="presentation.mov" target="_blank">Video</a> (MOV, 4.0 GB)</li>
+        </ul>
+
+        <p>2018 September 24, VU University Amsterdam</p>
+        <video autobuffer controls>
+          <source src="presentation.mp4" type="video/mp4">
+          <source src="presentation.mov" type="video/quicktime">
+          <p>Your browser does not appear to support built-in video streaming. Please download the video file using one of the links above.</p>
+        </video>
+
+        <iframe src="presentation.pdf"></iframe>
+      </section>
+
+      <section id="abstract">
+        <a name="abstract"></a>
+        <h2>Abstract</h2>
+        <p>Manual memory management required in programming languages like C and C++ has its advantages, but comes at a cost in complexity, frequently leading to bugs and security vulnerabilities. One such example is temporal memory errors, whereby an object or memory region is accessed after it has been deallocated. The pointer through which this access occurs is said to be dangling.</p>
+        <p>Our solution, Dangless, protects against such bugs by ensuring that any references through dangling pointers are caught immediately. This is done by maintaining a unique virtual alias for each individual allocation. We do this efficiently by running the process in a light-weight virtual environment, where the allocator can directly modify the page tables.</p>
+        <p>We have evaluated performance on the SPEC 2006 benchmarking suite, and on a subset of the benchmarks have found a geometric mean of 3.5% runtime performance overhead and 406% memory overhead. This makes this solution very efficient in performance - comparable to other state-of-the-art solutions - but the high memory overhead limits its usability in practice.</p>
+      </section>
+
+      <footer>
+        Gábor Kozár &lt;<u>id@this-domain.me</u>&gt; - 2018 September
+      </footer>
+    </div>
+  </body>
+</html>

@@ -39,3 +39,83 @@ Error: 1x400.perlbench 1x403.gcc 1x433.milc 1x447.dealII 1x471.omnetpp 1x482.sph
 Success: 1x401.bzip2 1x429.mcf 1x444.namd 1x445.gobmk 1x450.soplex 1x453.povray 1x456.hmmer 1x458.sjeng 1x462.libquantum 1x464.h264ref 1x470.lbm 1x473.astar
 
 401.bzip2 429.mcf 444.namd 445.gobmk 450.soplex 453.povray 456.hmmer 458.sjeng 462.libquantum 464.h264ref 470.lbm 473.astar
+
+----
+
+Error: 1x400.perlbench 1x471.omnetpp
+Success: 1x401.bzip2 1x403.gcc 1x429.mcf 1x433.milc 1x444.namd 1x445.gobmk 1x447.dealII 1x450.soplex 1x453.povray 1x456.hmmer 1x458.sjeng 1x462.libquantum 1x464.h264ref 1x470.lbm 1x473.astar 1x482.sphinx3 1x483.xalancbmk
+
+400.perlbench:
+diffmail.4.800.10.17.19.300.out: EPT violation
+
+  ept: failed to get user page 2801ff000
+  vmx: page fault failure GPA: 0x2801ff000, GVA: 0x2801ff000
+  vmx: --- Begin VCPU Dump ---
+  vmx: CPU 0 VPID 1
+  vmx: RIP 0x00007f27e3055eae RFLAGS 0x00010202
+  vmx: RAX 0x00000002801ff000 RCX 0x00007f27e26e5000
+  vmx: RDX 0x0000000000001000 RBX 0x00000002801ff000
+  vmx: RSP 0x00007fff778475e8 RBP 0x0000000000000001
+  vmx: RSI 0x0000000280200000 RDI 0x00000002801ff020
+  vmx: R8  0x0000000000000000 R9  0x0000000000000000
+  vmx: R10 0x0000000000000032 R11 0x0000000000000206
+  vmx: R12 0x8000000000000003 R13 0x0000016e7e800000
+  vmx: R14 0x0000000000001000 R15 0x000000000375c000
+  vmx: Dumping Stack Contents...
+  vmx: RSP+0  0x0000000000406007
+  vmx: RSP+8  0x0000000000000000
+  vmx: RSP+16 0x0000016e7e800000
+  vmx: RSP+24 0x0000000000000000
+  vmx: RSP+32 0x0000000000404523
+  vmx: RSP+40 0x000000027fe00e68
+  vmx: RSP+48 0x000000000375c000
+  vmx: RSP+56 0x0000000004c99000
+  vmx: RSP+64 0x0000000000000001
+  vmx: RSP+72 0x00000000019f0000
+  vmx: RSP+80 0x0000000000000490
+  vmx: RSP+88 0x000000027fff4fa0
+  vmx: --- End VCPU Dump ---
+  vmx: stopping VCPU (VPID 1)
+  vmx: destroying VCPU (VPID 1)
+
+471.omnetpp:
+omnetpp.err: Segmentation fault
+
+  ept: failed to get user page 2801ff000
+  vmx: page fault failure GPA: 0x2801ff000, GVA: 0x2801ff000
+  vmx: --- Begin VCPU Dump ---
+  vmx: CPU 0 VPID 1
+  vmx: RIP 0x00007f1cab838eae RFLAGS 0x00010202
+  vmx: RAX 0x00000002801ff000 RCX 0x00007f1caaec8000
+  vmx: RDX 0x0000000000001000 RBX 0x00000002801ff000
+  vmx: RSP 0x00007ffed466e5d8 RBP 0x0000000000000001
+  vmx: RSI 0x0000000280200000 RDI 0x00000002801ff020
+  vmx: R8  0x0000000000000000 R9  0x0000000000000000
+  vmx: R10 0x0000000000000032 R11 0x0000000000000206
+  vmx: R12 0x8000000000000003 R13 0x0000016e7e800000
+  vmx: R14 0x0000000000001000 R15 0x000000000b079000
+  vmx: Dumping Stack Contents...
+  vmx: RSP+0  0x0000000000406517
+  vmx: RSP+8  0x0000000000000000
+  vmx: RSP+16 0x0000016e7e800000
+  vmx: RSP+24 0x0000000000000000
+  vmx: RSP+32 0x0000000000404a33
+  vmx: RSP+40 0x0000000000000000
+  vmx: RSP+48 0x000000000b079000
+  vmx: RSP+56 0x000000007e565620
+  vmx: RSP+64 0x0000000000403820
+  vmx: RSP+72 0x00007ffed466eaa0
+  vmx: RSP+80 0x0000000000406a38
+  vmx: RSP+88 0x000000027fff4fa0
+  vmx: --- End VCPU Dump ---
+  vmx: stopping VCPU (VPID 1)
+  omnetpp_base.in[25020]: segfault at 80000492a0 ip 00007f1cab75580e sp 00007ffed466e4e0 error 6 in libc-2.23.so[7f1cab6c7000+1bf000]
+
+In both cases, the faulting memory address is the same: just barely above the 10 GB mark.
+The code fails in pp_zalloc(), on the memset() call.
+Looks like the machine is out of physical memory?
+
+Download URL: http://koenk.net/spec2006.iso
+gabor@cswatt.labs.vu.n
+
+TODO: dune-ix needs to be specifically on commit caef2154a073fa3a44ee92b7aadbc95d15b93d2b

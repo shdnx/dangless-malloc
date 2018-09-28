@@ -117,7 +117,6 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   // actually, a spinlock would probably work better
   pthread_mutex_lock(&g_pt_mapping_mutex);
 
-  paddr_t ptpa;
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
 
@@ -130,9 +129,9 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   } while (0)
 
   switch (level) {
-  case PT_L4: CREATE_LEVEL(PT_L3);
-  case PT_L3: CREATE_LEVEL(PT_L2);
-  case PT_L2: CREATE_LEVEL(PT_L1);
+  case PT_L4: CREATE_LEVEL(PT_L3); // fallthrough
+  case PT_L3: CREATE_LEVEL(PT_L2); // fallthrough
+  case PT_L2: CREATE_LEVEL(PT_L1); // fallthrough
   }
 
 #undef CREATE_LEVEL

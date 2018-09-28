@@ -1,0 +1,4 @@
+See vmcall_hooks.c, dangless_vmcall_posthook(), currently around  line 146.
+
+Sufficient to trigger it (among testapps):
+$ bin/memstress 1500000 9000

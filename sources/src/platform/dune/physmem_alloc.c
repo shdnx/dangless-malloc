@@ -45,6 +45,7 @@ paddr_t pp_zalloc(size_t npages) {
     return pa;
 
   // any phyical memory allocated by Dune's page allocator will be at PAGEBASE, which is identity-mapped
+  // this is how Dune itself does it as well: alloc_page() in vm.c
   void *va = (void *)pa;
   memset(va, 0, npages * PGSIZE);
 

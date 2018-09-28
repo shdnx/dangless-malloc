@@ -140,7 +140,12 @@ class Dune(infra.Package):
         if not os.path.exists("/dev/dune"):
             raise RuntimeError("Dune cannot be configured, as the Dune kernel module is not active!")
 
+        ctx.cflags += [
+            "-no-pie"
+        ]
+
         ctx.ldflags += [
+            "-no-pie",
             "-L" + self.path(ctx, "install"),
             "-ldune",
             "-pthread",

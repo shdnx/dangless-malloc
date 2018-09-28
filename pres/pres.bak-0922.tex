@@ -1,0 +1,365 @@
+\documentclass[10pt]{beamer}
+
+\mode<presentation>
+{
+  % theme: https://github.com/matze/mtheme
+  \usetheme[subsectionpage=progressbar]{metropolis}
+  \setbeamertemplate{navigation symbols}{}
+  \setbeamertemplate{caption}[numbered]
+  \setbeamertemplate{section in toc}[ball unnumbered]
+  \setbeamertemplate{subsection in toc}[ball unnumbered]
+  \setbeamercovered{transparent}
+}
+
+%\usetheme[progressbar=frametitle]{metropolis}
+\usepackage{appendixnumberbeamer}
+
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{url}
+\usepackage{times}
+\usepackage{listings,xcolor,beramono}
+\usepackage{tikz}
+
+% This allows `code` and @code@ to be used inside an lstlisting environment, highlighted with a color box.
+% Blatantly stolen from: https://tex.stackexchange.com/a/49309
+\makeatletter
+\newenvironment{btHighlight}[1][]
+{\begingroup\tikzset{bt@Highlight@par/.style={#1}}\begin{lrbox}{\@tempboxa}}
+{\end{lrbox}\bt@HL@box[bt@Highlight@par]{\@tempboxa}\endgroup}
+
+\newcommand\btHL[1][]{%
+  \begin{btHighlight}[#1]\bgroup\aftergroup\bt@HL@endenv%
+}
+\def\bt@HL@endenv{%
+  \end{btHighlight}%   
+  \egroup
+}
+\newcommand{\bt@HL@box}[2][]{%
+  \tikz[#1]{%
+    \pgfpathrectangle{\pgfpoint{1pt}{0pt}}{\pgfpoint{\wd #2}{\ht #2}}%
+    \pgfusepath{use as bounding box}%
+    \node[anchor=base west, fill=orange!30,outer sep=0pt,inner xsep=1pt, inner ysep=0pt, rounded corners=3pt, minimum height=\ht\strutbox+1pt,#1]{\raisebox{1pt}{\strut}\strut\usebox{#2}};
+  }%
+}
+\makeatother
+
+\lstset{language=C++,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{blue}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  commentstyle=\color{magenta}\ttfamily,
+  frame=l,
+  prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4,
+  %escapeinside={@}{@},
+  numbers=left,
+  xleftmargin=.6cm,
+  showstringspaces=false,
+  captionpos=b,
+  emph={malloc, realloc, calloc, free},
+  emphstyle=\color{purple},
+  escapeinside={(@}{@)},
+  moredelim=**[is][\btHL]{`}{`},
+  moredelim=**[is][{\btHL[fill=red!30,draw=yellow,dashed,thin]}]{@}{@},
+  moredelim=**[is][{\btHL[fill=blue!20,draw=white,dashed,thin]}]{\$}{\$},
+}
+
+\lstdefinestyle{tiny}{
+  basicstyle=\scriptsize\ttfamily
+}
+
+\usepackage{xspace}
+
+\definecolor{light-gray}{gray}{0.80}
+\definecolor{light-yellow}{rgb}{1, 1, 0.60}
+\definecolor{light-blue}{rgb}{0.60, 0.80, 0.90}
+\definecolor{light-red}{rgb}{1, 0.40, 0.40}
+
+\newcommand{\hl}[2]{\colorbox{#1}{#2}}
+\newcommand{\hly}[1]{\hl{light-yellow}{#1}}
+\newcommand{\hlg}[1]{\hl{light-gray}{#1}}
+\newcommand{\hlb}[1]{\hl{light-blue}{#1}}
+\newcommand{\hlr}[1]{\hl{light-red}{#1}}
+
+\newcommand{\todo}[1]{\textbf{\textcolor{red}{TODO: #1}}}
+
+\title{Dangless Malloc}
+\subtitle{Mitigating dangling pointer bugs -- thesis presentation}
+\date{2018 September 24}
+\author{Gábor Kozár}
+\institute{VU University Amsterdam, University of Amsterdam}
+% \titlegraphic{\hfill\includegraphics[height=1.5cm]{logo.pdf}}
+
+\begin{document}
+
+\maketitle
+
+\begin{frame}{Table of contents}
+  \setbeamertemplate{section in toc}[sections numbered]
+  %\tableofcontents[hideallsubsections]
+  \tableofcontents
+\end{frame}
+
+\section{Motivation: dangling pointers}
+
+\begin{frame}[fragile]{Dangling pointers}
+    \begin{lstlisting}
+int *pmagic = malloc(sizeof(int));
+*pmagic = 0xBADF00D;
+
+// ... use pmagic ...
+free(pmagic);
+
+// ...
+printf("Magic: %d\n", @*pmagic@);
+    \end{lstlisting}
+\end{frame}
+
+\begin{frame}[fragile]{Dangling pointers and memory re-use}
+    \begin{lstlisting}
+int *pmagic = malloc(sizeof(int));
+*pmagic = 0xBADF00D;
+
+// ... use pmagic ...
+
+free(pmagic);
+
+// ...
+
+// perform another allocation
+// memory may be re-used!
+char *name = malloc(32);
+strcpy(name, "MAGIC!");
+
+// ...
+printf("Magic: %d\n", @*pmagic@);
+    \end{lstlisting}
+\end{frame}
+
+\subsection{As security vulnerability}
+
+\begin{frame}[fragile]{Dangling pointers as security vulnerabilities}
+    \begin{minipage}[t]{0.5\linewidth}
+        \begin{lstlisting}[style=tiny]
+char *x; size_t x_len;
+
+void write_x(char *data) {
+  size_t len = strlen(data);
+  if ($x_len <= len$) {
+    x_len = len + 1;
+    x = `realloc(x, x_len)`;
+  }
+  (@@)@strcpy(x, data)@;
+}
+
+void process_x(void) {
+  // ...
+  (@@)`free(x)`;
+}
+        \end{lstlisting}
+    \end{minipage}
+    \begin{minipage}[t]{0.49\linewidth}
+        \pause
+        \begin{lstlisting}[style=tiny]
+struct {
+  char p[10];
+  (@@)@int is_admin@;
+} *y;
+
+void write_y(char *data) {
+  if (!y)
+    (@@)`y = calloc(sizeof(*y))`;
+
+  if ($strlen(data) >= 10$)
+    return;
+
+  strcpy(y->p, data);
+  (@@)@process_cmd(y->p, y->is_admin)@;
+}
+        \end{lstlisting}
+    \end{minipage}
+    \pause
+    \scriptsize
+    \lstset{style=tiny}
+    \begin{minipage}{0.5\linewidth}
+        \begin{enumerate}
+            \item<3-> \lstinline[style=tiny]!write_x("dummy 1 + padding")!
+            \item<4-> \lstinline[style=tiny]!process_x()!
+            \item<5-> \lstinline[style=tiny]!write_y("dummy 2")!
+            \item<6-> \lstinline[style=tiny]!write_x("fill buff PWND")!
+            \item<7-> \lstinline[style=tiny]!write_y("drop_db")!
+        \end{enumerate}
+    \end{minipage}
+    \begin{minipage}{0.49\linewidth}
+        \begin{itemize}
+            \item<3-> allocate \lstinline!x!, set \lstinline!x_len! to big enough
+            \item<4-> free \lstinline!x!, it is now dangling
+            \item<5-> allocate \lstinline!y!, memory is re-used: \lstinline!x = y!
+            \item<6-> write to \lstinline!y!, bypassing length check
+            \item<7-> enjoy your modified \lstinline!y->is_admin!
+        \end{itemize}
+    \end{minipage}
+\end{frame}
+
+\section{Overview: memory allocation}
+
+\subsection{Normal memory allocation}
+
+\begin{frame}{Normal memory allocation -- step by step}
+    \begin{center}
+        \includegraphics[width=\linewidth, trim={0 290pt 0 0}, clip]<1>{img/normal_malloc.png}
+        \includegraphics[width=\linewidth, trim={0 220pt 0 0}, clip]<2>{img/normal_malloc.png}
+        \includegraphics[width=\linewidth, trim={0 150pt 0 0}, clip]<3>{img/normal_malloc.png}
+        \includegraphics[width=\linewidth, trim={0 75pt 0 0}, clip]<4>{img/normal_malloc.png}
+        \includegraphics[width=\linewidth]<5>{img/normal_malloc.png}
+    \end{center}
+\end{frame}
+
+\subsection{Dangless allocation -- simplified}
+
+\begin{frame}{Dangless memory allocation -- simplified}
+    \begin{center}
+        \includegraphics[width=\linewidth, trim={0 302pt 0 0}, clip]<1>{img/dangless_simplified.png}
+        \includegraphics[width=\linewidth, trim={0 227pt 0 0}, clip]<2>{img/dangless_simplified.png}
+        \includegraphics[width=\linewidth, trim={0 151pt 0 0}, clip]<3>{img/dangless_simplified.png}
+        \includegraphics[width=\linewidth, trim={0 77pt 0 0}, clip]<4>{img/dangless_simplified.png}
+        \includegraphics[width=\linewidth]<5>{img/dangless_simplified.png}
+    \end{center}
+\end{frame}
+
+\subsection{Dangless allocation -- the full story}
+
+\begin{frame}{Dangless memory allocation -- full memory view}
+    \begin{center}
+        \includegraphics[width=\linewidth, trim={0 270pt 0 0}, clip]<1>{img/dangless_virtremap.png}
+    \end{center}
+\end{frame}
+
+% called virtual alises in the abstract
+\begin{frame}{Dangless memory allocation -- virtual remapping}
+    \begin{center}
+        \includegraphics[width=\linewidth]<1>{img/dangless_virtremap_mappings_xy.png}
+        \includegraphics[width=\linewidth]<2>{img/dangless_virtremap_mappings_xyz.png}
+    \end{center}
+\end{frame}
+
+\begin{frame}{Dangless memory allocation -- step by step}
+    \begin{center}
+        \includegraphics[width=\linewidth, trim={0 302pt 0 0}, clip]<1>{img/dangless_virtremap.png}
+        \includegraphics[width=\linewidth, trim={0 190pt 0 0}, clip]<2>{img/dangless_virtremap.png}
+        \includegraphics[width=\linewidth, trim={0 110pt 0 0}, clip]<3>{img/dangless_virtremap.png}
+        \includegraphics[width=\linewidth]<4>{img/dangless_virtremap.png}
+    \end{center}
+\end{frame}
+
+\section{Implementation details}
+
+\subsection{Light-weight virtualization via Dune}
+
+\begin{frame}{Light-weight virtualization via Dune}
+    \begin{itemize}
+        \item Dune: library and kernel module (based on KVM)
+        \item Low-overhead virtualization
+        \item Just call \lstinline!dune_init_and_enter()!
+        \item<2-> Virtual environment: ring 0 privileges
+            \begin{itemize}
+                \item \textbf{Manipulate page tables}
+                \item Handle interrupts
+                \item Handle system calls
+            \end{itemize}
+        \item<3-> \lstinline!vmcall! to syscall the host kernel
+    \end{itemize}
+\end{frame}
+
+\subsection{\texttt{vmcall} with remapped pointers}
+
+\begin{frame}[fragile]{\texttt{vmcall} with remapped pointers}
+    \begin{itemize}
+        \item Virtualization: host (Linux) memory \lstinline|!=| guest (libdune) memory
+        \item<2-> Manipulating page tables in guest: no effect on host
+        \item<3-> Dangless' virtual aliases: unknown to host
+    \end{itemize}
+
+    \begin{onlyenv}<3->
+        \begin{lstlisting}
+char *`filename = malloc(32)`;
+// ...
+
+int fd = open((@@)@filename@, O_CREAT | O_WRONLY);
+// ...
+        \end{lstlisting}
+    \end{onlyenv}
+\end{frame}
+
+\begin{frame}[fragile]{Fixing up \texttt{vmcall} arguments}
+    \begin{itemize}
+        \item \emph{linux-syscallmd}: Python script, parse Linux \emph{syscall.h}
+        \item<2-> Patched Dune: \lstinline!vmcall! pre- and post-hooks
+        \item<3-> Pre-hook: replace virtual alias pointer arguments with the canonical pointer
+    \end{itemize}
+    
+    \begin{onlyenv}<2->
+        \begin{lstlisting}
+void dangless_vmcall_prehook(uint64_t *syscallno, uint64_t args[], uint64_t *retaddr);
+void dangless_vmcall_posthook(uint64_t result);
+        \end{lstlisting}
+    \end{onlyenv}
+\end{frame}
+
+\begin{frame}[fragile]{Fixing up nested pointers}
+    \begin{lstlisting}
+struct iovec {
+    void  *iov_base; /* Starting address */
+    size_t iov_len;  /* Number of bytes */
+};
+
+ssize_t readv(int fd, const struct iovec *iov,  int iovcnt);
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt);
+    \end{lstlisting}
+
+    \pause
+
+    Other examples:
+    \begin{itemize}
+        \item \lstinline!execve()!: arrays of pointers (\lstinline!argv!, \lstinline!environ!)
+        \item \lstinline!recvmsg()!: complex \lstinline!struct msghdr! (incl. \lstinline!struct iovec!)
+    \end{itemize}
+\end{frame}
+
+\section{Performance evaluation}
+
+\begin{frame}{Performance overhead}
+    TODO
+\end{frame}
+
+\begin{frame}{Memory overhead}
+    TODO
+\end{frame}
+
+\section{Conclusion}
+
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item TODO
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Limitations \& possible future work}
+    \begin{itemize}
+        \item Not thread-safe (Dune either)
+        \item \lstinline!clone()! and \lstinline!fork()! unsupported
+        \item Virtual memory does eventually run out (GC)
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[standout]
+    \Huge
+    \centering
+    Thank you for your attention!
+\end{frame}
+
+\end{document}

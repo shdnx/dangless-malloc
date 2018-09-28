@@ -99,6 +99,23 @@ make config PROFILE=debug PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
 make
 ```
 
+### Build user applications
+
+Dangless generates a file `sources/build/dune_<profile>/user.mk` which contains Makefile variables that are useful for building user applications that rely on Dangless, such `DANGLESS_USER_CFLAGS` and `DANGLESS_USER_LDFLAGS`.
+
+### Errors about relocations
+
+On some systems, while linking user applications to Dangless, you may get errors like this:
+
+>
+  /usr/bin/ld: /.../libdangless.a(vmcall_handle_fork_asm.o): relocation R_X86_64_32S against undefined symbol 'g_current_syscall_return_addr' can not be used when making a PIE object; recompile with -fPIC
+  /usr/bin/ld: /.../libdune.a(entry.o): relocation R_X86_64_32S against '.text' can not be used when making a PIE object; recompile with -fPIC
+  /usr/bin/ld: /.../libdune.a(dune.o): relocation R_X86_64_32S against undefined symbol '__dune_vmcall_hook_running' can not be used when making a PIE object; recompile with -fPIC
+  /usr/bin/ld: final link failed: Nonrepresentable section on output
+  collect2: error: ld returned 1 exit status
+
+This means that on your system, your C compiler (usually GCC) defaults to generating *position independent code* (PIC) and so is trying to build all executables as *position independent executable*  (PIE). This unfortunately doesn't work with Dune, so it has to be disabled. You can do that by adding `-no-pie` to your `CFLAGS` and `LDFLAGS`.
+
 ## Every time the machine is rebooted
 
 The Dune kernel module has to be loaded and permissions relaxed on `/dev/dune` (unless you want to keep using `sudo` for everything that uses Dune):

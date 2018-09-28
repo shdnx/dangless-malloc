@@ -179,7 +179,10 @@ static int fixup_iovec_array(REF struct iovec ARRAY **piovecs, size_t num_iovecs
     return -1;
 
   LOG("Fixing up iovec array of %zu items:\n", num_iovecs);
-  dump_mem_region(*piovecs, num_iovecs * sizeof(struct iovec));
+
+  #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
+    dump_mem_region(*piovecs, num_iovecs * sizeof(struct iovec));
+  #endif
 
   FIXUP_SCOPE(piovecs) {
     for (size_t i = 0; i < num_iovecs; i++) {

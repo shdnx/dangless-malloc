@@ -5,7 +5,8 @@ namd	1.027	1.011
 gobmk	11.375	1.004
 soplex	22.430	1.000
 povray	16.305	1.054
-hmmer	58.604	1.007
+hmmer-old	58.604	1.007
+hmmer-new	1.039	1.007
 sjeng	1.005	1.001
 libquantum	9.317	1.002
 h264ref	12.236	1.002

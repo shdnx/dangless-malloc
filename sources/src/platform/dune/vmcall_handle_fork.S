@@ -1,3 +1,5 @@
+.extern g_current_syscall_return_addr
+
 .text
 
 .globl vmcall_fork_landing
