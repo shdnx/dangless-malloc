@@ -1,5 +1,7 @@
 *Please note that this project is currently heavily work-in-progress.*
 
+Project website, including presentation, presentation slides and preliminary results: https://dangless.gaborkozar.me
+
 # What & why
 
 Manual memory management in languages such as C and C++ allows the programmer to have low-level, precise control over their application's execution and performance, at the cost of additional programming burden. It's easy to make mistakes with manual memory management, for example:

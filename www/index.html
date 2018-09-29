@@ -55,7 +55,7 @@ h1 {
 }
 
 h2 {
-  margin-top: 16px;
+  margin-top: 32px;
   padding: 0 8px;
   border-bottom: 1px solid #AAA;
 }
@@ -93,6 +93,10 @@ li > a:hover {
   text-decoration: none;
   border: 1px solid blue;
   border-top: none;
+}
+
+img {
+  max-width: 100%;
 }
 
 #presentation video, #presentation iframe {
@@ -137,6 +141,8 @@ li > a:hover {
         </ul>
 
         <p>2018 September 24, VU University Amsterdam</p>
+        <p>Note that the results reported in this presentation were early ones; you can find newer performance figures later on this page, in the <em>Performance</em> section.</p>
+
         <video autobuffer controls>
           <source src="presentation.mp4" type="video/mp4">
           <source src="presentation.mov" type="video/quicktime">
@@ -146,12 +152,25 @@ li > a:hover {
         <iframe src="presentation.pdf"></iframe>
       </section>
 
+      <section id="performance">
+        <a name="performance"></a>
+        <h2>Performance (preliminary results)</h2>
+        <p>On the SPEC 2006 benchmarking suite, the C and C++ benchmarks have been executed. Of these, <em>perlbench</em> and <em>omnetpp</em> don't complete successfully, for reasons currently unclear (EPT violation error). For the rest of the benchmarks, prelimianary results are a geometric mean of <strong>5.7% performance overhead</strong> and <strong>8.2% memory overhead</strong>.</p>
+        <p>Below, you can see some diagrams comparing Dangless to the performance reported by the current state-of-the-art solution, Oscar (see the paper Oscar: A Practical Page-Permissions-Based Scheme for Thwarting Dangling Pointers, 2017).</p>
+        <div>
+          <img src="img/perf_vs_oscar_diag.png">
+        </div>
+        <div>
+          <img src="img/mem_vs_oscar_diag.png">
+        </div>
+      </section>
+
       <section id="abstract">
         <a name="abstract"></a>
-        <h2>Abstract</h2>
+        <h2>Abstract (preliminary)</h2>
         <p>Manual memory management required in programming languages like C and C++ has its advantages, but comes at a cost in complexity, frequently leading to bugs and security vulnerabilities. One such example is temporal memory errors, whereby an object or memory region is accessed after it has been deallocated. The pointer through which this access occurs is said to be dangling.</p>
         <p>Our solution, Dangless, protects against such bugs by ensuring that any references through dangling pointers are caught immediately. This is done by maintaining a unique virtual alias for each individual allocation. We do this efficiently by running the process in a light-weight virtual environment, where the allocator can directly modify the page tables.</p>
-        <p>We have evaluated performance on the SPEC 2006 benchmarking suite, and on a subset of the benchmarks have found a geometric mean of 3.5% runtime performance overhead and 406% memory overhead. This makes this solution very efficient in performance - comparable to other state-of-the-art solutions - but the high memory overhead limits its usability in practice.</p>
+        <p>We have evaluated performance on the SPEC 2006 benchmarking suite, and on a majority subset of the benchmarks have found a geometric mean of 5.7% runtime performance overhead and 8.2% memory overhead. This makes Dangless provide temporal heap memory safety at a significantly lesser performance penalty than any previous solutions.</p>
       </section>
 
       <footer>

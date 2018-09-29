@@ -7,6 +7,8 @@
 int dangless_report_resource_usage(void);
 void dangless_report_statistics(void);
 
+void statistics_init(void);
+
 enum statistic_type {
   ST_COUNTER
 };

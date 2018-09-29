@@ -94,6 +94,9 @@ void dangless_init(void) {
 
   dangless_enter_dune();
 
+  // start performance counters
+  statistics_init();
+
   // Functions to run before and after system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_hooks.c.
   // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
   __dune_vmcall_prehook = &dangless_vmcall_prehook;

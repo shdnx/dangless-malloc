@@ -6,12 +6,15 @@
 #include "dangless/common/statistics.h"
 #include "dangless/common/printf_nomalloc.h"
 #include "dangless/common/assert.h"
+#include "dangless/common/perf_events.h"
 
 // TODO: use queue.h instead
 struct statistic_file *g_statistics_file_first;
 struct statistic_file *g_statistics_file_last;
 
 #define PRINT(...) fprintf_nomalloc(stderr, __VA_ARGS__)
+
+void statistics_init(void) {}
 
 bool statistic_file_register(struct statistic_file *stfile) {
   if (stfile->is_linked)
@@ -86,10 +89,17 @@ void dangless_report_statistics(void) {
   }
 }
 
-#if DANGLESS_CONFIG_COLLECT_STATISTICS
-  __attribute__((destructor))
-  void dangless_autoreport(void) {
+__attribute__((destructor))
+void dangless_autoreport(void) {
+  #if DANGLESS_CONFIG_REPORT_RUSAGE
     dangless_report_resource_usage();
+  #endif
+
+  #if DANGLESS_CONFIG_ENABLE_PERF_EVENTS
+    perfevents_finalize();
+  #endif
+
+  #if DANGLESS_CONFIG_COLLECT_STATISTICS
     dangless_report_statistics();
-  }
-#endif
+  #endif
+}
