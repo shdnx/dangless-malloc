@@ -14,7 +14,7 @@
 #include "dangless/common/debug.h"
 #include "dangless/queue.h"
 
-#define USE_GROUPS 1
+#define USE_GROUPS 0
 
 #if DANGLESS_CONFIG_DEBUG_PERF_EVENTS
   #define LOG(...) vdprintf_nomalloc(__VA_ARGS__)
@@ -243,20 +243,10 @@ void perfevents_init(void) {
 
 #define PRINT(...) fprintf_nomalloc(stderr, __VA_ARGS__)
 
-#if !USE_GROUPS
-  static void perfevent_print(ssize_t rresult, struct perf_event_data *data, struct perf_event_desc *pe) {
-    PRINT("%s = ", pe->name);
-    if (rresult == 0) {
-      PRINT("(EOF)");
-    } else if (rresult < 0) {
-      perror("read error");
-    } else {
-      ASSERT0(rresult == sizeof(*data));
-      PRINT("%lld (%lu enabled, %lu running)", data->value, data->time_enabled, data->time_running);
-    }
-    PRINT("\n");
-  }
-#endif
+static void perfevent_print(struct perf_event_desc *pe, u64 count, u64 time_enabled, u64 time_running) {
+  PRINT("%s = %lu\n", pe->name, (unsigned long)(count * ((double)time_enabled / time_running)));
+  PRINT("\t(raw count: %lu, running %u%%: %lu / %lu enabled)\n", count, (unsigned)((double)time_running / time_enabled * 100), time_running, time_enabled);
+}
 
 void perfevents_finalize(void) {
   if (g_group_leader_fd == -1) {
@@ -274,7 +264,7 @@ void perfevents_finalize(void) {
   }
 
   // report all performance events
-  PRINT("\n[Performance events (%zu / %zu)]\n", g_pe_count, g_pe_list_length);
+  PRINT("\n[Performance events]\n");
 
   #if USE_GROUPS
     char data_buffer[sizeof(struct perf_event_group_data) + g_pe_count * sizeof(struct perf_event_data)];
@@ -290,15 +280,14 @@ void perfevents_finalize(void) {
       ASSERT0(group_data->nr == g_pe_count);
       ASSERT0(rresult == sizeof(data_buffer));
 
-      // TODO: do something with this?
-      PRINT("Time enabled: %lu, time running: %lu\n", group_data->time_enabled, group_data->time_running);
+      //PRINT("Time enabled: %lu, time running: %lu\n", group_data->time_enabled, group_data->time_running);
 
       for (size_t i = 0; i < g_pe_count; i++) {
         LIST_FOREACH(pe, &g_pe_list, list) {
           if (pe->id != group_data->values[i].id)
             continue;
 
-          PRINT("%s = %lu\n", pe->name, group_data->values[i].value);
+          perfevent_print(pe, group_data->values[i].value, group_data->time_enabled, group_data->time_running);
         }
       }
     }
@@ -309,9 +298,25 @@ void perfevents_finalize(void) {
 
       struct perf_event_data event_data;
       ssize_t rresult = read(pe->fd, &event_data, sizeof(event_data));
-      perfevent_print(rresult, &event_data, pe);
+
+      if (rresult == 0) {
+        PRINT("%s: EOF read\n", pe->name);
+      } else if (rresult < 0) {
+        PRINT("%s: ", pe->name);
+        perror("Read error: ");
+      } else {
+        perfevent_print(pe, event_data.value, event_data.time_enabled, event_data.time_running);
+      }
     }
   #endif
+
+  // print events that weren't enabled
+  LIST_FOREACH(pe, &g_pe_list, list) {
+    if (pe->initialized)
+      continue;
+
+    PRINT("%s: not run\n", pe->name);
+  }
 
   // close all perf events
   LIST_FOREACH(pe, &g_pe_list, list) {
