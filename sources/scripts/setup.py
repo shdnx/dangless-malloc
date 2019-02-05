@@ -365,6 +365,98 @@ class LibDuneAutoEnter(infra.Package):
         self._dune.configure(ctx)
 
 
+class BaselineReportTLB(infra.Instance):
+    name = "baseline-report-tlb"
+
+    def __init__(self):
+        self._runtime = LibPerfTLBReport()
+
+    def add_build_args(self, parser):
+        pass
+
+    def dependencies(self):
+        yield self._runtime
+
+    def configure(self, ctx):
+        self._runtime.configure(ctx)
+
+    def prepare_run(self, ctx):
+        pass
+
+
+class LibPerfTLBReport(infra.Package):
+    def __init__(self, dune=None):
+        self._dir = os.path.join(
+            CURRENT_DIR,
+            "vendor",
+            "libperf-tlb-report"
+        )
+        self._lib_path = os.path.join(self._dir, "build", "libperf-tlb-report.a")
+
+    def ident(self):
+        return "libperf-tlb-report"
+
+    def dependencies(self):
+        return
+        yield
+
+    def is_fetched(self, ctx):
+        return True
+
+    def fetch(self, ctx):
+        pass
+
+    def is_built(self, ctx):
+        return os.path.exists(self._lib_path)
+
+    def build(self, ctx):
+        os.chdir(self._dir)
+
+        infra.util.run(ctx, [
+            "make",
+            "-j" + str(ctx.jobs),
+            "-DENABLED=1",
+            "-DINDEPENDENT=1"
+        ])
+
+    def is_installed(self, ctx):
+        install_dir = self.path(ctx, "install")
+        if not os.path.exists(install_dir):
+            return False
+
+        os.chdir(install_dir)
+        return os.path.exists("libperf-tlb-report.a")
+
+    def install(self, ctx):
+        install_dir = self.path(ctx, "install")
+        if not os.path.exists(install_dir):
+            os.makedirs(install_dir)
+
+        os.chdir(install_dir)
+        shutil.copyfile(self._lib_path, "./libperf-tlb-report.a")
+
+    def is_clean(self, ctx):
+        return super(LibPerfTLBReport, self).is_clean(ctx) \
+            and not os.path.exists(self._lib_path)
+
+    def clean(self, ctx):
+        super(LibPerfTLBReport, self).clean(ctx)
+
+        os.chdir(self._dir)
+        infra.util.run(ctx, [
+            "make",
+            "clean"
+        ])
+
+    def configure(self, ctx):
+        ctx.ldflags += [
+            "-L" + self.path(ctx, "install"),
+            "-Wl,--whole-archive",
+            "-lperf-tlb-report",
+            "-Wl,--no-whole-archive"
+        ]
+
+
 class Baseline(infra.Instance):
     name = "baseline"
 
@@ -385,15 +477,10 @@ class Baseline(infra.Instance):
 if __name__ == "__main__":
     setup = infra.Setup(__file__)
 
-    # llvm = infra.packages.LLVM(
-    #     version = "6.0.0",
-    #     compiler_rt = False,
-    #     patches = []
-    # )
-    # setup.add_instance(infra.instances.Clang(llvm))
+    setup.add_instance(Baseline())
+    setup.add_instance(BaselineReportTLB())
 
     dune = Dune()
-    setup.add_instance(Baseline())
     setup.add_instance(DuneOnly(dune))
     setup.add_instance(DanglessMalloc(dune))
 

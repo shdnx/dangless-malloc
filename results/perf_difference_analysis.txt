@@ -1,0 +1,31 @@
+mcf:
+ - Dangless perf overhead: 11%
+ - Oscar perf overhead: basically nothing
+ - vmcalls: 904 (1,92 per second)
+ - vmcall arg fixups: 855 (+ 42 misses) (1,90 total per second)
+ - allocations: 8 (0,017 per second)
+ - baseline median runtime: 471.984 seconds
+
+gobmk:
+ - Dangless perf overhead: 3%
+ - Oscar perf overhead: almost nothing
+ - vmcalls: 2138 (2,86 per second)
+ - vmcall arg fixups: 166 (+ 200 misses) (0,49 total per second)
+ - allocations: 221 456 (295,77 per second)
+ - baseline median runtime: 748.740 seconds
+
+h264ref:
+ - Dangless perf overhead: basically nothing
+ - Oscar perf overhead: almost 5%
+ - vmcalls: 1336 (1,02 per second)
+ - vmcall arg fixups: 522 (+ 44 misses) (0,43 total per second)
+ - allocations: 104 845 (367 467 pages) (79,99 per second)
+ - baseline median runtime: 1310.727 seconds
+
+dealII:
+ - Dangless perf overhead: 8%
+ - Oscar perf overhead: ridiculously high
+ - vmcalls: 48 185 (24,56 per second)
+ - vmcall arg fixups: 7940 (+ 902 misses, + 7781 nested) (8,47 total per second)
+ - allocations: 151 258 916 (154 169 948 pages) (77 101,32 per second)
+ - baseline median runtime: 1961.820 seconds

@@ -1,0 +1,123 @@
+\documentclass[12pt]{report}%
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{beramono}
+
+\usepackage[linktocpage=true]{hyperref}
+\hypersetup{
+    colorlinks,
+    %linkcolor={MidnightBlue},
+    linkcolor={blue},
+    %citecolor={MidnightBlue},
+    citecolor={blue},
+    urlcolor={BrickRed}
+}
+
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tikz}
+
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+% This allows `code` and @code@ to be used inside an lstlisting environment, highlighted with a color box.
+% Blatantly stolen from: https://tex.stackexchange.com/a/49309
+\makeatletter
+\newenvironment{btHighlight}[1][]
+{\begingroup\tikzset{bt@Highlight@par/.style={#1}}\begin{lrbox}{\@tempboxa}}
+{\end{lrbox}\bt@HL@box[bt@Highlight@par]{\@tempboxa}\endgroup}
+
+\newcommand\btHL[1][]{%
+  \begin{btHighlight}[#1]\bgroup\aftergroup\bt@HL@endenv%
+}
+\def\bt@HL@endenv{%
+  \end{btHighlight}%   
+  \egroup
+}
+\newcommand{\bt@HL@box}[2][]{%
+  \tikz[#1]{%
+    \pgfpathrectangle{\pgfpoint{1pt}{0pt}}{\pgfpoint{\wd #2}{\ht #2}}%
+    \pgfusepath{use as bounding box}%
+    \node[anchor=base west, fill=orange!30,outer sep=0pt,inner xsep=1pt, inner ysep=0pt, rounded corners=3pt, minimum height=\ht\strutbox+1pt,#1]{\raisebox{1pt}{\strut}\strut\usebox{#2}};
+  }%
+}
+\makeatother
+
+\lstset{language=C++,
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{blue}\ttfamily,
+  stringstyle=\color{red}\ttfamily,
+  commentstyle=\color{magenta}\ttfamily,
+  frame=l,
+  prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+  breaklines=true,
+  breakatwhitespace=true,
+  tabsize=4,
+  %escapeinside={@}{@},
+  numbers=left,
+  xleftmargin=.6cm,
+  showstringspaces=false,
+  captionpos=b,
+  emph={malloc, realloc, calloc, free},
+  emphstyle=\color{purple},
+  escapeinside={(@}{@)},
+  moredelim=**[is][\btHL]{`}{`},
+  moredelim=**[is][{\btHL[fill=red!30,draw=yellow,dashed,thin]}]{@}{@},
+  moredelim=**[is][{\btHL[fill=blue!20,draw=white,dashed,thin]}]{\$}{\$},
+}
+
+\lstdefinestyle{tiny}{
+  basicstyle=\scriptsize\ttfamily
+}
+
+\graphicspath{img/}
+
+\newcommand{\todo}[1]{\textbf{\textcolor{red}{TODO: #1}}}
+
+\title{Dangless: Safe Dangling Pointer Errors}
+\author{Gábor Kozár}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\clearpage
+
+\tableofcontents
+\clearpage
+
+\include{chapters/0abstract}
+\include{chapters/1intro}
+\include{chapters/evaluation}
+
+\chapter{The memory allocation design}
+
+\section{Physical and virtual memory}
+
+\section{Virtual aliasing}
+
+\chapter{Implementation}
+
+\section{Virtualization}
+
+\section{Physical memory allocation}
+
+\section{Virtual memory allocation}
+
+\section{Virtual aliases and \texttt{vmcall}s}
+
+\chapter{Evaluation}
+
+\section{Overview}
+
+\section{Performance evaluation: SPEC 2006}
+
+\section{Summary of contributions}
+
+\section{Limitations and future work}
+
+\section{Conclusion}
+
+\end{document}

@@ -1,0 +1,101 @@
+\chapter{Evaluation}
+
+% Performance overhead: Dune vs Dangless vs Oscar
+\begin{figure}
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            ybar,
+            scale only axis, % width and height only for the contents, not labels
+            width=\textwidth,
+            %height=0.65\paperheight,
+            xtick=data,
+            xticklabels from table={data/perf_vs_oscar.dat}{benchmark},
+            xticklabel style={rotate=90},
+            yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
+            ymin=0,
+            ymax=0.5,
+            point meta={y*100},
+            %nodes near coords={\pgfmathprintnumber\pgfplotspointmeta\%},
+            %nodes near coords align={horizontal},
+            bar width=4pt,
+            ymajorgrids=true,
+            legend style={
+                at={(0.15,0.975)},
+                anchor=north,
+                %legend columns=-1
+            },
+        ]
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{dune} - 1,
+                %skip coords between index={15}{100}
+            ] {data/perf_vs_oscar.dat};
+            
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{dangless} - 1,
+                %skip coords between index={15}{100}
+            ] {data/perf_vs_oscar.dat};
+            
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{oscar_estm} - 1,
+                %skip coords between index={15}{100}
+            ] {data/perf_vs_oscar.dat};
+            
+            \legend{Dune only, Dangless, Oscar}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Dune vs Dangless vs Oscar: performance overhead}
+\end{figure}
+
+% Memory overhead: Dune vs Dangless vs Oscar
+\begin{figure}
+    \centering
+    \begin{tikzpicture}
+        \begin{axis}[
+            ybar,
+            scale only axis, % width and height only for the contents, not labels
+            width=\textwidth,
+            %height=0.65\paperheight,
+            xtick=data,
+            xticklabels from table={data/mem_vs_oscar.dat}{benchmark},
+            xticklabel style={rotate=90},
+            yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
+            ymin=0,
+            ymax=1.5,
+            point meta={y*100},
+            %nodes near coords={\pgfmathprintnumber\pgfplotspointmeta\%},
+            %nodes near coords align={horizontal},
+            bar width=4pt,
+            ymajorgrids=true,
+            legend style={
+                at={(0.15,0.975)},
+                anchor=north,
+                %legend columns=-1
+            },
+        ]
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{dune} - 1,
+                %skip coords between index={15}{100}
+            ] {data/mem_vs_oscar.dat};
+            
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{dangless} - 1,
+                %skip coords between index={15}{100}
+            ] {data/mem_vs_oscar.dat};
+            
+            \addplot table [
+                x expr=\coordindex,
+                y expr=\thisrow{oscar_estm} - 1,
+                %skip coords between index={15}{100}
+            ] {data/mem_vs_oscar.dat};
+            
+            \legend{Dune only, Dangless, Oscar}
+        \end{axis}
+    \end{tikzpicture}
+    \caption{Dune vs Dangless vs Oscar: memory overhead}
+\end{figure}

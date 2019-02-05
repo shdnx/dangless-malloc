@@ -24,7 +24,7 @@ html, body {
 }
 
 #main {
-  width: 800px;
+  width: 1000px;
   max-width: 100%;
   min-height: 100%;
   border: 1px solid #808080;
@@ -99,16 +99,16 @@ img {
   max-width: 100%;
 }
 
-#presentation video, #presentation iframe {
+section video, section iframe {
   display: block;
-  width: 700px;
+  width: 900px;
   max-width: 95%;
   height: 510px;
   max-height: 60vh;
   margin: 0 auto;
 }
 
-#presentation iframe {
+section iframe {
   margin-top: 12px;
 }
     </style>
@@ -122,6 +122,7 @@ img {
             <li><a href="#presentation">Presentation</a></li>
             <li><a href="#abstract">Abstract</a></li>
             <li><a href="https://github.com/shdnx/dangless-malloc" target="_blank">Project source</a></li>
+            <li><a href="https://news.ycombinator.com/item?id=18214738" target="_blank">HN discussion</a></li>
           </ul>
         </nav>
       </header>
@@ -157,12 +158,16 @@ img {
         <h2>Performance (preliminary results)</h2>
         <p>On the SPEC 2006 benchmarking suite, the C and C++ benchmarks have been executed. Of these, <em>perlbench</em> and <em>omnetpp</em> don't complete successfully, for reasons currently unclear (EPT violation error). For the rest of the benchmarks, prelimianary results are a geometric mean of <strong>5.7% performance overhead</strong> and <strong>8.2% memory overhead</strong>.</p>
         <p>Below, you can see some diagrams comparing Dangless to the performance reported by the current state-of-the-art solution, Oscar (see the paper Oscar: A Practical Page-Permissions-Based Scheme for Thwarting Dangling Pointers, 2017).</p>
+
         <div>
           <img src="img/perf_vs_oscar_diag.png">
         </div>
         <div>
           <img src="img/mem_vs_oscar_diag.png">
         </div>
+
+        <p>Some analysis of the factors behind the performance overhead (<a href="results/perf_diff_with_oscar_analysis.xlsx" target="_blank">Excel sheet with details</a>):</p>
+        <iframe src="results/perf_diff_with_oscar_analysis.pdf"></iframe>
       </section>
 
       <section id="abstract">

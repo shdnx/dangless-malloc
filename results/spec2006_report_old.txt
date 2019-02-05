@@ -1,0 +1,245 @@
++ spec2006 aggregated data (ref workload) -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+|                                                               runtime    runtime           memory     memory   runtime          runtime    runtime   runtime          runtime    runtime    memory           memory     memory    memory           memory     memory                                       |
+|                 status    status           status            overhead   overhead         overhead   overhead    median           median     median     stdev            stdev      stdev       max              max        max     stdev            stdev      stdev     iters            iters      iters |
+| benchmark       baseline  dangless-malloc  dune-only  dangless-malloc  dune-only  dangless-malloc  dune-only  baseline  dangless-malloc  dune-only  baseline  dangless-malloc  dune-only  baseline  dangless-malloc  dune-only  baseline  dangless-malloc  dune-only  baseline  dangless-malloc  dune-only |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| 401.bzip2       OK        OK               OK                   0.993      1.002            1.019      1.000  1031.336         1024.284   1033.750    16.254            1.207     27.767    870832           887744     870948     0.000            0.000      0.000         3                3          3 |
+| 429.mcf         OK        OK               OK                   1.131      1.019            1.000      1.000   465.145          526.274    474.011     0.276            0.873      1.130   1717612          1718376    1717740     0.000            0.000      0.000         3                3          3 |
+| 444.namd        OK        OK               OK                   1.000      1.013            1.027      1.011   820.088          820.277    830.582     3.519            1.836      5.892     48752            50060      49276     0.000            0.000      0.000         3                3          3 |
+| 445.gobmk       OK        OK               OK                   0.983      0.976           11.375      1.004   768.223          755.334    749.528     9.834            0.357      0.786     30700           349208      30820     0.000            0.000      0.000         3                3          3 |
+| 450.soplex      OK        OK               OK                   1.027      0.992           22.430      1.000   559.782          575.126    555.500     3.609            4.080      0.664    438268          9830224     438452     0.000            0.000      0.000         3                3          3 |
+| 453.povray      OK        OK               OK                   1.009      0.988           16.305      1.054   418.090          421.803    413.099     0.816            0.634      2.479      6840           111528       7212     0.000            0.000      0.000         3                3          3 |
+| 456.hmmer       OK        OK               OK                   1.022      1.009           58.604      1.007  1601.829         1637.670   1616.407     2.529            7.279     17.464     27256          1597308      27436     0.000            0.000      0.000         3                3          3 |
+| 458.sjeng       OK        OK               OK                   1.016      1.004            1.005      1.001   802.908          815.832    805.907     0.220            1.086      2.363    180176           181016     180380     0.000            0.000      0.000         3                3          3 |
+| 462.libquantum  OK        OK               OK                   0.993      0.991            9.317      1.002   692.648          687.564    686.126     1.206            0.173      1.157    100032           932004     100264     0.000            0.000      0.000         3                3          3 |
+| 464.h264ref     OK        OK               OK                   0.990      0.993           12.236      1.002  1322.355         1308.755   1312.947     8.498            1.483      1.036     67124           821348      67248     0.000            0.000      0.000         3                3          3 |
+| 470.lbm         OK        OK               OK                   1.010      1.001            1.002      1.001   493.917          498.844    494.279     0.221            0.449      1.093    420204           421152     420432     0.000            0.000      0.000         3                3          3 |
+| 473.astar       OK        OK               OK                   1.284      1.004            9.772      1.000   795.367         1021.356    798.277     4.240            9.785     13.681    335044          3273972     335084     0.000            0.000      0.000         3                3          3 |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+| geomean:                                                        1.035      0.999            5.067      1.007                                                                                                                                                                                               |
++------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+Infra and Dangless statistics
+
+401.bzip2:
+  chicken.jpg.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 119148
+    [setup-report] page_faults: 29499
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 48
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 6
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 20
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 39
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 30341
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 30279
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+  liberty.jpg.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 120300
+    [setup-report] page_faults: 29791
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 84
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 4
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 18
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 37
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 30341
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 30279
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+  text.html.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 886428
+    [setup-report] page_faults: 221316
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 161
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 3
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 17
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 37
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 222779
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 222342
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+  input.combined.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 642768
+    [setup-report] page_faults: 160397
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 99
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 412
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 426
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 446
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 161199
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 160882
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+  input.program.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 886344
+    [setup-report] page_faults: 221335
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 121
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 63
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 77
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 97
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 222779
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 222342
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+  input.source.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 887744
+    [setup-report] page_faults: 221629
+    [setup-report] io_operations: 0
+    [setup-report] context_switches: 138
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 396
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 410
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 430
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 9
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 222779
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 222342
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 29
+
+450.soplex:
+  pds-50.mps.stderr:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 9830224
+    [setup-report] page_faults: 2456933
+    [setup-report] io_operations: 24
+    [setup-report] context_switches: 469
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 7
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 3620
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 3640
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 40816
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 2862
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 8568595
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 8551858
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 233313
+
+  ref.stderr:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 644936
+    [setup-report] page_faults: 160518
+    [setup-report] io_operations: 24
+    [setup-report] context_switches: 426
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 7
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 34181
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 34201
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 35387
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 120
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 785616
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 784080
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 4347
+
+456.hmmer:
+  npm3.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 1597308
+    [setup-report] page_faults: 398793
+    [setup-report] io_operations: 8
+    [setup-report] context_switches: 783
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 13376
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 13393
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 24130
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 30
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 1758342
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 1754906
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 1293476
+
+  retro.err:
+    [setup-report] begin
+    [setup-report] maxrss_kb: 564504
+    [setup-report] page_faults: 140592
+    [setup-report] io_operations: 80
+    [setup-report] context_switches: 1706
+    [setup-report] end
+    STAT [src/platform/dune/vmcall_fixup.c:34] st_vmcall_invalid_ptrs = 0
+    STAT [src/platform/dune/vmcall_fixup.c:33] st_vmcall_nested_ptr_fixups = 0
+    STAT [src/platform/dune/vmcall_fixup.c:32] st_vmcall_ptr_fixup_failures = 0
+    STAT [src/platform/dune/vmcall_fixup.c:31] st_vmcall_ptr_fixup_misses = 5
+    STAT [src/platform/dune/vmcall_fixup.c:30] st_vmcall_ptr_fixups = 36
+    STAT [src/platform/dune/vmcall_fixup.c:29] st_vmcall_arg_needed_fixups = 52
+    STAT [src/platform/dune/vmcall_hooks.c:22] st_vmcall_count = 4284
+    STAT [src/platform/dune/init.c:20] st_init_happened = 1
+    STAT [src/dangless_malloc.c:33] st_num_1gb_plus_allocs = 0
+    STAT [src/dangless_malloc.c:32] st_num_2mb_plus_allocs = 0
+    STAT [src/virtmem.c:18] st_num_pagetables_allocated = 1141737
+    STAT [src/virtmem_alloc.c:25] st_num_allocated_pages = 1139505
+    STAT [src/virtmem_alloc.c:24] st_num_allocations_failed = 1
+    STAT [src/virtmem_alloc.c:23] st_num_allocations = 1000146

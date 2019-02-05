@@ -8,6 +8,10 @@ dir_resolve() {
   echo "`pwd -P`" # output full, link-resolved path
 }
 
+instance_name=$1
+# TODO: default dangless-malloc
+# also baseline-report-tlb
+
 root_dir=`dir_resolve "$DIR/../.."`
 spec_dir="$root_dir/vendor/spec2006"
 base_dir="$spec_dir/benchspec/CPU2006"
@@ -20,7 +24,7 @@ fi
 
 mkdir "$result_dir"
 
-for file_path in `find "$base_dir" -type f -wholename "*/run_base_ref_infra-dangless-malloc.0000/*" -print0 | xargs -0 grep -I -l "\[setup\-report\] begin"`; do
+for file_path in `find "$base_dir" -type f -wholename "*/run_base_ref_infra-${instance_name}.0000/*" -print0 | xargs -0 grep -I -l "\[setup\-report\] begin"`; do
   if [[ $file_path =~ \/CPU2006\/(.*?)\/run\/ ]]; then
     benchmark_name="${BASH_REMATCH[1]}"
     file_name=`basename "$file_path"`

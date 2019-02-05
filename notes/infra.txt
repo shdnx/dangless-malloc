@@ -9,6 +9,12 @@ $ ./setup.py build --dangless-profile="release" --targets spec2006 --instances b
 Build for testing/debugging:
 $ ./setup.py build --dangless-debug --targets spec2006 --instances dangless-malloc
 
+Build baseline with TLB statistics reporting:
+$ ./setup.py build --targets spec2006 --instances baseline-report-tlb
+
+Run with baseline with TLB statistics reporting:
+$ ./setup.py run spec2006 baseline-report-tlb --benchmarks all_c all_cpp
+
 Don't use --parallel=proc while Dune still needs hugepages, it won't end well!
 
 Test run:
