@@ -1,0 +1,54 @@
+This is BibTeX, Version 0.99d (TeX Live 2018)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
+The top-level auxiliary file: main.aux
+A level-1 auxiliary file: chapters/0abstract.aux
+A level-1 auxiliary file: chapters/1intro.aux
+A level-1 auxiliary file: chapters/2background.aux
+A level-1 auxiliary file: chapters/3implementation.aux
+The style file: plain.bst
+Database file #1: bibliography.bib
+Warning--to sort, need author or key in glibc-malloc-is-weak
+Warning--to sort, need author or key in glibc-dlsym-calls-calloc
+Warning--to sort, need author or key in dlsym-calloc-special-ex1
+You've used 3 entries,
+            2118 wiz_defined-function locations,
+            511 strings with 4718 characters,
+and the built_in function-call counts, 526 in all, are:
+= -- 51
+> -- 3
+< -- 0
++ -- 4
+- -- 0
+* -- 17
+:= -- 66
+add.period$ -- 9
+call.type$ -- 3
+change.case$ -- 9
+chr.to.int$ -- 0
+cite$ -- 6
+duplicate$ -- 21
+empty$ -- 70
+format.name$ -- 0
+if$ -- 127
+int.to.chr$ -- 0
+int.to.str$ -- 3
+missing$ -- 0
+newline$ -- 18
+num.names$ -- 0
+pop$ -- 30
+preamble$ -- 1
+purify$ -- 6
+quote$ -- 0
+skip$ -- 15
+stack$ -- 0
+substring$ -- 16
+swap$ -- 3
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 12
+warning$ -- 3
+while$ -- 0
+width$ -- 4
+write$ -- 29
+(There were 3 warnings)

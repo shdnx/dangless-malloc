@@ -4,6 +4,7 @@
 \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage{beramono}
+\usepackage{xcolor}
 
 \usepackage[linktocpage=true]{hyperref}
 \hypersetup{
@@ -12,11 +13,10 @@
     linkcolor={blue},
     %citecolor={MidnightBlue},
     citecolor={blue},
-    urlcolor={BrickRed}
+    %urlcolor={BrickRed}
 }
 
 \usepackage{listings}
-\usepackage{xcolor}
 \usepackage{tikz}
 
 \usepackage{pgfplots}
@@ -90,34 +90,40 @@
 
 \include{chapters/0abstract}
 \include{chapters/1intro}
-\include{chapters/evaluation}
+\include{chapters/2background}
+\include{chapters/3implementation}
 
-\chapter{The memory allocation design}
+\bibliography{bibliography}{}
+\bibliographystyle{plain}
 
-\section{Physical and virtual memory}
+% \include{chapters/evaluation}
 
-\section{Virtual aliasing}
+%\chapter{The memory allocation design}
 
-\chapter{Implementation}
+%\section{Physical and virtual memory}
 
-\section{Virtualization}
+%\section{Virtual aliasing}
 
-\section{Physical memory allocation}
+%\chapter{Implementation}
 
-\section{Virtual memory allocation}
+%\section{Virtualization}
 
-\section{Virtual aliases and \texttt{vmcall}s}
+%\section{Physical memory allocation}
 
-\chapter{Evaluation}
+%\section{Virtual memory allocation}
 
-\section{Overview}
+%\section{Virtual aliases and \texttt{vmcall}s}
 
-\section{Performance evaluation: SPEC 2006}
+%\chapter{Evaluation}
 
-\section{Summary of contributions}
+%\section{Overview}
 
-\section{Limitations and future work}
+%\section{Performance evaluation: SPEC 2006}
 
-\section{Conclusion}
+%\section{Summary of contributions}
+
+%\section{Limitations and future work}
+
+%\section{Conclusion}
 
 \end{document}

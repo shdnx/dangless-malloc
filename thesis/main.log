@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.9.18)  19 JAN 2019 16:23
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.9.18)  29 JUN 2019 18:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -64,6 +64,27 @@ Package: beramono 2004/01/31 (WaS)
 Package: keyval 2014/10/28 v1.15 key=value parser (DPC)
 \KV@toks@=\toks16
 ))
+(/usr/local/texlive/2018/texmf-dist/tex/latex/xcolor/xcolor.sty
+Package: xcolor 2016/05/11 v2.12 LaTeX color extensions (UK)
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-cfg/color.cfg
+File: color.cfg 2016/01/02 v1.6 sample color configuration
+)
+Package xcolor Info: Driver file: pdftex.def on input line 225.
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-def/pdftex.def
+File: pdftex.def 2018/01/08 v1.0l Graphics/color driver for pdftex
+)
+Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1348.
+Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1352.
+Package xcolor Info: Model `RGB' extended on input line 1364.
+Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1366.
+Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1367.
+Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1368.
+Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1369.
+Package xcolor Info: Model `Gray' substituted by `gray' on input line 1370.
+Package xcolor Info: Model `wave' substituted by `hsb' on input line 1371.
+)
 (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hyperref.sty
 Package: hyperref 2018/02/06 v6.86b Hypertext links for LaTeX
 
@@ -180,7 +201,7 @@ Package uniquecounter Info: New unique counter `rerunfilecheck' on input line 2
 )
 \Hy@SectionHShift=\skip43
 )
-Package hyperref Info: Option `colorlinks' set `true' on input line 16.
+Package hyperref Info: Option `colorlinks' set `true' on input line 17.
 
 (/usr/local/texlive/2018/texmf-dist/tex/latex/listings/listings.sty
 \lst@mode=\count101
@@ -207,27 +228,6 @@ File: listings.cfg 2015/06/04 1.6 listings configuration
 ))
 Package: listings 2015/06/04 1.6 (Carsten Heinz)
 
-(/usr/local/texlive/2018/texmf-dist/tex/latex/xcolor/xcolor.sty
-Package: xcolor 2016/05/11 v2.12 LaTeX color extensions (UK)
-
-(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-cfg/color.cfg
-File: color.cfg 2016/01/02 v1.6 sample color configuration
-)
-Package xcolor Info: Driver file: pdftex.def on input line 225.
-
-(/usr/local/texlive/2018/texmf-dist/tex/latex/graphics-def/pdftex.def
-File: pdftex.def 2018/01/08 v1.0l Graphics/color driver for pdftex
-)
-Package xcolor Info: Model `cmy' substituted by `cmy0' on input line 1348.
-Package xcolor Info: Model `hsb' substituted by `rgb' on input line 1352.
-Package xcolor Info: Model `RGB' extended on input line 1364.
-Package xcolor Info: Model `HTML' substituted by `rgb' on input line 1366.
-Package xcolor Info: Model `Hsb' substituted by `hsb' on input line 1367.
-Package xcolor Info: Model `tHsb' substituted by `hsb' on input line 1368.
-Package xcolor Info: Model `HSB' substituted by `hsb' on input line 1369.
-Package xcolor Info: Model `Gray' substituted by `gray' on input line 1370.
-Package xcolor Info: Model `wave' substituted by `hsb' on input line 1371.
-)
 (/usr/local/texlive/2018/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
 (/usr/local/texlive/2018/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
 (/usr/local/texlive/2018/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
@@ -649,8 +649,8 @@ File: lstlang1.sty 2015/06/04 1.6 listings language file
 )
 (/usr/local/texlive/2018/texmf-dist/tex/latex/listings/lstmisc.sty
 File: lstmisc.sty 2015/06/04 1.6 (Carsten Heinz)
-) (./main.aux (./chapters/0abstract.aux) (./chapters/1intro.aux) (./chapters/ev
-aluation.aux))
+) (./main.aux (./chapters/0abstract.aux) (./chapters/1intro.aux) (./chapters/2b
+ackground.aux) (./chapters/3implementation.aux))
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 83.
@@ -667,38 +667,19 @@ LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 83.
 LaTeX Font Info:    ... okay on input line 83.
 LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 83.
 LaTeX Font Info:    ... okay on input line 83.
-\AtBeginShipoutBox=\box40
-Package hyperref Info: Link coloring ON on input line 83.
- (/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
-Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
-
-(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
-Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
-)
-\c@section@level=\count136
-)
-LaTeX Info: Redefining \ref on input line 83.
-LaTeX Info: Redefining \pageref on input line 83.
-LaTeX Info: Redefining \nameref on input line 83.
-
-(./main.out) (./main.out)
-\@outlinefile=\write4
-\openout4 = `main.out'.
-
-\c@lstlisting=\count137
 
 (/usr/local/texlive/2018/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count138
+\scratchcounter=\count136
 \scratchdimen=\dimen174
-\scratchbox=\box41
-\nofMPsegments=\count139
-\nofMParguments=\count140
+\scratchbox=\box40
+\nofMPsegments=\count137
+\nofMParguments=\count138
 \everyMPshowfont=\toks34
-\MPscratchCnt=\count141
+\MPscratchCnt=\count139
 \MPscratchDim=\dimen175
-\MPnumerator=\count142
-\makeMPintoPDFobject=\count143
+\MPnumerator=\count140
+\makeMPintoPDFobject=\count141
 \everyMPtoPDFconversion=\toks35
 ) (/usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/epstopdf-base.sty
 Package: epstopdf-base 2016/05/15 v2.6 Base part for package epstopdf
@@ -717,7 +698,27 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-ABD: EveryShipout initializing macros
+\AtBeginShipoutBox=\box41
+Package hyperref Info: Link coloring ON on input line 83.
+
+(/usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/nameref.sty
+Package: nameref 2016/05/21 v2.44 Cross-referencing by name of section
+
+(/usr/local/texlive/2018/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
+Package: gettitlestring 2016/05/16 v1.5 Cleanup title references (HO)
+)
+\c@section@level=\count142
+)
+LaTeX Info: Redefining \ref on input line 83.
+LaTeX Info: Redefining \pageref on input line 83.
+LaTeX Info: Redefining \nameref on input line 83.
+
+(./main.out) (./main.out)
+\@outlinefile=\write4
+\openout4 = `main.out'.
+
+\c@lstlisting=\count143
+ ABD: EveryShipout initializing macros
 Package pgfplots notification 'compat/show suggested version=true': document ha
 s been generated with the most recent feature set (\pgfplotsset{compat=1.16}).
 
@@ -735,10 +736,7 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <8> on input line 3.
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <6> on input line 3.
-LaTeX Font Info:    Try loading font information for T1+fvm on input line 15.
- (/usr/local/texlive/2018/texmf-dist/tex/latex/bera/t1fvm.fd
-File: t1fvm.fd 2004/09/07 scalable font definitions for T1/fvm.
-))
+)
 \tf@toc=\write5
 \openout5 = `main.toc'.
 
@@ -762,105 +760,186 @@ l.89 \clearpage
  (./chapters/1intro.tex
 Chapter 1.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <5> on input line 6.
+(Font)              <5> on input line 8.
+LaTeX Font Info:    Try loading font information for T1+fvm on input line 12.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/bera/t1fvm.fd
+File: t1fvm.fd 2004/09/07 scalable font definitions for T1/fvm.
+)
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <10.95> on input line 10.
-[3
+(Font)              <10.95> on input line 12.
+ [3
 
 
 
-] [4] [5] [6]
-<img/dangling_pointer_basics.png, id=157, 623.32875pt x 422.57875pt>
+] [4] [5]
+[6]
+<img/dangling_pointer_basics.png, id=112, 623.32875pt x 422.57875pt>
 File: img/dangling_pointer_basics.png Graphic file (type png)
 <use img/dangling_pointer_basics.png>
 Package pdftex.def Info: img/dangling_pointer_basics.png  used on input line 40
 .
 (pdftex.def)             Requested size: 390.0pt x 264.40123pt.
- [7 <./img/dangling_pointer_basics.png>]) [8]
-\openout2 = `chapters/evaluation.aux'.
+ [7 <./img/dangling_pointer_basics.png>] [8] [9]) [10]
+\openout2 = `chapters/2background.aux'.
 
 
-(./chapters/evaluation.tex
+(./chapters/2background.tex
 Chapter 2.
-PGFPlots: reading {data/perf_vs_oscar.dat}
-PGFPlots: reading {data/perf_vs_oscar.dat}
-PGFPlots: reading {data/perf_vs_oscar.dat}
-PGFPlots: reading {data/perf_vs_oscar.dat}
-
-Overfull \hbox (29.76779pt too wide) in paragraph at lines 49--50
- [][] 
- []
-
-PGFPlots: reading {data/mem_vs_oscar.dat}
-PGFPlots: reading {data/mem_vs_oscar.dat}
-PGFPlots: reading {data/mem_vs_oscar.dat}
-PGFPlots: reading {data/mem_vs_oscar.dat}
-
-Overfull \hbox (35.64273pt too wide) in paragraph at lines 99--100
- [][] 
- []
-
-) [9
+LaTeX Font Info:    Try loading font information for OMS+cmr on input line 17.
+(/usr/local/texlive/2018/texmf-dist/tex/latex/base/omscmr.fd
+File: omscmr.fd 2014/09/29 v2.5h Standard LaTeX font definitions
+)
+LaTeX Font Info:    Font shape `OMS/cmr/m/n' in size <12> not available
+(Font)              Font shape `OMS/cmsy/m/n' tried instead on input line 17.
+ [11
 
 
 
-] [10] [11]
+]
+<diagrams/virtual_memory.png, id=142, 624.3325pt x 335.2525pt>
+File: diagrams/virtual_memory.png Graphic file (type png)
+<use diagrams/virtual_memory.png>
+Package pdftex.def Info: diagrams/virtual_memory.png  used on input line 26.
+(pdftex.def)             Requested size: 390.0pt x 209.42487pt.
+ [12 <./diagrams/virtual_memory.png>]
+<diagrams/page_table_tree.png, id=151, 773.89125pt x 372.39125pt>
+File: diagrams/page_table_tree.png Graphic file (type png)
+<use diagrams/page_table_tree.png>
+Package pdftex.def Info: diagrams/page_table_tree.png  used on input line 38.
+(pdftex.def)             Requested size: 390.0pt x 187.66685pt.
+ [13 <./diagrams/page_table_tree.png>]) [14]
+\openout2 = `chapters/3implementation.aux'.
+
+
+(./chapters/3implementation.tex
 Chapter 3.
-[12
+[15
+
+
+
+]
+Overfull \hbox (41.90894pt too wide) in paragraph at lines 28--29
+[]\T1/cmr/m/n/12 By de-fault, Dan-g-less au-to-mat-i-cally reg-is-ters this fun
+c-tion in the [][][][]
+ []
+
+
+Overfull \hbox (8.95938pt too wide) in paragraph at lines 38--39
+\T1/cmr/m/n/12 sion them-selves, we pro-vide the op-tion [][][]
+ []
+
+
+Overfull \hbox (9.88162pt too wide) in paragraph at lines 38--39
+\T1/cmr/m/n/12 which al-lows Dan-g-less to take own-er-ship of one or more un-u
+sed PML4 pagetable
+ []
+
+[16]
+Overfull \hbox (55.05438pt too wide) in paragraph at lines 44--45
+\T1/cmr/m/n/12 Whenever Dan-g-less is asked to al-lo-cate some mem-ory via a ca
+ll to [][][][],
+ []
+
+
+Overfull \hbox (33.83313pt too wide) in paragraph at lines 55--56
+[][][][][][][] \T1/cmr/m/n/12 is a strong alias of [][][][], which calls [][][]
+[]
+ []
+
+[17]
+Overfull \hbox (99.02887pt too wide) in paragraph at lines 60--61
+[]\T1/cmr/m/n/12 To get around this, [][][][] uses a static buffer of [][][]
+ []
+
+[18]) [19] (./main.bbl
+Underfull \hbox (badness 10000) in paragraph at lines 4--8
+[]\T1/cmr/m/n/12 GNU C li-brary source - dl-sym() calls cal-loc().
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 4--8
+[][]$\T1/fvm/m/n/12 https : / / github . com / lattera / glibc / blob /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 4--8
+\T1/fvm/m/n/12 59ba27a63ada3f46b71ec99a314dfac5a38ad6d2 / dlfcn /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 16--21
+[]\T1/cmr/m/n/12 The uni-ver-sal elite game trainer for cli (linux game
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 16--21
+\T1/cmr/m/n/12 trainer re-search project) - hook-ing mem-ory al-lo-ca-tion func
+-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 16--21
+\T1/cmr/m/n/12 tions.  [][]$\T1/fvm/m/n/12 https : / / github . com / ugtrain /
+ ugtrain / blob /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 16--21
+\T1/fvm/m/n/12 d9519a15f4363cee48bb3c270f6050181c5aa305 / src /
+ []
+
+) [20
 
 
 ]
-Chapter 4.
-LaTeX Font Info:    Font shape `T1/fvm/bx/n' in size <17.28> not available
-(Font)              Font shape `T1/fvm/b/n' tried instead on input line 109.
-[13
-
-]
-Chapter 5.
-[14
-
-]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 123.
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 123.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 129.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 129.
  (./main.aux (./chapters/0abstract.aux) (./chapters/1intro.aux)
-(./chapters/evaluation.aux))
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 123.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 123.
-Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: 0407012EAA364A4345406D86814B5458;1233.
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 123.
+(./chapters/2background.aux) (./chapters/3implementation.aux))
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 129.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 129.
+
+
+Package rerunfilecheck Warning: File `main.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `main.out':
+(rerunfilecheck)             Before: 9C4CBBE0F360D68FD7918BC38623AEE6;643
+(rerunfilecheck)             After:  1C5B8138D0CBCF90EF38B17A8A360CC6;699.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 129.
  ) 
 Here is how much of TeX's memory you used:
- 27918 strings out of 492649
- 669373 string characters out of 6129622
- 889554 words of memory out of 5000000
- 31300 multiletter control sequences out of 15000+600000
- 20670 words of font info for 49 fonts, out of 8000000 for 9000
+ 27461 strings out of 492649
+ 655269 string characters out of 6129622
+ 889848 words of memory out of 5000000
+ 30812 multiletter control sequences out of 15000+600000
+ 20050 words of font info for 47 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 78i,19n,136p,1601b,2274s stack positions out of 5000i,500n,10000p,200000b,80000s
-{/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}{/usr/local/t
-exlive/2018/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}</usr/local/tex
+ 78i,8n,136p,1605b,1179s stack positions out of 5000i,500n,10000p,200000b,80000s
+{/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}
+{/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/tex
 live/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texl
 ive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/local/texliv
-e/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive
-/2018/texmf-dist/fonts/type1/public/bera/fvmb8a.pfb></usr/local/texlive/2018/te
-xmf-dist/fonts/type1/public/bera/fvmr8a.pfb></usr/local/texlive/2018/texmf-dist
-/fonts/type1/public/cm-super/sfbx1200.pfb></usr/local/texlive/2018/texmf-dist/f
-onts/type1/public/cm-super/sfbx1728.pfb></usr/local/texlive/2018/texmf-dist/fon
-ts/type1/public/cm-super/sfbx2488.pfb></usr/local/texlive/2018/texmf-dist/fonts
-/type1/public/cm-super/sfrm0700.pfb></usr/local/texlive/2018/texmf-dist/fonts/t
-ype1/public/cm-super/sfrm0800.pfb></usr/local/texlive/2018/texmf-dist/fonts/typ
-e1/public/cm-super/sfrm1000.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1
-/public/cm-super/sfrm1095.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/p
-ublic/cm-super/sfrm1200.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/pub
-lic/cm-super/sfrm1440.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/publi
-c/cm-super/sfrm2074.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/
-cm-super/sfti1000.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/cm
--super/sfti1200.pfb>
-Output written on main.pdf (15 pages, 240516 bytes).
+e/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2
+018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/20
+18/texmf-dist/fonts/type1/public/bera/fvmr8a.pfb></usr/local/texlive/2018/texmf
+-dist/fonts/type1/public/cm-super/sfbx1200.pfb></usr/local/texlive/2018/texmf-d
+ist/fonts/type1/public/cm-super/sfbx1728.pfb></usr/local/texlive/2018/texmf-dis
+t/fonts/type1/public/cm-super/sfbx2488.pfb></usr/local/texlive/2018/texmf-dist/
+fonts/type1/public/cm-super/sfrm0700.pfb></usr/local/texlive/2018/texmf-dist/fo
+nts/type1/public/cm-super/sfrm0800.pfb></usr/local/texlive/2018/texmf-dist/font
+s/type1/public/cm-super/sfrm1000.pfb></usr/local/texlive/2018/texmf-dist/fonts/
+type1/public/cm-super/sfrm1095.pfb></usr/local/texlive/2018/texmf-dist/fonts/ty
+pe1/public/cm-super/sfrm1200.pfb></usr/local/texlive/2018/texmf-dist/fonts/type
+1/public/cm-super/sfrm1440.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/
+public/cm-super/sfrm2074.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/pu
+blic/cm-super/sfti1000.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/publ
+ic/cm-super/sfti1200.pfb>
+Output written on main.pdf (21 pages, 298208 bytes).
 PDF statistics:
- 272 PDF objects out of 1000 (max. 8388607)
- 233 compressed objects within 3 object streams
- 44 named destinations out of 1000 (max. 500000)
- 178 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 296 PDF objects out of 1000 (max. 8388607)
+ 247 compressed objects within 3 object streams
+ 65 named destinations out of 1000 (max. 500000)
+ 116 words of extra memory for PDF output out of 10000 (max. 10000000)
 
