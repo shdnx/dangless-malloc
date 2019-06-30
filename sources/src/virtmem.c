@@ -159,7 +159,7 @@ int pt_map_region(paddr_t pa, vaddr_t va, size_t size, enum pte_flags flags) {
 
   LOG("mapping physical region %p to virtual region %p of size %zu with flags %d\n", (void *)pa, (void *)va, size, flags);
 
-  // TODO: can use huge-page mapping transparently here if pa, va and size are all multiplies of 2 MB
+  // TODO: can use huge-page mapping transparently here if pa, va, and size are all multiplies of 2 MB
 
   // TODO: this could be optimized, since usually we'll likely be working with neighbouring PTEs
   int result = 0;
