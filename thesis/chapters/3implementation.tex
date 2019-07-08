@@ -100,17 +100,120 @@ Should the physical memory allocation fail, the machine is out of memory, and Da
 
 We have a different situation however if it's the virtual memory allocation that fails. I have already talked about Dangless' ability to automatically acquire virtual memory for its allocator by scanning the page table and taking unused PML4 entries for its own use. If even despite this mechanism Dangless does not have sufficient virtual memory to protect the user allocation by remapping it, then Dangless gives up. If the \lstinline!CONFIG_ALLOW_SYSMALLOC_FALLBACK! option is enabled, then Dangless simply forwards all later memory management function calls to the system allocator, to ensure that the user application keeps functioning. Otherwise, it exits the application.
 
+\subsection{Deallocations}
+
+When deallocating some memory using \lstinline!dangless_free()!, the challenge is detecting whether the given pointer was successfully remapped previously, and if so, obtaining the original virtual address that can be passed to \lstinline!sysfree()!.
+This is necessary if we don't want to make assumptions about the underlying allocator's implementation details. Typically, memory allocators will not behave correctly if a different virtual memory address is used for deallocation than the one returned during allocation, even if both map to the same physical memory address.
+
+To obtain the original virtual memory address, we make use of Dune's simple memory layout. First, we perform a page walk on the virtual memory address to obtain the corresponding physical memory address. Then we can compare \lstinline!dune_va_to_pa(ptr)! (where \lstinline!ptr! is the potentially-remapped memory address we're trying to free) to the resulting physical address.
+If they match, then \lstinline!ptr! was mapped into virtual memory by Dune itself, meaning that it's not a memory address assigned by Dangless. This is possible, on allocations that were performed before Dangless finished initializing. In this case, we can simply call \lstinline!sysfree()! to perform the deallocation.
+
+Otherwise, we have to determine what Dune-mapped virtual memory address belongs to the obtained physical memory address. In other words, given \lstinline!PA!, we have to determine \lstinline!VA! such that \lstinline!dune_va_to_pa(VA) = PA!. Once again, this is something that Dune's memory layout makes easy to do, as these conversions are performed using simple arithmetic. Finally, we can call \lstinline!sysfree()! to perform the physical memory deallocation.
+
+What is left to do is invalidating the page table entries for the remapped virtual memory address, to make sure that any dangling pointer access will fail. Locating the relevant page table entries is done by performing a page-table walk down to the 4K pages. The relevant page table entries are then overwritten by an entry that does not have the \emph{present} bit set. Dangless uses the 64-bit value \lstinline!0xDEAD00! for this purpose, to make the invalidated entries easily identifiable. We then flush the TLB (Translation Lookaside Buffer; used to cache the results of pagewalks for performance) to force the CPU to check the PTE should an access occur.
+
+In order to determine how many of the page table entries we need to invalidate, we have to know how many 4K pages did the allocation span. Recall that Dangless places each allocation on virtual memory pages that will never be used for anything else. \lstinline!malloc_usable_size()! is used to get the size of the allocation in bytes. (Of course, this has to be done before calling \lstinline!sysfree()!.) Note though that determining the number of spanned pages is not as easy as it might seem at the first glance, because the allocation can start anywhere within a memory page. This means that, for instance a 512-byte region can span 1 or 2 pages depending on where it begins within the first page (Figure~\ref{fig:allocation-spanned-pages}).
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{diagrams/allocation_spanned_pages.png}
+	\label{fig:allocation-spanned-pages}
+	\caption{A memory allocation can span different number of pages depending on where it begins}
+\end{figure}
+
 \subsection{Handling realloc}
 
-\lstinline!dangless_realloc()! requires some more sophisticated logic, as the behaviour of \lstinline!realloc()! is more complicated. \todo{Finish}
+\lstinline!dangless_realloc()! requires some more sophisticated logic, as the behaviour of \lstinline!realloc()! is more complicated.
+
+Cases we have to handle:
+\begin{itemize}
+	\item \lstinline!realloc(NULL, size)! is actually valid and is a new allocation
+	\item The given pointer may or may not have been remapped previously
+	\item The pointer from the \lstinline!sysrealloc()! result may or may not be the same as the original pointer: depends on whether the memory region could be re-sized in-place
+	\item The number of pages spanned might not have changed at all
+\end{itemize}
+
+\todo{Elaborate.}
 
 \section{Fixing up vmcalls}
 
-\todo{section}
+One of the goals of Dune is to remain as simple as possible, and not re-implement most functionality of operating system kernels when not absolutely necessary. This means that most system calls performed the application running inside Dune are not actually handled by Dune itself, but rather are passed on to the host kernel via the \lstinline!vmcall! instruction. (\lstinline!vmcall! is identical to \lstinline!syscall!, except it exits the virtual environment first.) This includes tasks as common as I/O operations (such as \lstinline!printf()! or \lstinline!fopen()!), or even memory management (such as \lstinline!mmap()!).
+
+This presents a challenge for Dangless, which can be efficient because it can directly manipulate the page tables inside the virtual environment (guest machine) itself, without having to manipulate the host's page tables (which would only be possible via a system call such as \lstinline!mprotect()!). However, any virtual memory addresses returned from Dangless will only be valid inside the guest environment, meaning that attempting to pass such a memory address to the host kernel when performing a system call (vmcall) will fail with \lstinline!EINVAL!.
+
+To demonstrate the problem, first consider the following:
+
+\begin{lstlisting}
+puts("Hello world!\n");
+\end{lstlisting}
+
+The \lstinline!puts()! standard library function used here is a comparatively simple wrapper around the \lstinline!write()! system call, and unlike \lstinline!printf()!, does not perform any formatting or other manipulation of the string~\cite{glibc-puts-analysis}. Recall that in C, strings are represented by null-terminated character arrays, and are typically passed to functions as \lstinline!const char*!: a (virtual) memory address pointing to the first character of the string. Since in this example, the argument to \lstinline!puts()! is a string literal, the string data is stored in the executable's data section (such as \texttt{.rodata}) without any dynamic memory allocation that would go through Dangless. The result is that the pointer passed to the \lstinline!write()! vmcall references virtual memory that is mapped by the host machine, so the call will succeed.
+
+\begin{lstlisting}
+const char* determineAnswer() {
+	const char* answer = malloc(64 * sizeof(char));
+	strcpy(answer, "Fourty-two");
+	return answer;
+}
+
+puts("The answer is: ");
+
+const char* answer = determineAnswer();
+puts(answer);
+free(answer);
+\end{lstlisting}
+
+I hope that the problem is now clear: we're passing a \lstinline!malloc()!-d buffer to \lstinline!puts()!. Since \lstinline!malloc()! refers to \lstinline!dangless_malloc()!, it will perform virtual memory remapping inside the guest system, yielding a pointer value in \lstinline!answer! that is valid inside the guest machine, but not in the host machine. (Of course, the data is present in the host physical memory, but is not mapped to host virtual memory.) The \lstinline!write()! system call when executed by the host, is not going to be amused by this fact, and is going to return the error code \texttt{EINVAL}, indicating an invalid argument.
+
+In this case by knowing how Dangless works it is easy to spot the problem. However, often dynamic memory allocation is performed and the resulting pointer is passed to a system call in a way that's not immediately obvious from the user code, such as when done internally by the standard library implementation. The simplest example is probably \lstinline!printf()!, which can call \lstinline!malloc()! in some circumstances~\cite{glibc-printf-malloc}~\cite{glibc-printf-malloc-vulnerability}. I've also already mentioned how \lstinline!dlsym()! when running for the first time will call \lstinline!calloc()!.
+
+In order to fix this problem, Dangless needs to intercept any system calls that are about to be forwarded to the host kernel. This capability is not provided by default in Dune, so I've implemented it (\texttt{dune-ix-vmcallhooks.patch}), allowing Dangless to register a pre- and post-hook function that will be called before and after a \lstinline!vmcall! instruction is performed by Dune, respectively. In the pre-hook, Dangless can access and modify the system call number, any of the arguments, and even the return address. Similarly, the post-hook exposes the syscall return code.
+
+The next problem is how to determine what the system call arguments are, and which of them can possibly reference a Dangless-remapped pointer. Note that it is not sufficient to find the pointers among the arguments themselves, as pointers can be nested: the arguments can be pointers to arrays or structures which in turn contain pointers -- sometimes, after a few layers of indirection. Examples include the \lstinline!readv()! and \lstinline!writev()! system calls, which are used by GNU implementation of the \lstinline!<iostream>! standard C++ header such as when writing to \lstinline!std::cout!, i.e. \lstinline!stdout!:
+
+\begin{lstlisting}
+ssize_t readv (int fd, const struct iovec *v, int n);
+ssize_t writev(int fd, const struct iovec *v, int n);
+
+struct iovec {
+	void  *iov_base; /* Starting address */
+	size_t iov_len;    /* Number of bytes */
+};
+\end{lstlisting}
+
+When handling either of these functions, not just the \lstinline!const struct iovec *v! pointer has to be fixed, but also the \lstinline!void *iov_base! pointer inside the pointer \lstinline!struct iovec!.
+
+Another example is the functions \lstinline!execve()! and \lstinline!execveat()!:
+
+\begin{lstlisting}
+int execve(const char *filename, char *const argv[], char *const envp[]);
+int execveat(int dirfd, const char *pathname, char *const argv[], char *const envp[], int flags);
+\end{lstlisting}
+
+Besides the \lstinline!const char *filename! simple pointer, the parameters \lstinline!char *const argv[]! and \lstinline!char *const envp[]! are both a null-terminated array of pointers, in which every entry has to be fixed.
+
+Finally, pointers to more complicated structures are also sometimes passed as system call arguments:
+
+\begin{lstlisting}
+ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags);
+
+struct msghdr {
+	void         *msg_name;       /* optional address */
+	socklen_t     msg_namelen;    /* size of address */
+	struct iovec *msg_iov;        /* scatter/gather array */
+	size_t        msg_iovlen;     /* # elements in msg_iov */
+	void         *msg_control;    /* ancillary data, see below */
+	size_t        msg_controllen; /* ancillary data buffer len */
+	int           msg_flags;      /* flags on received message */
+};
+\end{lstlisting}
+
+\todo{Finish}
 
 \section{Dune}
 
 \todo{What is Dune, which version of Dune is used and why, and the patches applied}
+\todo{Important: memory layout, how is virtual memory mapped by default, since we make extensive use of that}
 
 \todo{This should probably be earlier in the chapter (or maybe in Background?)}
 \todo{Also have to write about the requirements of Dangless and how to build it}

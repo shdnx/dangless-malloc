@@ -104,8 +104,6 @@ int vremap_map(void *ptr, size_t size, OUT void **remapped_ptr) {
 int vremap_resolve(void *ptr, OUT void **original_ptr) {
   ASSERT0(in_kernel_mode());
 
-  // TODO: detect if ptr points to the stack or to a global variable (.bss or .data)
-
   // Detecting whether a virtual address was remapped:
   // - Do a pagewalk on the virtual address (VA) and get the corresponding physical address (PA).
   // - An address is remapped if dune_va_to_pa(VA) != PA.
