@@ -101,6 +101,7 @@ Should the physical memory allocation fail, the machine is out of memory, and Da
 We have a different situation however if it's the virtual memory allocation that fails. I have already talked about Dangless' ability to automatically acquire virtual memory for its allocator by scanning the page table and taking unused PML4 entries for its own use. If even despite this mechanism Dangless does not have sufficient virtual memory to protect the user allocation by remapping it, then Dangless gives up. If the \lstinline!CONFIG_ALLOW_SYSMALLOC_FALLBACK! option is enabled, then Dangless simply forwards all later memory management function calls to the system allocator, to ensure that the user application keeps functioning. Otherwise, it exits the application.
 
 \subsection{Deallocations}
+\label{ssec:deallocations}
 
 When deallocating some memory using \lstinline!dangless_free()!, the challenge is detecting whether the given pointer was successfully remapped previously, and if so, obtaining the original virtual address that can be passed to \lstinline!sysfree()!.
 This is necessary if we don't want to make assumptions about the underlying allocator's implementation details. Typically, memory allocators will not behave correctly if a different virtual memory address is used for deallocation than the one returned during allocation, even if both map to the same physical memory address.
@@ -137,6 +138,8 @@ Cases we have to handle:
 
 \section{Fixing up vmcalls}
 
+\subsection{The problem}
+
 One of the goals of Dune is to remain as simple as possible, and not re-implement most functionality of operating system kernels when not absolutely necessary. This means that most system calls performed the application running inside Dune are not actually handled by Dune itself, but rather are passed on to the host kernel via the \lstinline!vmcall! instruction. (\lstinline!vmcall! is identical to \lstinline!syscall!, except it exits the virtual environment first.) This includes tasks as common as I/O operations (such as \lstinline!printf()! or \lstinline!fopen()!), or even memory management (such as \lstinline!mmap()!).
 
 This presents a challenge for Dangless, which can be efficient because it can directly manipulate the page tables inside the virtual environment (guest machine) itself, without having to manipulate the host's page tables (which would only be possible via a system call such as \lstinline!mprotect()!). However, any virtual memory addresses returned from Dangless will only be valid inside the guest environment, meaning that attempting to pass such a memory address to the host kernel when performing a system call (vmcall) will fail with \lstinline!EINVAL!.
@@ -167,7 +170,11 @@ I hope that the problem is now clear: we're passing a \lstinline!malloc()!-d buf
 
 In this case by knowing how Dangless works it is easy to spot the problem. However, often dynamic memory allocation is performed and the resulting pointer is passed to a system call in a way that's not immediately obvious from the user code, such as when done internally by the standard library implementation. The simplest example is probably \lstinline!printf()!, which can call \lstinline!malloc()! in some circumstances~\cite{glibc-printf-malloc}~\cite{glibc-printf-malloc-vulnerability}. I've also already mentioned how \lstinline!dlsym()! when running for the first time will call \lstinline!calloc()!.
 
+\subsection{Intercepting vmcalls}
+
 In order to fix this problem, Dangless needs to intercept any system calls that are about to be forwarded to the host kernel. This capability is not provided by default in Dune, so I've implemented it (\texttt{dune-ix-vmcallhooks.patch}), allowing Dangless to register a pre- and post-hook function that will be called before and after a \lstinline!vmcall! instruction is performed by Dune, respectively. In the pre-hook, Dangless can access and modify the system call number, any of the arguments, and even the return address. Similarly, the post-hook exposes the syscall return code.
+
+\subsection{Determining which arguments to rewrite}
 
 The next problem is how to determine what the system call arguments are, and which of them can possibly reference a Dangless-remapped pointer. Note that it is not sufficient to find the pointers among the arguments themselves, as pointers can be nested: the arguments can be pointers to arrays or structures which in turn contain pointers -- sometimes, after a few layers of indirection. Examples include the \lstinline!readv()! and \lstinline!writev()! system calls, which are used by GNU implementation of the \lstinline!<iostream>! standard C++ header such as when writing to \lstinline!std::cout!, i.e. \lstinline!stdout!:
 
@@ -208,7 +215,38 @@ struct msghdr {
 };
 \end{lstlisting}
 
-\todo{Finish}
+So, we need some way to determine which arguments of the system call can be a pointer, and find any nested pointers. Essentially, what we need is to be able to tell for a system call number what arguments it takes and what type they are. For this purpose, I have created a Python module \texttt{linux-syscallmd} (source on GitHub~\cite{github-linux-syscallmd}) that parses the Linux kernel header file \texttt{include/linux/syscalls.h} and exposes it to user code. The Dangless script at \texttt{scripts/gen\_syscall\_param\_fixup\_flags.py} then uses this information to generate a file containing C code that can be \lstinline!#include!-d to utilize this data inside Dangless:
+
+\begin{lstlisting}
+// sources/src/platform/dune/vmcall_fixup.c
+
+enum syscall_param_fixup_flags {
+	SYSCALL_PARAM_VALID     = 1 << 0,
+	
+	SYSCALL_PARAM_USER_PTR  = 1 << 1,
+	SYSCALL_PARAM_IOVEC     = 1 << 2,
+	SYSCALL_PARAM_PTR_PTR   = 1 << 3,
+	SYSCALL_PARAM_MSGHDR    = 1 << 4,
+	
+	// indicates that the parameter is the last interesting one, no need to check the rest
+	SYSCALL_PARAM_LAST      = 1 << 7
+};
+
+static const u8 g_syscall_param_fixup_flags[][SYSCALL_MAX_ARGS] = {
+	#include "dangless/build/common/syscall_param_fixup_flags.c"
+};
+\end{lstlisting}
+
+This generates the array \lstinline!g_syscall_param_fixup_flags! which contains an entry for each known system call number. The using code, \lstinline!vmcall_fixup_args()!, looks up the entry for the current system call number and checks which flags are set. \todo{user ptr / iovec / ptrptr / msghdr are all mutually exclusive, should not be part of the flags, but rather a 2-bit counter}
+
+\todo{Write about the limitations}
+
+\subsection{Rewriting the pointers}
+
+Now that we know which arguments to rewrite or "fix-up", we can use the same logic as \lstinline!dangless_free()! to get the canonical pointer from a potentially-remapped one (see Section~\ref{ssec:deallocations}). We then replace the remapped pointer value with the canonical one in the system call arguments.
+In case of nested pointers, this involves modifying the referenced in-memory data, meaning that should the user code read the affected pointers after performing the system call, it may find a different pointer than the one it stored there. In practice, this should not cause issues given that both pointers are valid and map to the same physical memory address, and \lstinline!dangless_free()! gracefully handles being called with non-remapped pointers.
+
+\todo{However, in this case, dangless-free() is not going to invalidate the virtual memory region, allowing for dangling pointer bugs. We should probably make a copy of the data structure when we make changes to it and leave the original alone.}
 
 \section{Dune}
 
