@@ -9,17 +9,17 @@ Virtual memory is an abstraction over the physical memory available to the hardw
 
 From a security and stability point of view, the biggest benefit that virtual memory provides is address space isolation: each process executes as if it was the only one running, with all of the memory visible to it belonging either to itself or the kernel. This means that a malicious or misbehaving application cannot directly access the memory of any other process, to either deliberately or due to a programming error expose secrets of the other application (such as passwords or private keys) or destabilize it by corrupting its memory.
 
-An additional security feature is the ability to specify permission flags on individual memory pages: they can be independently made readable, writeable, and executable. For instance, all memory containing application data can be marked as readable and writeable, but not executable, while the memory pages hosting the application code can be made readable and executable, but not writeable, severely limiting the capabilities of attackers.
+An additional security feature is the ability to specify permission flags on individual memory pages: they can be independently made readable, writeable, and executable. For instance, all memory containing application data can be marked as readable, writeable, but not executable, while the memory pages hosting the application code can be made readable, executable, but not writeable, limiting the capabilities of attackers.
 
 Furthermore, virtual memory allows the kernel to optimize physical memory usage by:
 
 \begin{itemize}
 	\item Compressing or swapping out (writing to hard disk) rarely used memory pages (regions) to reduce memory usage
-	\item Deduplicating identical memory pages, such as those resulting from commonly used static or shared libraries
+	\item De-duplicating identical memory pages, such as those resulting from commonly used static or shared libraries
 	\item Lazily allocating memory pages requested by the application
 \end{itemize}
 
-Virtual memory works by creating an artificial (virtual) address space for each process, and then mapping the appropriate regions of it to the backing physical memory. A pointer will reference a location in virtual memory, and upon access, is resolved (typically by the hardware) into a physical memory address. The granularity of the mapping is referred to as a memory page, and is typically 4096 bytes (4 kilobytes) in size. (See Figure~\ref{fig:virtual_memory})
+Virtual memory works by creating an artificial (virtual) address space for each process, and then mapping the appropriate regions of it to the backing physical memory. A pointer will reference a location in virtual memory, and upon access, is resolved (typically by the hardware) into a physical memory address. The granularity of the mapping is referred to as a memory page, and is typically 4096 bytes (4 kilobytes) in size. (See Figure~\ref{fig:virtual_memory}.)
 
 \begin{figure}
 	\centering
@@ -29,7 +29,8 @@ Virtual memory works by creating an artificial (virtual) address space for each 
 \end{figure}
 
 This mapping is encoded in a data structure called the \emph{page table}. This is built up and managed by the kernel: as the application allocates and frees memory, virtual memory mappings have be created and destroyed. The representation of the page table varies depending on the architecture, but on x86-64, it can be represented as a tree, with each node an array of 512 page table entries of 8 bytes each making up a 4096 byte page table page. The root of this tree is where all virtual memory address resolution begins, and it identifies the address space. The leaf nodes are the physical memory pages that contain the application's own data.
-The bits of the virtual memory address identify the page table entry to follow during address resolution. For each level of page tables, 9 bits are required to encode an index into the array of 512 entries. Each entry contains the physical memory address of the next page to traverse during the address resolution. Finally, the least-significant 12 bits are used to address into the application's physical page (which is 4096 bytes) itself and so require no translation. (See Figure~\ref{fig:page_table_tree})
+
+The bits of the virtual memory address identify the page table entry to follow during address resolution. For each level of page tables, 9 bits are required to encode an index into the array of 512 entries. Each entry contains the physical memory address of the next page to traverse during the address resolution, as well as a series of bits that represent the different access permissions, such as writeable and executable. Finally, the least-significant 12 bits are used to address into the application's physical page (which is 4096 bytes) itself and so require no translation. (See Figure~\ref{fig:page_table_tree}.)
 
 On x86-64, there are currently 4 levels of page tables, using $4 * 9 + 12 = 48$ out of the 64 available bits in the memory addresses, and limiting the size of the address space to $2^{48}$ bytes or 256 terabytes. (The size of addressable space per page table level, in reverse resolution order being: $512 * 4$ kilobytes = 2 megabytes; $512 * 2$ megabytes = 1 gigabyte; 512 gigabytes; 256 terabytes.)
 
@@ -40,10 +41,28 @@ On x86-64, there are currently 4 levels of page tables, using $4 * 9 + 12 = 48$ 
 	\label{fig:page_table_tree}
 \end{figure}
 
-Note that it is possible to map a physical page into multiple virtual pages, and it is also possible to have unmapped virtual pages. Attempting to access a virtual page that is not mapped (i.e. not backed by a physical memory page) will cause execution to trap inside the kernel, which will then usually interpret it as segmentation fault and kill the process. (This is also how lazy memory allocation and swapping out works: instead of killing the process, the kernel goes ahead and allocates the physical memory it promised, or swaps the page back in from disk.)
+It's important to realize that it is possible to map a physical page into multiple virtual pages, as well as to have unmapped virtual pages. Attempting to access a virtual page (by dereferencing a pointer to it) that is not mapped -- i.e. not backed by a physical memory page -- will cause a \emph{page fault} and execution to trap inside the kernel. The kernel then can decide what to do -- for instance if it determines that the memory access was in error (an \emph{access violation}), it passes the fault on to the process which usually terminates it. On Linux this is done by raising the \texttt{SIGSEGV} signal (segmentation violation or segmentation fault) in the process, normally aborting its execution.
 
-Thanks to Dune, Dangless has direct access to the page tables, and manipulates them using custom functions (see \textit{include/dangless/virtmem.h} and \textit{src/virtmem.c}). Upon memory allocation, Dangless forwards the allocation call to the system allocator and then reserves a new virtual page, mapping it to the same physical address as the a virtual page returned by the system allocator. This is called virtual aliasing. During deallocation, besides forwarding the call to the system allocator, Dangless unmaps the virtual alias page and overwrites the page table entry with a custom value, enabling it to recognize a would-be access through a dangling pointer.
+Other types of access violation, such as attempting to write a non-writeable page -- a page on which writing was disallowed by setting the corresponding bit in its page table entry to 0 -- or attempting to execute a non-executable page -- a page which has its no-execute bit set, a new addition in the x86-64 architecture over x86-32 -- will also trigger a page fault in the kernel the same way.
+
+This mechanism also allows the kernel to perform memory optimizations. These are important, because (physical) memory is often a scarce resource. For example, a common scenario is that multiple running processes use the same shared library. The shared library is a single binary file on disk that is loaded into memory by multiple processes, meaning that naively the same data would be loaded into memory multiple times, taking up precious resources for no gain. The kernel can instead load the shared library into physical memory only once and then map this region into the virtual address space of each user application. Other de-duplication opportunities include static libraries that are commonly linked into applications (such as the C standard library), or the same binary executing in multiple processes.
+
+In addition to memory de-duplication, the kernel can also choose to compress or even swap out rarely used memory. In these cases, the kernel marks the relevant page table entries as invalid, causing the hardware to trigger a page fault in the kernel if they are accessed. Upon access, instead of sending a signal to the process, the kernel restores the data by decompressing it or reading it from disk, after which it will resume the process which can continue without even being aware of what happened. Modern kernels include a large number of similar optimizations. \todo{Could probably find some citations for this}
+
+% Thanks to Dune, Dangless has direct access to the page tables, and manipulates them using custom functions (see \textit{include/dangless/virtmem.h} and \textit{src/virtmem.c}). Upon memory allocation, Dangless forwards the allocation call to the system allocator and then reserves a new virtual page, mapping it to the same physical address as the a virtual page returned by the system allocator. This is called virtual aliasing. During deallocation, besides forwarding the call to the system allocator, Dangless unmaps the virtual alias page and overwrites the page table entry with a custom value, enabling it to recognize a would-be access through a dangling pointer.
 
 \section{Prior art}
 
 \todo{Oscar, etc.}
+
+\section{Dune: light-weight process virtualization}
+
+\todo{What is Dune, which version of Dune is used and why, and the patches applied}
+\todo{Important: memory layout, how is virtual memory mapped by default, since we make extensive use of that}
+
+\todo{This should probably be earlier in the chapter (or maybe in Background?)}
+\todo{Also have to write about the requirements of Dangless and how to build it}
+
+\section{Rumprun}
+
+\todo{Development started on rumprun, why did I end up dropping it?}
