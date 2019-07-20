@@ -1,9 +1,7 @@
 \chapter{Introduction}
 \label{ch:intro}
 
-\todo{Maybe reorg: Motivation to go into Background instead?}
-
-\section{Motivation}
+\section{Memory errors}
 
 Developing software is difficult. Developing software that is bug-free is all but impossible. Programming languages like C and C++ (the so-called "low-level" programming languages~\footnote{"low-level" is traditionally used to indicate that the level of abstraction used by these  programming languages is relatively close to that of the hardware}) offer a great deal of control to the programmer, allowing them to write small and efficient computer programs. However, they also require the programmer to take a great deal of care with their development: the same level of control that allows extremely efficient software to be built also places a large burden on the developer, as making mistakes has steeper consequences than in high-level, safer programming languages (such as Java or C\#).
 
@@ -23,7 +21,7 @@ A notable exception is the Rust programming language, which, while does allow po
 
 Still, applications written in languages like C or (older) C++ with no safe alternatives to pointers have been written and are being maintained, and these applications remain affected by memory errors. Significant amount of research has been and continues to be conducted in this topic, as such applications are often high-value targets for attackers: operating system kernels, device drivers, web servers, anti-virus programs are commonly developed using these technologies.
 
-This thesis is focused specifically on dangling pointer errors, a class of memory issues defending against which has traditionally been difficult and inefficient. \todo{structure? here or later?}
+This thesis is focused specifically on dangling pointer errors, a class of memory issues defending against which has traditionally been difficult and inefficient.
 
 \section{Dangling pointers}
 
@@ -55,7 +53,123 @@ This code compiles and runs successfully. What will be the value of \lstinline!i
 
 Of course, type confusion doesn't have to occur in order for invalid behaviour to occur. For instance, overwriting an Unix file descriptor with the number of characters in a text will typically result in an invalid file descriptor; or consider a buffer's length overwritten by the age of the user; or an integer representing the next free index in an array overwritten by the length of a file in bytes. Once memory corruption occurs, sanity flees.
 
-\todo{Need a more comprehensive example, written in C++ - I already had one work in progress, with an in-memory mail system.}
+\section{An example}
+
+Let's look at a less trivial example. This is a simplistic codebase, written in C++ of an in-memory messaging system. Each \lstinline!User! has an inbox and outbox, \lstinline!Mailbox! objects, which wrap an \lstinline!std::vector<Message *>!. \lstinline!Message! objects are allocated on the heap, referenced by plain pointers, allowing the sender and recipient mailboxes to just both retain a pointer to the same message -- a memory optimization. Each message object keeps track of who has deleted it, and when both the sender and receiver have done so, the message can be safely deallocated.
+
+\begin{lstlisting}
+struct Message {
+	const std::string mContent;
+
+	$bool mHasSenderDeleted = false;$
+	$bool mHasRecipientDeleted = false;$
+
+	explicit Message(std::string content)
+		:   mContent{std::move(content)}
+	{}
+
+	void OnDeleted() {
+		@if (mHasSenderDeleted && mHasRecipientDeleted)@
+			@delete this;@
+	}
+};
+
+struct Mailbox {
+	std::vector<Message*> mMessages;
+
+	void AddMessage(Message* msg) {
+		mMessages.push_back(msg);
+	}
+
+	void DeleteMessage(Message* msg) {
+		mMessages.erase(std::find(mMessages.begin(), mMessages.end(), msg));
+		msg->OnDeleted();
+	}
+};
+
+struct User {
+	Mailbox mInbox;
+	Mailbox mOutbox;
+
+	void SendMessage(User& recipient, std::string content) {
+		Message* msg = new Message{std::move(content)};
+
+		mOutbox.AddMessage(msg);
+		recipient.mInbox.AddMessage(msg);
+	}
+
+	void DeleteReceivedMessage(Message* msg) {
+		`msg->mHasRecipientDeleted = true;`
+		mInbox.DeleteMessage(msg);
+	}
+
+	void DeleteSentMessage(Message* msg) {
+		`msg->mHasSenderDeleted = true;`
+		mOutbox.DeleteMessage(msg);
+	}
+};
+\end{lstlisting}
+
+The noteworthy lines have been highlighted. While this design is error-prone, as we will see, it does work correctly and does not -- in its current form -- represent a vulnerability.
+
+However, code evolves over time as bugs are fixed and new features are added, often by a different developer than the original authors. Sometimes these programmers understand the codebase less, or have less experience with programming or the technologies used, and can easily make mistakes. Especially with a language like C and C++, mistakes are extremely easy to make, and sometimes hard to notice, let alone debug.
+
+Consider now that another programmer comes along and has to implement a feature to allow forwarding messages. His deadline is in an hour, perhaps there is a presentation scheduled with a big client, and this feature was simply forgotten about until now. This programmer adds a simple function as a quick hack to get message forwarding to work, and schedules some time for next month to revisit the feature and implement it properly. This function is added:
+
+\begin{lstlisting}
+struct User {
+// ...
+
+	void ForwardMessage(User& recipient, Message* msg) {
+		// TODO: do this properly later
+		recipient.mInbox.AddMessage(msg);
+	}
+
+// ...
+};
+\end{lstlisting}
+
+He didn't understand how the simplistic reference counting of the \lstinline!Message! objects work, and a quick test showed that this feature seems to work reasonably well. His attention was quickly drawn away by another tasks and this code won't be revisited for a while.
+
+The problem shows itself when a message that was forwarded gets destroyed. While the code correctly ensures that the message is removed from the both the sender and the recipient's mailbox before it can be destroyed, but any potential forwardees were not taken into account. Consider now the following chain of events:
+
+\begin{lstlisting}
+Message* funnyMessage = bob.SendMessage(alice, "Hey, look at this funny gif: <image>");
+bob.DeleteSentMessage(funnyMessage);
+
+alice.SendMessage(cecile, "Haha, look at this funny gif!");
+alice.ForwardMessage(cecile, funnyMessage);
+
+alice.SendMessage(bob, "HAHA that's pretty awesome");
+alice.DeleteReceivedMessage(funnyMessage);
+\end{lstlisting}
+
+Bob sends a message to Alice, who forwards it to Cecile. Both Bob and Alice delete the message, causing the object to be destroyed, while Cecile's inbox still retains a pointer to it: a dangling pointer! What will happen if Cecile looks at her inbox? The application will attempt to dereference the dangling pointer, with unpredictable results.
+
+What if there's another message, containing some sensitive information, is sent directly afterwards, potentially between completely unrelated users?
+
+\begin{lstlisting}
+bob.SendMessage(daniel, "My PIN code is 6666");
+\end{lstlisting}
+
+Depending on the memory allocator, it's entirely possible that the memory referenced by \lstinline!funnyMessage! before is now reused for the new, secret message. In this case, Cecile's inbox now contains a message not intended for her, containing sensitive information.
+
+\begin{lstlisting}
+for (const Message* msg : cecile.mInbox.mMessages) {
+	std::cerr << msg->mContent << "\n";
+}
+\end{lstlisting}
+
+The following output is produced when compiled with a recent version of GCC and run:
+
+\begin{verbatim}
+Haha, look at this funny gif!	
+My PIN code is 6666
+\end{verbatim}
+
+This is an example of how dangling pointer errors can pose a security vulnerability, even without the active efforts of an attacker.
+
+It's worth noting that using a correct implementation of reference-counting, such as with the standard \lstinline!std::shared_ptr! (since C++11), this problem could have been avoided. However, while smart pointers go a long way towards making dynamic memory safer and more convenient to use, they do have limitations even in the current C++ version (C++17 as of the time of writing). For instance, it's common to use plain pointers to represent a non-owning, optional reference to memory owned by another object, such as an \lstinline!std::unique_ptr!, enabling dangling pointer errors to occur.
 
 \section{Overview}
 

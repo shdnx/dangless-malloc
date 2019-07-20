@@ -94,6 +94,8 @@ Note that in the current, simple implementation of the virtual memory allocator 
 
 \subsection{Remapping}
 
+\todo{Use diagrams for this, such as the ones used in the presentation}
+
 Now that Dangless has the physical memory address and a brand new virtual memory address, all that is left to do is mapping the virtual memory to the physical memory by modify the guest page tables. In a normal Linux userland application, this would not be possible to do directly or cheaply without implementing a Linux kernel module. Dune makes it possible for us to do this, as inside the virtualized environment, we have ring 0 privileges, so we can read control register 3 (\lstinline!cr3!) containing the (guest) physical address of the page table root. Thanks to the \texttt{dune-ix-guestppages.patch} patch to Dune, the host memory pages used to hold the guest's page tables are mapped into the guest virtual memory, allowing us to manipulate them during runtime from inside the guest.
 
 Should the physical memory allocation fail, the machine is out of memory, and Dangless can do little but pass on this failure to the caller.
