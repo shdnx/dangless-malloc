@@ -240,12 +240,47 @@ This generates the array \lstinline!g_syscall_param_fixup_flags! which contains 
 \subsection{Rewriting the pointers}
 
 Now that we know which arguments to rewrite or "fix-up", we can use the same logic as \lstinline!dangless_free()! to get the canonical pointer from a potentially-remapped one (see Section~\ref{ssec:deallocations}). We then replace the remapped pointer value with the canonical one in the system call arguments.
-In case of nested pointers, this involves modifying the referenced in-memory data, meaning that should the user code read the affected pointers after performing the system call, it may find a different pointer than the one it stored there. In practice, this should not cause issues given that both pointers are valid and map to the same physical memory address, and \lstinline!dangless_free()! gracefully handles being called with non-remapped pointers.
 
-\todo{However, in this case, dangless-free() is not going to invalidate the virtual memory region, allowing for dangling pointer bugs. We should probably make a copy of the data structure when we make changes to it and leave the original alone.}
+In case of nested pointers this involves modifying the referenced in-memory data, meaning we cannot simply replace the pointer. This is because the original pointer was a remapped pointer, allocated via Dangless, and will be deallocated via Dangless. However, due to the nested pointer fix-up, the user code can now potentially access the canonical (non-remapped) pointer, opening the door to dangling pointer errors. Furthermore, should a canonical pointer be passed to \lstinline!dangless_free()!, it cannot invalidate the remapped memory region as it doesn't know where it might be.
 
-It's worth noting that Dangless does do much other than a basic check null-pointer check on the pointers it's attempting to rewrite. In the case of nested pointers, such as when fixing up a \lstinline!struct iovec!, it's not currently checked whether the pointer actually references a valid memory location. \todo{Implement this?}
-A smart implementation would attempt to read the expected data structure (e.g. a \lstinline!struct iovec! object, or \lstinline!char*! array) from the pointer and be prepared to handle a page fault should one occur. If the read succeeds, then the memory address is valid, and the rewriting can proceed. Otherwise, ignore the argument for purposes of pointer rewriting. \todo{Actually, if we implement that we copy the nested pointer structures for fixup, then we would have our check in that memcpy - just have to make sure that the pagefault handler is prepared. Also, what about EPT violations?}
+To demonstrate, consider the following code:
+
+\begin{lstlisting}
+char *first = malloc(32);
+strcpy(first, "Hello ");
+
+char *second = malloc(32);
+strcpy(second, "world!");
+
+struct iovec iov[2];
+iov[0].iov_base = first;
+iov[0].iov_len = strlen(first);
+iov[1].iov_base = second;
+iov[1].iov_len = strlen(second);
+
+writev(STDOUT_FILENO, iov, 2);
+\end{lstlisting}
+
+Due to pointer rewriting the system call succeeds, but afterwards we end up with \lstinline|iov[0].iov_base != first| and \lstinline|iov[1].iov_base != second|, as they have been replaced by their canonical counterparts to make the system call succeed on the host kernel.
+
+Later, we deallocate the buffers:
+
+\begin{lstlisting}
+free(second);
+free(first);
+\end{lstlisting}
+
+This is fine, since the \lstinline!first! and \lstinline!second! variables were not affected by the pointer rewriting, so Dangless correctly invalidates the remapped regions in \lstinline!dangless_free()!. But then, later:
+
+\begin{lstlisting}
+fprintf(stderr, "Attempted writev() with '%s' and '%s'!\n", iov[0].iov_base, iov[1].iov_base);
+\end{lstlisting}
+
+Here we have an attempted memory access through two dangling pointers. Recall that, due to pointer rewriting, \lstinline|iov[0].iov_base| and \lstinline|iov[1].iov_base| are the canonical pointers (as returned by \lstinline!sysmalloc()!) and so do not point into the remapped region that was invalidated by the earlier \lstinline!dangless_free()! calls. Therefore, this error will not be caught by Dangless!
+
+To resolve this situation, for every nested pointer fix-up, Dangless records the pointer location (a pointer to the user pointer) as well as the original value stored there (the Dangless-remapped pointer value) in a buffer. After the vmcall returns but before it jumps back into user code, we then go through the records and restore any such rewritten pointer values to their original ones, preventing the user from being exposed to non-remapped pointer values.
+
+\todo{Note that the implementation of the above is currently on the vmcall\_rewrite\_improved\_v2 branch and needs to be tested before merging in}
 
 \subsection{Limitations}
 

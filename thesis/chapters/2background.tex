@@ -59,6 +59,8 @@ In addition to memory de-duplication, the kernel can also choose to compress or 
 
 \todo{What is Dune, which version of Dune is used and why, and the patches applied}
 \todo{Important: memory layout, how is virtual memory mapped by default, since we make extensive use of that}
+\todo{Also write about how multi-threading is not currently supported by Dune, and how one could go about supporting it using the vmcall-hooks.}
+\todo{Also write about the brk() bug with exceeding 4 GB leading to EPT violations; see vmcall-hooks.c}
 
 \todo{This should probably be earlier in the chapter (or maybe in Background?)}
 \todo{Also have to write about the requirements of Dangless and how to build it}
