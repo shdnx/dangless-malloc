@@ -23,7 +23,7 @@ static size_t g_records_capacity = 0;
 static size_t g_record_count = 0;
 
 static bool grow_records_buffer(size_t new_capacity) {
-  struct restoration_record ARRAY *new_buffer = sysrealloc(g_records, new_capacity);
+  struct restoration_record ARRAY *new_buffer = sysrealloc(g_records, new_capacity * sizeof(struct restoration_record));
 
   if (new_buffer) {
     LOG("grew restoration buffer capacity from %zu to %zu\n", g_records_capacity, new_capacity);
@@ -37,7 +37,6 @@ static bool grow_records_buffer(size_t new_capacity) {
   }
 }
 
-// TODO: this needs to be called on dangless_init()
 void vmcall_fixup_restore_init(void) {
   grow_records_buffer(DANGLESS_CONFIG_DUNE_VMCALL_FIXUP_RESTORE_INITIAL_BUFFER_SIZE);
 }
