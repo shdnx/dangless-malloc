@@ -10,8 +10,10 @@
 #include "dangless/syscallmeta.h"
 #include "dangless/dangless_malloc.h"
 
+#include "dune.h"
 #include "vmcall_hooks.h"
 #include "vmcall_fixup.h"
+#include "vmcall_fixup_restore.h"
 #include "vmcall_handle_fork.h"
 
 #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_PREHOOK
@@ -31,6 +33,13 @@ static THREAD_LOCAL int g_vmcall_hook_depth = 0;
 u64 g_current_syscallno;
 u64 g_current_syscall_args[SYSCALL_MAX_ARGS];
 u64 g_current_syscall_return_addr;
+
+void vmcall_hooks_init(void) {
+  // Functions to run before and after system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_hooks.c.
+  // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
+  __dune_vmcall_prehook = &dangless_vmcall_prehook;
+  __dune_vmcall_posthook = &dangless_vmcall_posthook;
+}
 
 bool is_vmcall_hook_running(void) {
   return g_vmcall_hook_depth > 0;
@@ -192,6 +201,8 @@ void dangless_vmcall_posthook(REF u64 *presult) {
     REF *presult = (u64)0;
     errno = ENOMEM;
   }
+
+  vmcall_fixup_restore_originals();
 
   g_vmcall_hook_depth--;
 }
