@@ -3,6 +3,8 @@
 
 #include "dangless/common/types.h"
 
+void vmcall_hooks_init(void);
+
 // Determines whether we're currently executing a vmcall hook (on this thread).
 bool is_vmcall_hook_running(void);
 

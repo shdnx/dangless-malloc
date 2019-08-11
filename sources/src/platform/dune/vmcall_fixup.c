@@ -13,6 +13,7 @@
 #include "dangless/platform/virtual_remap.h"
 
 #include "vmcall_hooks.h"
+#include "vmcall_fixup_restore.h"
 #include "vmcall_fixup.h"
 
 // stack_base, mmap_base, etc.
@@ -62,19 +63,19 @@ static bool is_trivially_not_remapped(void *ptr) {
 
 static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
   ASSERT0(pptr);
-  void *ptr = *pptr;
+  void *original_ptr = *pptr;
 
   // fast-path for NULL and obviously invalid pointers (often generated through e.g. member accesses through NULL pointers)
-  if ((uintptr_t)ptr < PGSIZE) {
+  if ((uintptr_t)original_ptr < PGSIZE) {
     if (is_valid)
       OUT *is_valid = false;
 
     return VREM_NOT_REMAPPED;
   }
 
-  LOG("Fixing up ptr %p...\n", ptr);
+  LOG("Fixing up ptr %p...\n", original_ptr);
 
-  if (is_trivially_not_remapped(ptr)) {
+  if (is_trivially_not_remapped(original_ptr)) {
     LOG("Trivially not remapped, skipping\n");
 
     if (is_valid)
@@ -84,7 +85,7 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
   }
 
   void *canonical_ptr;
-  int result = vremap_resolve(ptr, OUT &canonical_ptr);
+  int result = vremap_resolve(original_ptr, OUT &canonical_ptr);
 
   LOG("vremap_resolve => %p; %s\n", canonical_ptr, vremap_diag(result));
 
@@ -92,10 +93,16 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
     REF *pptr = canonical_ptr;
 
     STATISTIC_UPDATE() {
-      if (in_external_vmcall()) {
+      if (in_external_vmcall())
         st_vmcall_ptr_fixups++;
+    }
 
-        if (is_running_nested_fixup())
+    if (is_running_nested_fixup()) {
+      // if this is a nested pointer fixup, then we'll need to restore it before returning from the system call, so that dangless_free() invalidates its remapped region
+      vmcall_fixup_restore_on_return(pptr, original_ptr);
+
+      STATISTIC_UPDATE() {
+        if (in_external_vmcall())
           st_vmcall_nested_ptr_fixups++;
       }
     }
@@ -105,7 +112,7 @@ static int fixup_ptr(REF void **pptr, OUT bool *is_valid) {
         st_vmcall_ptr_fixup_misses++;
     }
   } else {
-    LOG("Failed to fix-up %p: error %s (code %d)\n", ptr, vremap_diag(result), result);
+    LOG("Failed to fix-up %p: error %s (code %d)\n", original_ptr, vremap_diag(result), result);
 
     STATISTIC_UPDATE() {
       if (in_external_vmcall()) {

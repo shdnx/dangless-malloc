@@ -9,6 +9,7 @@
 #include "dangless/virtmem.h"
 
 #include "vmcall_hooks.h"
+#include "vmcall_fixup_restore.h"
 #include "dune.h"
 
 #if DANGLESS_CONFIG_DEBUG_INIT
@@ -94,15 +95,14 @@ void dangless_init(void) {
 
   dangless_enter_dune();
 
-  // start performance counters
   statistics_init();
 
-  // Functions to run before and after system calls originating in ring 0 are passed on to the host kernel. Defined in vmcall_hooks.c.
-  // Does not run when a vmcall is initiated manually, e.g. by dune_passthrough_syscall().
-  __dune_vmcall_prehook = &dangless_vmcall_prehook;
-  __dune_vmcall_posthook = &dangless_vmcall_posthook;
+  // allow fixed-up nested pointers to be restored to their original values when the vmcall returns
+  vmcall_fixup_restore_init();
 
-  // Register page-fault handler, for diagnostic purposes
+  vmcall_hooks_init();
+
+  // for diagnostic purposes
   dune_register_pgflt_handler(&dangless_pagefault_handler);
 
   // unfortunately signal handling only works for userspace, it's useless for our purposes, otherwise it'd be nice to register a signal handler for SIGSEGV...

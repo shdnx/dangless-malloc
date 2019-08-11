@@ -1,5 +1,7 @@
 #!/bin/bash
 
+: "${REMOTE:=szfvar_thesis}"
+
 REMOTE_ROOT="~/remote/thesis"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."
 
@@ -26,7 +28,7 @@ doSync () {
     --exclude=obj \
     $@ \
     "$DIR/" \
-    "homelan:${REMOTE_ROOT}/${path_relative_to_root}"
+    "${REMOTE}:${REMOTE_ROOT}/${path_relative_to_root}"
 }
 
 autoSync () {
