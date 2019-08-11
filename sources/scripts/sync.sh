@@ -1,6 +1,6 @@
 #!/bin/bash
 
-: "${REMOTE:=szfvar_thesis}"
+: "${REMOTE:=homelan}"
 
 REMOTE_ROOT="~/remote/thesis"
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/.."

@@ -1,4 +1,3 @@
-#include <sys/syscall.h> // for the __NR_ macros
 #include <sys/uio.h> // for struct iovec
 #include <sys/socket.h> // for struct msghdr
 
@@ -14,6 +13,7 @@
 
 #include "vmcall_hooks.h"
 #include "vmcall_fixup_restore.h"
+#include "vmcall_fixup_info.h"
 #include "vmcall_fixup.h"
 
 // stack_base, mmap_base, etc.
@@ -251,8 +251,6 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
 
     LOG("msg_control...\n");
 
-    // TODO: why was this like this??
-    //if (fixup_ptr(msghdr->msg_control, OUT_IGNORE) < 0) {
     if (fixup_ptr(REF &msghdr->msg_control, OUT_IGNORE) < 0) {
       LOG("Failed to fix-up msg_control of msghdr %p\n", (void *)msghdr);
       result--;
@@ -263,143 +261,63 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
   return result;
 }
 
-enum syscall_param_fixup_flags {
-  SYSCALL_PARAM_VALID     = 1 << 0,
-
-  // TODO: these are all mutually exclusive, so we don't need one dedicated bit for each, we can just use a counter
-  SYSCALL_PARAM_USER_PTR  = 1 << 1,
-  SYSCALL_PARAM_IOVEC     = 1 << 2,
-  SYSCALL_PARAM_PTR_PTR   = 1 << 3,
-  SYSCALL_PARAM_MSGHDR    = 1 << 4,
-
-  // indicates that the parameter is the last interesting one, no need to check the rest
-  SYSCALL_PARAM_LAST      = 1 << 7
-};
-
-static void syscall_param_fixup_flags_dump(enum syscall_param_fixup_flags flags) {
-  dprintf("%u (", flags);
-
-  #define HANDLE_FLAG(FLAG) \
-    do { \
-      if (FLAG_ISSET(flags, CONCAT2(SYSCALL_PARAM_, FLAG))) \
-        dprintf(#FLAG " "); \
-    } while (0)
-
-  HANDLE_FLAG(VALID);
-  HANDLE_FLAG(USER_PTR);
-  HANDLE_FLAG(IOVEC);
-  HANDLE_FLAG(PTR_PTR);
-  HANDLE_FLAG(MSGHDR);
-  HANDLE_FLAG(LAST);
-
-  #undef HANDLE_FLAG
-
-  dprintf(")");
-}
-
-static inline bool is_boring_syscall_param_flags(enum syscall_param_fixup_flags flags) {
-  return flags == SYSCALL_PARAM_VALID
-    || flags == (SYSCALL_PARAM_VALID | SYSCALL_PARAM_LAST);
-}
-
-static const u8 g_syscall_param_fixup_flags[][SYSCALL_MAX_ARGS] = {
-  #include "dangless/build/common/syscall_param_fixup_flags.c"
-};
-
-const u8 *vmcall_get_param_fixup_flags(u64 syscallno) {
-  // workaround: handle clone() specially, because the Python script that generates syscall_param_fixup_flags.c cannot handle the #if-s properly
-  if (syscallno == (u64)56) {
-    /*
-      The raw system call interface on x86-64 and some other architectures (including sh, tile, and alpha) is:
-
-       long clone(unsigned long flags, void *child_stack,
-                  int *ptid, int *ctid,
-                  unsigned long newtls);
-
-      Source: http://man7.org/linux/man-pages/man2/clone.2.html
-    */
-
-    static const u8 clone_flags[SYSCALL_MAX_ARGS] = {
-      // unsigned long flags
-      SYSCALL_PARAM_VALID,
-
-      // void *child_stack
-      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
-
-      // int *ptid
-      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
-
-      // int *ctid
-      SYSCALL_PARAM_VALID | SYSCALL_PARAM_USER_PTR,
-
-      // unsigned long newtls
-      SYSCALL_PARAM_VALID | SYSCALL_PARAM_LAST
-    };
-
-    return clone_flags;
-  }
-
-  return g_syscall_param_fixup_flags[syscallno];
-}
-
+// Rewrite virtually remapped pointer arguments to their canonical variants, as the host kernel cannot possibly know anything about things that only exists in the guest's virtual memory, therefore those user pointers would appear invalid for it.
+// Note that pointers can also be nested, e.g. in arrays and even inside various structs.
 int vmcall_fixup_args(u64 syscallno, u64 args[]) {
-  // Rewrite virtually remapped pointer arguments to their canonical variants, as the host kernel cannot possibly know anything about things that only exists in the guest's virtual memory, therefore those user pointers would appear invalid for it.
-  // Note that pointers can also be nested, e.g. in arrays and even inside various structs.
+  const struct vmcall_fixup_info *fixup_info = vmcall_get_fixup_info(syscallno);
+
+  if (!fixup_info) {
+    LOG("cannot fixup vmcall arguments for system call %lu - no fixup info available", syscallno);
+    return 0;
+  }
 
   int final_result = 0;
 
-  const u8 *pparam_fixup_flags = vmcall_get_param_fixup_flags(syscallno);
-  for (size_t arg_index = 0;
-       FLAG_ISSET(*pparam_fixup_flags, SYSCALL_PARAM_VALID);
-       arg_index++, pparam_fixup_flags++
-  ) {
-    ASSERT0(arg_index < SYSCALL_MAX_ARGS);
+  for (size_t arg_index = 0; arg_index < SYSCALL_MAX_ARGS; ++arg_index) {
+    const enum vmcall_param_fixup_type arg_fixup_type = fixup_info->params[arg_index].fixup_type;
 
-    enum syscall_param_fixup_flags pfixup_flags = *pparam_fixup_flags;
+    if (arg_fixup_type == VMCALL_PARAM_END)
+      break;
 
-    /*const struct syscall_info *info = syscall_get_info(syscallno);
-    LOG("DBG: syscall %s (%lu) arg %zu (%s %s), fixup flags: ", info->name, syscallno, arg_index, info->params[arg_index].type, info->params[arg_index].name);
-    syscall_param_fixup_flags_dump(pfixup_flags);
-    //dprintf("%u", pfixup_flags);
-    dprintf("\n");*/
-
-    if (args[arg_index] < PGSIZE)
-      goto loop_continue; // definitely not a valid pointer then
-
-    // this check is an optimization: if it's a plain parameter, with no flags set other than VALID and maybe LAST, then no point in trying to match the individual flags
-    if (is_boring_syscall_param_flags(pfixup_flags))
-      goto loop_continue;
+    if (arg_fixup_type == VMCALL_PARAM_NONE
+        || args[arg_index] < PGSIZE /*trivially invalid pointer*/)
+      continue;
 
     STATISTIC_UPDATE() {
       if (in_external_vmcall())
         st_vmcall_arg_needed_fixups++;
     }
 
-    #if DANGLESS_CONFIG_DEBUG_DUNE_VMCALL_FIXUP
-      if (vmcall_should_trace_current()) {
-        LOG("Fixup of arg %zu = %lx with flags: ", arg_index, args[arg_index]);
-        syscall_param_fixup_flags_dump(pfixup_flags);
-        dprintf("\n");
-      }
-    #endif
+    LOG("Fixup of arg %zu = %lx with fixup type: %s\n", arg_index, args[arg_index], vmcall_param_fixup_type_str(arg_fixup_type));
 
     u64 *parg = &args[arg_index];
     int result;
 
     FIXUP_SCOPE(parg) {
-      if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_IOVEC)) {
-        // the length of the iovec array seems to be always passed in as the next argument
-        size_t num_iovecs = (size_t)args[arg_index + 1];
-        result = fixup_iovec_array(REF (struct iovec **)parg, num_iovecs);
-      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_PTR_PTR)) {
-        result = fixup_ptr_ptr_nullterm(REF (void ***)parg);
-      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_MSGHDR)) {
-        result = fixup_msghdr(REF (struct msghdr **)parg);
-      } else if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_USER_PTR)) {
-        // NOTE: all of the above fixups already take care of this, so we only want to do raw fixup_ptr() if that's the ONLY thing we have to do
+      switch (arg_fixup_type) {
+      case VMCALL_PARAM_FLAT_PTR:
         result = fixup_ptr(REF (void **)parg, OUT_IGNORE);
-      } else {
-        UNREACHABLE("Unhandled fixup flags: %d", pfixup_flags);
+        break;
+
+      case VMCALL_PARAM_IOVEC: {
+        // the length of the iovec array seems to be always passed in as the next argument
+        arg_index++;
+        const size_t num_iovecs = (size_t)args[arg_index];
+        result = fixup_iovec_array(REF (struct iovec **)parg, num_iovecs);
+        break;
+      }
+
+      case VMCALL_PARAM_PTR_PTR:
+        result = fixup_ptr_ptr_nullterm(REF (void ***)parg);
+        break;
+
+      case VMCALL_PARAM_MSGHDR:
+        result = fixup_msghdr(REF (struct msghdr **)parg);
+        break;
+
+      case VMCALL_PARAM_NONE:
+      case VMCALL_PARAM_END:
+        UNREACHABLE("Unreachable fixup type - should have already been handled");
       }
     }
 
@@ -424,10 +342,6 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
 
       // note: we specifically don't want to stop if we encounter a failure, we'll just try to fixup everything we can
     }
-
-loop_continue:
-    if (FLAG_ISSET(pfixup_flags, SYSCALL_PARAM_LAST))
-      break;
   } // end for
 
   return final_result;

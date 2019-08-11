@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <assert.h>
 #include <sys/syscall.h>
 
 #include "dangless/common/types.h"
@@ -30,21 +31,27 @@ const i8 *syscall_get_userptr_params(index_t syscallno) {
   static const struct syscall_info g_syscall_infos[] = {
     #define SYSCALL_SIGNATURE(NUM, NAME, NUM_PARAMS, ...) \
       [NUM] = { \
-        NUM, \
-        #NAME, \
-        NUM_PARAMS, \
+        .number = NUM, \
+        .name = #NAME, \
+        .num_params = NUM_PARAMS, \
         /*params=*/ {
 
-    #define SYSCALL_PARAM(POS, TYPE, NAME, IS_USER_PTR) \
-        { POS, #TYPE, #NAME, IS_USER_PTR },
+    #define SYSCALL_PARAM(POS, TYPE, NAME, IS_USER_PTR) [POS] = { \
+        .pos = POS, \
+        .type = #TYPE, \
+        .name = #NAME, \
+        .is_user_ptr = IS_USER_PTR \
+     },
 
     #define SYSCALL_END(NUM, NAME, NUM_PARAMS, ...) \
         } /* end params */, \
-        /*signature=*/ #NAME " (" #__VA_ARGS__ ")" \
+        .signature = #NAME " (" #__VA_ARGS__ ")" \
       },
 
     #include "dangless/build/common/syscallmeta.inc"
   };
+
+  static_assert(ARRAY_LENGTH(g_syscall_infos) != 0, "System call metadata was not generated, re-run the generator script");
 
   const struct syscall_info *syscall_get_info(index_t syscallno) {
     if (syscallno >= ARRAY_LENGTH(g_syscall_infos)

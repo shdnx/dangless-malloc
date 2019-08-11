@@ -27,9 +27,10 @@ Most requirements are posed by [Dune](https://github.com/ix-project/dune):
  - A relatively recent Intel CPU with VT-x support
  - Kernel version of 4.4.0 or older
  - Installed kernel headers for the running kernel
- - Root privileges
+ - Root (sudo) privileges
  - Enabled and sufficient number of hugepages (see below)
  - A recent C compiler that supports C11 and the GNU extensions (either GCC or Clang will work)
+ - Python 3.6.1 or newer
 
 ## Hugepages
 
@@ -109,12 +110,11 @@ Dangless generates a file `sources/build/dune_<profile>/user.mk` which contains 
 
 On some systems, while linking user applications to Dangless, you may get errors like this:
 
->
-  /usr/bin/ld: /.../libdangless.a(vmcall_handle_fork_asm.o): relocation R_X86_64_32S against undefined symbol 'g_current_syscall_return_addr' can not be used when making a PIE object; recompile with -fPIC
-  /usr/bin/ld: /.../libdune.a(entry.o): relocation R_X86_64_32S against '.text' can not be used when making a PIE object; recompile with -fPIC
-  /usr/bin/ld: /.../libdune.a(dune.o): relocation R_X86_64_32S against undefined symbol '__dune_vmcall_hook_running' can not be used when making a PIE object; recompile with -fPIC
-  /usr/bin/ld: final link failed: Nonrepresentable section on output
-  collect2: error: ld returned 1 exit status
+> /usr/bin/ld: /.../libdangless.a(vmcall_handle_fork_asm.o): relocation R_X86_64_32S against undefined symbol 'g_current_syscall_return_addr' can not be used when making a PIE object; recompile with -fPIC
+> /usr/bin/ld: /.../libdune.a(entry.o): relocation R_X86_64_32S against '.text' can not be used when making a PIE object; recompile with -fPIC
+> /usr/bin/ld: /.../libdune.a(dune.o): relocation R_X86_64_32S against undefined symbol '\_\_dune\_vmcall\_hook\_running' can not be used when making a PIE object; recompile with -fPIC
+> /usr/bin/ld: final link failed: Nonrepresentable section on output
+> collect2: error: ld returned 1 exit status
 
 This means that on your system, your C compiler (usually GCC) defaults to generating *position independent code* (PIC) and so is trying to build all executables as *position independent executable*  (PIE). This unfortunately doesn't work with Dune, so it has to be disabled. You can do that by adding `-no-pie` to your `CFLAGS` and `LDFLAGS`.
 

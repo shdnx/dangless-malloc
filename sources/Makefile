@@ -1,6 +1,8 @@
 # Hack to disable implicit rules to VASTLY improve performance; see https://stackoverflow.com/a/4126617/128240
 .SUFFIXES:
 
+PYTHON3 ?= python3.6
+
 ROOT := $(CURDIR)
 BUILD_DIR := build
 
@@ -21,7 +23,7 @@ BUILDCONFIG_COMMON_INCLUDE_PATH := $(BUILD_DIR)/include
 BUILDCONFIG_SPECIALIZED_INCLUDE_PATH := $(BIN_DIR)/include
 
 SYSCALLMETA_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/syscallmeta.inc
-SYSCALL_PARAM_FIXUP_FLAGS_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/syscall_param_fixup_flags.c
+VMCALL_FIXUP_INFO_INC_FILE := $(BUILDCONFIG_COMMON_INCLUDE_PATH)/dangless/build/common/vmcall_fixup_info.inc
 
 BUILDCONFIG_HEADER_FILE := $(BUILDCONFIG_SPECIALIZED_INCLUDE_PATH)/dangless/build/spec/config.h
 
@@ -77,10 +79,10 @@ $(BIN_DIR) $(dir $(SYSCALLMETA_FILE)) $(dir $(BUILDCONFIG_HEADER_FILE)) $(CORE_O
 LINUX_HEADERS_PATH := $(shell echo /usr/src/linux-headers-`uname -r`)
 
 $(SYSCALLMETA_FILE): $(dir $(SYSCALLMETA_FILE))
-	python3 ../vendor/linux-syscallmd/generate_c_header.py $(LINUX_HEADERS_PATH) > $@
+	$(PYTHON3) ../vendor/linux-syscallmd/generate_c_header.py $(LINUX_HEADERS_PATH) > $@
 
-$(SYSCALL_PARAM_FIXUP_FLAGS_FILE): $(dir $(SYSCALL_PARAM_FIXUP_FLAGS_FILE)) scripts/gen_syscall_param_fixup_flags.py
-	python3 scripts/gen_syscall_param_fixup_flags.py $(LINUX_HEADERS_PATH) > $@
+$(VMCALL_FIXUP_INFO_INC_FILE): $(dir $(VMCALL_FIXUP_INFO_INC_FILE)) make/gen_vmcall_fixup_info.py
+	$(PYTHON3) make/gen_vmcall_fixup_info.py $(LINUX_HEADERS_PATH) > $@
 
 $(CORE_OBJS_DIR)/%.o: src/%.c
 	$(CC) $(CFLAGS) $(PLATFORM_CFLAGS) $(INCLUDES) $(PLATFORM_INCLUDES) -c $< -o $@
@@ -91,7 +93,7 @@ $(PLATFORM_OBJS_DIR)/%.o: src/platform/$(PLATFORM)/%.c
 $(PLATFORM_OBJS_DIR)/%_asm.o: src/platform/$(PLATFORM)/%.S
 	$(AS) $< -o $@
 
-$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(SYSCALL_PARAM_FIXUP_FLAGS_FILE) $(OBJS)
+$(BIN): $(BIN_DIR) $(CORE_OBJS_DIR) $(CORE_OBJS_DIR)/common $(PLATFORM_OBJS_DIR) $(SYSCALLMETA_FILE) $(VMCALL_FIXUP_INFO_INC_FILE) $(OBJS)
 	$(AR) rcs $@ $(OBJS)
 	$(RANLIB) $@
 

@@ -13,3 +13,6 @@
 [submodule "vendor/dune-new"]
 	path = vendor/dune-new
 	url = git@github.com:project-dune/dune.git
+[submodule "vendor/linux-syscallmd"]
+	path = vendor/linux-syscallmd
+	url = git@github.com:shdnx/linux-syscallmd.git
