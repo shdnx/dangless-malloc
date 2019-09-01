@@ -4,9 +4,9 @@
 #include "dangless/common.h"
 #include "dangless/config.h"
 
-#define SYSCALL_MAX_ARGS 6
-
-//const ARRAY i8 *syscall_get_userptr_params(index_t syscallno);
+enum {
+  SYSCALL_MAX_ARGS = 6
+};
 
 #if DANGLESS_CONFIG_SYSCALLMETA_HAS_INFO
 

@@ -6,12 +6,7 @@
 #include "dangless/syscallmeta.h"
 
 enum vmcall_param_fixup_type {
-  // terminates the parameter list; must be 0
-  VMCALL_PARAM_END = 0,
-
-  // indicates that the parameter does not require fixing up (i.e. is not a pointer)
-  VMCALL_PARAM_NONE,
-
+  VMCALL_PARAM_NONE, // no need to fix up
   VMCALL_PARAM_FLAT_PTR,
   VMCALL_PARAM_IOVEC,
   VMCALL_PARAM_PTR_PTR,
@@ -25,6 +20,7 @@ struct vmcall_param_fixup_info {
 };
 
 struct vmcall_fixup_info {
+  i8 num_params;
   struct vmcall_param_fixup_info params[SYSCALL_MAX_ARGS];
 };
 

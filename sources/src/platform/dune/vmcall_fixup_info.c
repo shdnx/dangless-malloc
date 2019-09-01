@@ -25,7 +25,6 @@ const char *vmcall_param_fixup_type_str(enum vmcall_param_fixup_type type) {
     HANDLE_VALUE(IOVEC);
     HANDLE_VALUE(PTR_PTR);
     HANDLE_VALUE(MSGHDR);
-    HANDLE_VALUE(END);
 
     #undef HANDLE_VALUE
   }
@@ -51,6 +50,7 @@ const struct vmcall_fixup_info *vmcall_get_fixup_info(u64 syscallno) {
     */
 
     static const struct vmcall_fixup_info s_clone_info = {
+      .num_params = 5,
       .params = {
         // unsigned long flags
         [0] = {
@@ -75,10 +75,6 @@ const struct vmcall_fixup_info *vmcall_get_fixup_info(u64 syscallno) {
         // unsigned long newtls
         [4] = {
           .fixup_type = VMCALL_PARAM_NONE
-        },
-
-        [5] = {
-          .fixup_type = VMCALL_PARAM_END
         }
       }
     };

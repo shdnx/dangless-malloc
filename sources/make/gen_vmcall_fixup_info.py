@@ -34,6 +34,7 @@ def emit_vmcall_fixup_infos(
     outs.write(f"""
   #ifdef {syscall.number_macro}
     [{syscall.number_macro}] = {{
+      .num_params = {len(syscall.params)},
       .params = {{
 """)
 

@@ -261,6 +261,10 @@ static int fixup_msghdr(REF struct msghdr **pmsghdr) {
   return result;
 }
 
+static bool is_trivially_invalid_pointer(u64 value) {
+  return value < PGSIZE;
+}
+
 // Rewrite virtually remapped pointer arguments to their canonical variants, as the host kernel cannot possibly know anything about things that only exists in the guest's virtual memory, therefore those user pointers would appear invalid for it.
 // Note that pointers can also be nested, e.g. in arrays and even inside various structs.
 int vmcall_fixup_args(u64 syscallno, u64 args[]) {
@@ -273,14 +277,13 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
 
   int final_result = 0;
 
-  for (size_t arg_index = 0; arg_index < SYSCALL_MAX_ARGS; ++arg_index) {
+  for (size_t arg_index = 0; arg_index < fixup_info->num_params; ++arg_index) {
     const enum vmcall_param_fixup_type arg_fixup_type = fixup_info->params[arg_index].fixup_type;
 
-    if (arg_fixup_type == VMCALL_PARAM_END)
-      break;
+    if (arg_fixup_type == VMCALL_PARAM_NONE)
+      continue;
 
-    if (arg_fixup_type == VMCALL_PARAM_NONE
-        || args[arg_index] < PGSIZE /*trivially invalid pointer*/)
+    if (is_trivially_invalid_pointer(args[arg_index]))
       continue;
 
     STATISTIC_UPDATE() {
@@ -316,7 +319,6 @@ int vmcall_fixup_args(u64 syscallno, u64 args[]) {
         break;
 
       case VMCALL_PARAM_NONE:
-      case VMCALL_PARAM_END:
         UNREACHABLE("Unreachable fixup type - should have already been handled");
       }
     }
