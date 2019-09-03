@@ -1,0 +1,10 @@
+DANGLESS_ROOT := ${PROJECT_SOURCE_DIR}
+
+DANGLESS_BIN_DIR := ${PROJECT_BINARY_DIR}
+DANGLESS_BIN_NAME := ${BIN}
+DANGLESS_BIN_PATH := ${PROJECT_BINARY_DIR}/lib${BIN}.a
+
+DANGLESS_INCLUDES := -I${PROJECT_BINARY_DIR}/include -I${PROJECT_SOURCE_DIR}/include -I${DUNE_ROOT}/libdune
+
+DANGLESS_USER_CFLAGS := -no-pie -pthread
+DANGLESS_USER_LDFLAGS := -no-pie -L${PROJECT_BINARY_DIR} -Wl,-whole-archive -l${BIN} -Wl,-no-whole-archive -pthread -L${DUNE_ROOT}/libdune -ldune -ldl ${USER_LDFLAGS_EXTRA}
