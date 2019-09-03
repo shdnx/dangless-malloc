@@ -1,10 +1,10 @@
 #include <stdio.h>
-#include <stdlib.h> // abort
+#include <stdlib.h> // abort()
 
-#include "dangless/virtmem.h"
-#include "dangless/virtmem_alloc.h"
+#include <dangless/virtmem.h>
+#include <dangless/virtmem_alloc.h>
 
-#include "ctestfx/ctestfx.h"
+#include <ctestfx/ctestfx.h>
 
 // TODO: we should enforce that this test suite runs before e.g. 'basics.c'
 TEST_SUITE(vpalloc);

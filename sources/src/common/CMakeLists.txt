@@ -1,0 +1,9 @@
+target_sources_local(${DANGLESS_BIN}
+  PRIVATE
+    assert.c
+    debug.c
+    dprintf.c
+    perf_events.c
+    printf_nomalloc.c
+    statistics.c
+)

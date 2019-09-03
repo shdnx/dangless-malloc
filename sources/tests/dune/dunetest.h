@@ -3,14 +3,14 @@
 
 #include <string.h> // memset
 
-#include "dangless/virtmem.h" // has to be included before libdune/dune.h, because we have some conflicting identifiers
+#include <dangless/virtmem.h> // has to be included before libdune/dune.h, because we have some conflicting identifiers
 
-#include "libdune/dune.h"
+#include <dune.h>
 
-#include "dangless/common/types.h"
-#include "dangless/dangless_malloc.h"
+#include <dangless/common/types.h>
+#include <dangless/dangless_malloc.h>
 
-#include "ctestfx/ctestfx.h"
+#include <ctestfx/ctestfx.h>
 
 void dunetest_init(void);
 

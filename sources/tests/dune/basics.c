@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
-#include "dangless/virtmem.h"
-#include "dangless/virtmem_alloc.h" // vp_reset()
-#include "dangless/dangless_malloc.h"
+#include <dangless/virtmem.h>
+#include <dangless/virtmem_alloc.h> // vp_reset()
+#include <dangless/dangless_malloc.h>
 
 #include "dunetest.h"
 

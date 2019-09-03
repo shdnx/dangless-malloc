@@ -12,6 +12,7 @@ typedef ptrdiff_t off_t; // otherwise dune.h fails to compile - wtf
 #include "dune.h"
 
 // NOTE: this whole code is currently not functional, and is not used. Only 400.perlbench needs clone() support and that only in size=test, so we're not going to worry about it for now.
+// Enable the option SUPPORT_MULTITHREADING to enable this code.
 
 static ptent_t *g_host_pgroot;
 

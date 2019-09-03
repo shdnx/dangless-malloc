@@ -31,6 +31,7 @@ Most requirements are posed by [Dune](https://github.com/ix-project/dune):
  - Enabled and sufficient number of hugepages (see below)
  - A recent C compiler that supports C11 and the GNU extensions (either GCC or Clang will work)
  - Python 3.6.1 or newer
+ - CMake 3.5.2 or newer
 
 ## Hugepages
 
@@ -74,11 +75,16 @@ When there isn't sufficient number of huge pages available, Dangless will fail w
 
 Building Dangless and its dependencies, you have to do this only once:
 
+First, download the Dangless dependencies (most importantly, Dune), registered as Git submodules:
+
 ```bash
-# initialize and download dependencies (notably dune)
 git submodule init
 git submodule update
+```
 
+Then we have to apply the Dune patches and build it:
+
+```bash
 cd vendor/dune-ix
 
 # patch dune, so that the physical page metadata is accessible inside the guest, allowing us to e.g. mess with the pagetables
@@ -92,19 +98,55 @@ git apply ../dune-ix-nosigterm.patch
 
 # need sudo, because it's building a kernel module
 sudo make
+```
 
+Now configure and build Dangless using CMake:
+
+```bash
 cd ../../sources
 
-# currently only the dune platform is really supported
-# some other configuration options can be used, see make/buildconfig-details.mk
-# use PROFILE=release for benchmarking and so
-make config PROFILE=debug PLATFORM=dune DUNE_ROOT=../vendor/dune-ix
+# you can also choose to build to a different directory
+mkdir build
+cd build
+
+# you can specify your configuration options here, or e.g. use ninja (-GNinja) instead of make
+cmake -D CMAKE_BUILD_TYPE=Debug -D OVERRIDE_SYMBOLS=ON -D REGISTER_PREINIT=ON -D COLLECT_STATISTICS=OFF ..
 make
+```
+
+You should be able to see a `libdangless_malloc.a` and a `dangless_user.make` afterwards, which you will need to link your application to Dangless.
+
+You can see what configuration options were used to build Dangless by listing the CMake cache:
+
+```bash
+$ cmake -LH
+-- Cache values
+// Whether to allow dangless to gracefully handle running out of virtual memory and continue operating as a proxy to the underlying memory allocator.
+ALLOW_SYSMALLOC_FALLBACK:BOOL=ON
+
+// Whether Dangless should automatically dedicate any unused PML4 pagetable entries (large unused virtual memory regions) for its virtual memory allocator. If disabled, user code will have to call dangless_dedicate_vmem().
+AUTODEDICATE_PML4ES:BOOL=ON
+
+// Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.
+CMAKE_BUILD_TYPE:STRING=Debug
+
+// Install path prefix, prepended onto install directories.
+CMAKE_INSTALL_PREFIX:PATH=/usr/local
+
+// Whether to collect statistics during runtime about Dangless usage. If enabled, statistics are printed after every run to stderr. These are only for local developer use and are not uploaded anywhere.
+COLLECT_STATISTICS:BOOL=OFF
+
+// Debug mode for dangless_malloc.c
+DEBUG_DGLMALLOC:BOOL=OFF
+
+// Debug mode for vmcall_fixup.c
+DEBUG_DUNE_VMCALL_FIXUP:BOOL=OFF
+...
 ```
 
 ### Build user applications
 
-Dangless generates a file `sources/build/dune_<profile>/user.mk` which contains Makefile variables that are useful for building user applications that rely on Dangless, such `DANGLESS_USER_CFLAGS` and `DANGLESS_USER_LDFLAGS`.
+Dangless generates a file `build/dangless_user.make` which contains Makefile variables that are useful for building user applications that rely on Dangless, such `DANGLESS_USER_CFLAGS` and `DANGLESS_USER_LDFLAGS`.
 
 ### Errors about relocations
 
