@@ -14,6 +14,8 @@
 #include "dangless/common/debug.h"
 #include "dangless/queue.h"
 
+// TODO: Dangless should instead use libperf-tlb-report
+
 // The only good-ish resource on this topic I could find is the manpage for perf_event_open(): http://man7.org/linux/man-pages/man2/perf_event_open.2.html
 // On using groups: https://stackoverflow.com/a/42092180/128240 butit doesn't seem to work well. In theory, we want our performance events to be grouped, so that they represent the same period of code execution. In reality, this seems to cause the events to be almost never actually run. Couldn't find anything online that'd explain this or propose a fix.
 

@@ -1,0 +1,13 @@
+target_sources(${DANGLESS_BIN}
+  init.c
+  mem.c
+  physmem_alloc.c
+  sysmalloc.c
+  virtual_remap.c
+  vmcall_fixup.c
+  vmcall_fixup_info.c
+  vmcall_fixup_restore.c
+  # vmcall_handle_fork.c
+  # vmcall_handle_fork.S
+  vmcall_hooks.c
+)

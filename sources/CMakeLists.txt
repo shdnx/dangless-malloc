@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
-project(dangless_malloc)
+project(dangless_malloc VERSION 0.9 LANGUAGES C)
 
 set(DUNE_ROOT "" CACHE PATH "Absolute path to the Dune repository. Required.")
 if (NOT ${DUNE_ROOT})
@@ -47,9 +47,7 @@ configure_file(
   "${PROJECT_BINARY_DIR}/include/dangless/build/config.h"
 )
 
-set(BIN "dangless")
-
-set(USER_LDFLAGS_EXTRA "")
+set(DANGLESS_BIN "dangless")
 
 if(${TRACE_HOOKS_BACKTRACE})
   # -rdynamic is required with the GNU linker to make symbol names available for backtrace_symbols() and backtrace_symbols_fd()
@@ -57,13 +55,23 @@ if(${TRACE_HOOKS_BACKTRACE})
   set(USER_LDFLAGS_EXTRA "-rdynamic")
 endif()
 
-target_include_directories(${BIN}
-  "${PROJECT_BINARY_DIR}/include"
-  "include"
-  "${DUNE_ROOT}/libdune"
+configure_file(
+  "${PROJECT_SOURCE_DIR}/cmake/dangless_user.make.in"
+  "${PROJECT_BINARY_DIR}/dangless_user.make"
 )
 
-target_compile_options(${BIN}
+add_library(${DANGLESS_BIN})
+
+target_include_directories(${DANGLESS_BIN}
+  PUBLIC
+    "${PROJECT_BINARY_DIR}/include"
+    "${PROJECT_SOURCE_DIR}/include"
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${DUNE_ROOT}/libdune"
+)
+
+target_compile_options(${DANGLESS_BIN}
   "-Wall"
   "-Wextra"
   "-Wno-format-zero-length"
@@ -72,11 +80,9 @@ target_compile_options(${BIN}
   "-pthread"
 )
 
-target_compile_features(${BIN} PUBLIC c_std_11)
-
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/dangless_user.make.in"
-  "${PROJECT_BINARY_DIR}/dangless_user.make"
+target_compile_features(${DANGLESS_BIN}
+  PUBLIC
+    c_std_11
 )
 
 execute_process(
@@ -102,10 +108,6 @@ add_custom_command(
   DEPENDS "${PROJECT_SOURCE_DIR}/scripts/gen_vmcall_fixup_info.py"
 )
 
-# TODO:
 add_subdirectory(src)
 add_subdirectory(tests)
 add_subdirectory(testapps)
-
-add_library(${BIN} ?? sources ??)
-#target_link_libraries(${BIN} dune?? dl? or is it just the user that has to link to them?)
