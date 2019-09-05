@@ -1,18 +1,20 @@
-target_sources(${DANGLESS_BIN}
-  init.c
-  mem.c
-  physmem_alloc.c
-  sysmalloc.c
-  virtual_remap.c
-  vmcall_fixup.c
-  vmcall_fixup_info.c
-  vmcall_fixup_restore.c
-  vmcall_hooks.c
+target_sources_local(${DANGLESS_BIN}
+  PRIVATE
+    init.c
+    mem.c
+    physmem_alloc.c
+    sysmalloc.c
+    virtual_remap.c
+    vmcall_fixup.c
+    vmcall_fixup_info.c
+    vmcall_fixup_restore.c
+    vmcall_hooks.c
 )
 
 if(${SUPPORT_MULTITHREADING})
   target_sources(${DANGLESS_BIN}
-    vmcall_handle_fork.c
-    vmcall_handle_fork.S
+    PRIVATE
+      vmcall_handle_fork.c
+      vmcall_handle_fork.S
   )
 endif()
