@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 2.6)
 project(dangless_malloc VERSION 0.9 LANGUAGES C)
 
-set(DUNE_ROOT "" CACHE PATH "Absolute path to the Dune repository. Required.")
-if (NOT ${DUNE_ROOT})
-  message(FATAL_ERROR "The DUNE_ROOT option must be set to the absolute path to the Dune repository")
+# TODO: instead of this we should use a FindDune.cmake
+set(DUNE_ROOT "${PROJECT_SOURCE_DIR}/../vendor/dune-ix" CACHE PATH "Absolute path to the Dune repository. Defaults to ../vendor/dune-ix")
+
+if (NOT ${DUNE_ROOT} OR NOT EXISTS ${DUNE_ROOT})
+  message(FATAL_ERROR "The DUNE_ROOT option must be set to a path to the Dune repository.")
+else()
+  get_filename_component(DUNE_ROOT "${DUNE_ROOT}" REALPATH)
 endif()
 
 option(OVERRIDE_SYMBOLS ON "Whether to override the malloc(), calloc(), etc. symbols by their Dangless equivalents using strong aliasing")
 option(REGISTER_PREINIT ON "Whether to automatically register a .preinit_array section entry that automatically executes dangless_init() at startup")
-option(SUPPORT_MULTITHREADING OFF "Whether to enable multi-threading support. EXPERIMENTAL!")
 option(ALLOW_SYSMALLOC_FALLBACK ON "Whether to allow dangless to gracefully handle running out of virtual memory and continue operating as a proxy to the underlying memory allocator.")
 
 option(COLLECT_STATISTICS ON "Whether to collect statistics during runtime about Dangless usage. If enabled, statistics are printed after every run to stderr. These are only for local developer use and are not uploaded anywhere.")
@@ -41,6 +44,8 @@ set(TRACE_HOOKS_BACKTRACE_BUFSIZE 64 CACHE STRING "Buffer size for backtracing t
 option(TRACE_SYSCALLS OFF "Whether to log information about each system call. This information is much more useful with SYSCALLMETA_HAS_INFO enabled.")
 option(TRACE_SYSCALLS_NO_WRITE_STDOUT ON "Whether to ignore write() system calls to stdout.")
 option(TRACE_SYSCALLS_NO_WRITE_STDERR ON "Whether to ignore write() system calls to stderr.")
+
+option(SUPPORT_MULTITHREADING OFF "Whether to enable multi-threading support. EXPERIMENTAL!")
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/cmake/buildconfig.h.in"
@@ -109,5 +114,5 @@ add_custom_command(
 )
 
 add_subdirectory(src)
-add_subdirectory(tests)
-add_subdirectory(testapps)
+#add_subdirectory(tests)
+#add_subdirectory(testapps)

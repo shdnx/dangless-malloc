@@ -161,13 +161,15 @@ void dangless_vmcall_prehook(REF u64 *psyscallno, REF u64 args[], REF u64 *preta
   // The host kernel will choke on memory addresses that have been remapped by dangless, since those memory regions are only mapped inside the guest virtual memory, but do not appear in the host virtual memory. Therefore, for the vmcalls, we have to detect such memory addresses referenced directly or indirectly (e.g. through a struct) by their arguments and replace them with their canonical counterparts.
   vmcall_fixup_args(syscallno, REF args);
 
+#if DANGLESS_CONFIG_SUPPORT_MULTITHREADING
   // handle clone(), fork() and vfork() respectively
   // TODO: this is currently broken and disabled
-  /*if (syscallno == (u64)56
+  if (syscallno == (u64)56
       || syscallno == (u64)57
       || syscallno == (u64)58) {
     vmcall_handle_fork(REF pretaddr);
-  }*/
+  }
+#endif
 
   if (vmcall_should_trace_current()) {
     LOG("VMCall pre-hook returning...\n");

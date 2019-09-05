@@ -7,7 +7,12 @@ target_sources(${DANGLESS_BIN}
   vmcall_fixup.c
   vmcall_fixup_info.c
   vmcall_fixup_restore.c
-  # vmcall_handle_fork.c
-  # vmcall_handle_fork.S
   vmcall_hooks.c
 )
+
+if(${SUPPORT_MULTITHREADING})
+  target_sources(${DANGLESS_BIN}
+    vmcall_handle_fork.c
+    vmcall_handle_fork.S
+  )
+endif()
