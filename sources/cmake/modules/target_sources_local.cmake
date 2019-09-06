@@ -1,6 +1,7 @@
 # Source: https://crascit.com/2016/01/31/enhanced-source-file-handling-with-target_sources/
 
-# NOTE: This helper function assumes no generator expressions are used for the source files
+# Wrapper to work around the fact that target_sources() up until CMake 3.10 takes paths as relative to the project source directory instead of the current source directory.
+# NOTE: assumes no generator expressions are used for the source files.
 function(target_sources_local target)
   if(POLICY CMP0076)
     # New behavior is available, so just forward to it by ensuring

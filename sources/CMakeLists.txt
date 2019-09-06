@@ -77,7 +77,12 @@ target_compile_options(${DANGLESS_BIN}
 set_property(TARGET ${DANGLESS_BIN}
   PROPERTY C_STANDARD 11)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/modules")
+get_filename_component(LINUX_SYSCALLMETA_PATH "../vendor/linux-syscallmd" REALPATH)
+
+list(APPEND CMAKE_MODULE_PATH
+  "${CMAKE_SOURCE_DIR}/cmake/modules"
+  "${LINUX_SYSCALLMETA_PATH}/cmake"
+)
 
 find_package(LibDune REQUIRED)
 
@@ -90,18 +95,26 @@ configure_file(
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(LinuxHeaders REQUIRED)
 
-get_filename_component(LINUX_SYSCALLMD_PATH "../vendor/linux-syscallmd" REALPATH)
+set(INC_SYSCALLMETA_PATH "${PROJECT_BINARY_DIR}/include/dangless/build/syscallmeta.inc")
+set(INC_VMCALL_FIXUP_INFO_PATH "${PROJECT_BINARY_DIR}/include/dangless/build/vmcall_fixup_info.inc")
 
-# TODO: these don't seem to work
+# TODO: how to create the directories????
+
 add_custom_command(
-  OUTPUT "${PROJECT_BINARY_DIR}/include/dangless/build/syscallmeta.inc"
-  COMMAND "${Python3_EXECUTABLE} ${LINUX_SYSCALLMD_PATH}/generate_c_header.py ${LinuxHeaders_DIR} > ${PROJECT_BINARY_DIR}/include/dangless/build/syscallmeta.inc"
+  OUTPUT "${INC_SYSCALLMETA_PATH}"
+  COMMAND "${Python3_EXECUTABLE} ${LINUX_SYSCALLMETA_PATH}/generate_c_header.py ${LinuxHeaders_DIR} > ${INC_SYSCALLMETA_PATH}"
 )
 
 add_custom_command(
-  OUTPUT "${PROJECT_BINARY_DIR}/include/dangless/build/vmcall_fixup_info.inc"
-  COMMAND "${Python3_EXECUTABLE}" "scripts/gen_vmcall_fixup_info.py ${LinuxHeaders_DIR} > ${PROJECT_BINARY_DIR}/include/dangless/build/vmcall_fixup_info.inc"
+  OUTPUT "${INC_VMCALL_FIXUP_INFO_PATH}"
+  COMMAND "${Python3_EXECUTABLE} scripts/gen_vmcall_fixup_info.py ${LinuxHeaders_DIR} > ${INC_VMCALL_FIXUP_INFO_PATH}"
   DEPENDS "scripts/gen_vmcall_fixup_info.py"
+)
+
+target_sources(${DANGLESS_BIN}
+  PRIVATE
+    "${INC_SYSCALLMETA_PATH}"
+    "${INC_VMCALL_FIXUP_INFO_PATH}"
 )
 
 include("cmake/modules/target_sources_local.cmake")

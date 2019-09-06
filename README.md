@@ -134,7 +134,7 @@ CMAKE_BUILD_TYPE:STRING=Debug
 CMAKE_INSTALL_PREFIX:PATH=/usr/local
 
 // Whether to collect statistics during runtime about Dangless usage. If enabled, statistics are printed after every run to stderr. These are only for local developer use and are not uploaded anywhere.
-COLLECT_STATISTICS:BOOL=ON
+COLLECT_STATISTICS:BOOL=OFF
 
 // Debug mode for dangless_malloc.c
 DEBUG_DGLMALLOC:BOOL=OFF
