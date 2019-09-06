@@ -89,8 +89,11 @@ target_compile_options(${DANGLESS_BIN}
     "-pthread"
 )
 
-set_property(TARGET ${DANGLESS_BIN}
-  PROPERTY C_STANDARD 11)
+set_property(
+  TARGET ${DANGLESS_BIN}
+  PROPERTY C_STANDARD 11
+  PROPERTY C_EXTENSIONS ON
+)
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(LinuxHeaders REQUIRED)
@@ -112,6 +115,7 @@ add_custom_command(
   DEPENDS "${PROJECT_SOURCE_DIR}/scripts/gen_vmcall_fixup_info.py"
 )
 
+# add the generated files as sources (even though they aren't really), otherwise they won't get generated
 target_sources(${DANGLESS_BIN}
   PRIVATE
     "${INC_SYSCALLMETA_PATH}"
@@ -121,5 +125,5 @@ target_sources(${DANGLESS_BIN}
 include("cmake/modules/target_sources_local.cmake")
 
 add_subdirectory(src)
-#add_subdirectory(tests)
+add_subdirectory(tests)
 #add_subdirectory(testapps)
