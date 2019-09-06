@@ -52,6 +52,21 @@ if(${TRACE_HOOKS_BACKTRACE})
   set(USER_LDFLAGS_EXTRA "-rdynamic")
 endif()
 
+get_filename_component(LINUX_SYSCALLMETA_PATH "../vendor/linux-syscallmd" REALPATH)
+
+list(APPEND CMAKE_MODULE_PATH
+  "${CMAKE_SOURCE_DIR}/cmake/modules"
+  "${LINUX_SYSCALLMETA_PATH}/cmake"
+)
+
+find_package(LibDune REQUIRED)
+
+configure_file(
+  "${PROJECT_SOURCE_DIR}/cmake/dangless_user.make.in"
+  "${PROJECT_BINARY_DIR}/dangless_user.make"
+  @ONLY
+)
+
 add_library(${DANGLESS_BIN} "")
 
 target_include_directories(${DANGLESS_BIN}
@@ -77,38 +92,24 @@ target_compile_options(${DANGLESS_BIN}
 set_property(TARGET ${DANGLESS_BIN}
   PROPERTY C_STANDARD 11)
 
-get_filename_component(LINUX_SYSCALLMETA_PATH "../vendor/linux-syscallmd" REALPATH)
-
-list(APPEND CMAKE_MODULE_PATH
-  "${CMAKE_SOURCE_DIR}/cmake/modules"
-  "${LINUX_SYSCALLMETA_PATH}/cmake"
-)
-
-find_package(LibDune REQUIRED)
-
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/dangless_user.make.in"
-  "${PROJECT_BINARY_DIR}/dangless_user.make"
-  @ONLY
-)
-
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 find_package(LinuxHeaders REQUIRED)
 
-set(INC_SYSCALLMETA_PATH "${PROJECT_BINARY_DIR}/include/dangless/build/syscallmeta.inc")
-set(INC_VMCALL_FIXUP_INFO_PATH "${PROJECT_BINARY_DIR}/include/dangless/build/vmcall_fixup_info.inc")
+set(GENERATED_INCLUDE_DIR "${PROJECT_BINARY_DIR}/include/dangless/build")
+file(MAKE_DIRECTORY "${GENERATED_INCLUDE_DIR}")
 
-# TODO: how to create the directories????
+set(INC_SYSCALLMETA_PATH "${GENERATED_INCLUDE_DIR}/syscallmeta.inc")
+set(INC_VMCALL_FIXUP_INFO_PATH "${GENERATED_INCLUDE_DIR}/vmcall_fixup_info.inc")
 
 add_custom_command(
   OUTPUT "${INC_SYSCALLMETA_PATH}"
-  COMMAND "${Python3_EXECUTABLE} ${LINUX_SYSCALLMETA_PATH}/generate_c_header.py ${LinuxHeaders_DIR} > ${INC_SYSCALLMETA_PATH}"
+  COMMAND "${Python3_EXECUTABLE}" "${LINUX_SYSCALLMETA_PATH}/generate_c_header.py" "${LinuxHeaders_DIR}" > "${INC_SYSCALLMETA_PATH}"
 )
 
 add_custom_command(
   OUTPUT "${INC_VMCALL_FIXUP_INFO_PATH}"
-  COMMAND "${Python3_EXECUTABLE} scripts/gen_vmcall_fixup_info.py ${LinuxHeaders_DIR} > ${INC_VMCALL_FIXUP_INFO_PATH}"
-  DEPENDS "scripts/gen_vmcall_fixup_info.py"
+  COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/gen_vmcall_fixup_info.py" "${LinuxHeaders_DIR}" > "${INC_VMCALL_FIXUP_INFO_PATH}"
+  DEPENDS "${PROJECT_SOURCE_DIR}/scripts/gen_vmcall_fixup_info.py"
 )
 
 target_sources(${DANGLESS_BIN}
