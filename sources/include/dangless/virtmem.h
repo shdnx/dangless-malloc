@@ -46,7 +46,8 @@ enum {
 
 enum {
   // PTEs we invalidate will be set to this marker value
-  PTE_INVALIDATED = 0xDEAD00 // the PG_V bit must be 0 in this value!!!
+  // the PTE_V bit must be 0 in this value!!!
+  PTE_INVALIDATED = 0xDEAD00
 };
 
 STATIC_ASSERT(!FLAG_ISSET(PTE_INVALIDATED, PTE_V), "DEAD_PTE cannot be a valid PTE!");
@@ -74,6 +75,10 @@ static inline size_t pt_num_mapped_pages(enum pt_level level) {
 
 static inline unsigned pt_level_shift(enum pt_level level) {
   return PGSHIFT + (level - 1) * PT_BITS_PER_LEVEL;
+}
+
+static inline size_t pte_mapped_size(enum pt_level pte_level) {
+  return 1uL << pt_level_shift(pte_level);
 }
 
 static inline size_t pt_level_offset(vaddr_t va, enum pt_level level) {

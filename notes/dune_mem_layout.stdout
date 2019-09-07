@@ -1,0 +1,154 @@
+-------- Dune values --------
+
+phys_limit = 0x8000000000
+mmap_base = 0x7f9d00000000, GPA_MAP_SIZE = 0xfc0000000, so ends at: 0x7facc0000000
+stack_base = 0x7fff80000000, GPA_STACK_SIZE = 0x40000000, so ends at: 0x7fffc0000000
+PAGEBASE = 0x200000000, MAX_PAGES = 0x100000
+
+-------- /proc/self/maps --------
+
+00400000-0042b000 r-xp 00000000 08:05 3146603                            /home/gabor/remote/thesis/sources/build/testapps/dune-mem-layout/dune-mem-layout
+0062a000-0062b000 r-xp 0002a000 08:05 3146603                            /home/gabor/remote/thesis/sources/build/testapps/dune-mem-layout/dune-mem-layout
+0062b000-0062e000 rwxp 0002b000 08:05 3146603                            /home/gabor/remote/thesis/sources/build/testapps/dune-mem-layout/dune-mem-layout
+0062e000-00631000 rwxp 00000000 00:00 0
+015ff000-01622000 rwxp 00000000 00:00 0                                  [heap]
+200000000-200200000 rwxp 00000000 00:10 412176                           /anon_hugepage (deleted)
+200200000-200400000 rwxp 00000000 00:10 412177                           /anon_hugepage (deleted)
+200400000-200600000 rwxp 00000000 00:10 412178                           /anon_hugepage (deleted)
+200600000-200800000 rwxp 00000000 00:10 412179                           /anon_hugepage (deleted)
+200800000-200a00000 rwxp 00000000 00:10 412180
+                        /anon_hugepage (deleted)
+200a00000-200c00000 rwxp 00000000 00:10 412181                           /anon_hugepage (deleted)
+200c00000-200e00000 rwxp 00000000 00:10 412182                           /anon_hugepage (deleted)
+200e00000-201000000 rwxp 00000000 00:10 412183                           /anon_hugepage (deleted)
+201000000-201200000 rwxp 00000000 00:10 412184                           /anon_hugepage (deleted)
+201200000-201400000 rwxp 00000000 00:10 412185                           /anon_hugepage (deleted)
+201400000-201600000 rwxp 00000000 00:10 412186                           /anon_hugepage (deleted)
+201600000-201800000 rwxp 00000000 00:10 412187                           /anon_hugepage (deleted)
+201800000-201a00000 rwxp 00000000 00:10 412188                           /anon_hugepage (deleted)
+201a00000-201c00000 rwxp 00000000 00:10 412189                           /anon_hugepage (deleted)
+201c00000-201e00000 rwxp 00000000 00:10 412190                           /anon_hugepage (dele
+ted)
+201e00000-202000000 rwxp 00000000 00:10 412191                           /anon_hugepage (deleted)
+202000000-202200000 rwxp 00000000 00:10 412192                           /anon_hugepage (deleted)
+202200000-202400000 rwxp 00000000 00:10 412193                           /anon_hugepage (deleted)
+202400000-202600000 rwxp 00000000 00:10 412194                           /anon_hugepage (deleted)
+202600000-202800000 rwxp 00000000 00:10 412195                           /anon_hugepage (deleted)
+202800000-202a00000 rwxp 00000000 00:10 412196                           /anon_hugepage (deleted)
+202a00000-202c00000 rwxp 00000000 00:10 412197                           /anon_hugepage (deleted)
+202c00000-202e00000 rwxp 00000000 00:10 412198                           /anon_hugepage (deleted)
+202e00000-203000000 rwxp 00000000 00:10 412199                           /anon_hugepage (deleted)
+203000000-203200000 rwxp 00000000 00:10 412200                           /anon_hugepage (deleted)
+203200000-203400000 rwxp 00000000 00:10
+ 412201                           /anon_hugepage (deleted)
+203400000-203600000 rwxp 00000000 00:10 412202                           /anon_hugepage (deleted)
+203600000-203800000 rwxp 00000000 00:10 412203                           /anon_hugepage (deleted)
+203800000-203a00000 rwxp 00000000 00:10 412204                           /anon_hugepage (deleted)
+203a00000-203c00000 rwxp 00000000 00:10 412205                           /anon_hugepage (deleted)
+203c00000-203e00000 rwxp 00000000 00:10 412206                           /anon_hugepage (deleted)
+203e00000-204000000 rwxp 00000000 00:10 412207                           /anon_hugepage (deleted)
+204000000-204200000 rwxp 00000000 00:10 412208                           /anon_hugepage (deleted)
+204200000-204400000 rwxp 00000000 00:10 412209                           /anon_hugepage (deleted)
+204400000-204600000 rwxp 00000000 00:10 412210                           /anon_hugepage (deleted)
+204600000-204800000 rwxp 00000000 00:10 412211                           /anon_huge
+page (deleted)
+204800000-204a00000 rwxp 00000000 00:10 412212                           /anon_hugepage (deleted)
+204a00000-204c00000 rwxp 00000000 00:10 412213                           /anon_hugepage (deleted)
+204c00000-204e00000 rwxp 00000000 00:10 412214                           /anon_hugepage (deleted)
+204e00000-205000000 rwxp 00000000 00:10 412215                           /anon_hugepage (deleted)
+205000000-205200000 rwxp 00000000 00:10 412216                           /anon_hugepage (deleted)
+205200000-205400000 rwxp 00000000 00:10 412217                           /anon_hugepage (deleted)
+205400000-205600000 rwxp 00000000 00:10 412218                           /anon_hugepage (deleted)
+205600000-205800000 rwxp 00000000 00:10 412219                           /anon_hugepage (deleted)
+205800000-205a00000 rwxp 00000000 00:10 412220                           /anon_hugepage (deleted)
+205a00000-205c00000 rwxp 00000000 00:10 412221                           /anon_hugepage (deleted)
+205c00000-205e00000 rwxp 0000
+0000 00:10 412222                           /anon_hugepage (deleted)
+205e00000-206000000 rwxp 00000000 00:10 412223                           /anon_hugepage (deleted)
+206000000-206200000 rwxp 00000000 00:10 412224                           /anon_hugepage (deleted)
+206200000-206400000 rwxp 00000000 00:10 412225                           /anon_hugepage (deleted)
+206400000-206600000 rwxp 00000000 00:10 412226                           /anon_hugepage (deleted)
+206600000-206800000 rwxp 00000000 00:10 412227                           /anon_hugepage (deleted)
+206800000-206a00000 rwxp 00000000 00:10 412228                           /anon_hugepage (deleted)
+206a00000-206c00000 rwxp 00000000 00:10 412229                           /anon_hugepage (deleted)
+206c00000-206e00000 rwxp 00000000 00:10 412230                           /anon_hugepage (deleted)
+206e00000-207000000 rwxp 00000000 00:10 412231                           /anon_hugepage (deleted)
+207000000-207200000 rwxp 00000000 00:10 412232
+/anon_hugepage (deleted)
+207200000-207400000 rwxp 00000000 00:10 412233                           /anon_hugepage (deleted)
+207400000-207600000 rwxp 00000000 00:10 412234                           /anon_hugepage (deleted)
+207600000-207800000 rwxp 00000000 00:10 412235                           /anon_hugepage (deleted)
+207800000-207a00000 rwxp 00000000 00:10 412236                           /anon_hugepage (deleted)
+207a00000-207c00000 rwxp 00000000 00:10 412237                           /anon_hugepage (deleted)
+207c00000-207e00000 rwxp 00000000 00:10 412238                           /anon_hugepage (deleted)
+207e00000-208000000 rwxp 00000000 00:10 412239                           /anon_hugepage (deleted)
+208000000-208200000 rwxp 00000000 00:10 412240                           /anon_hugepage (deleted)
+208200000-208400000 rwxp 00000000 00:10 412241                           /anon_hugepage (deleted)
+208400000-208600000 rwxp 00000000 00:10 412242                           /anon_hugepage (deleted)
+208600000-208800000
+ rwxp 00000000 00:10 412243                           /anon_hugepage (deleted)
+208800000-208a00000 rwxp 00000000 00:10 412244                           /anon_hugepage (deleted)
+7faca5a00000-7faca5c00000 rwxp 00000000 00:10 412248                     /anon_hugepage (deleted)
+7faca5c00000-7faca5e00000 rwxp 00000000 00:10 412247                     /anon_hugepage (deleted)
+7faca5ff1000-7faca6ff2000 rwxp 00000000 00:00 0
+7faca6ff2000-7faca71b2000 r-xp 00000000 08:05 397557                     /lib/x86_64-linux-gnu/libc-2.23.so
+7faca71b2000-7faca73b2000 ---p 001c0000 08:05 397557                     /lib/x86_64-linux-gnu/libc-2.23.so
+7faca73b2000-7faca73b6000 r-xp 001c0000 08:05 397557                     /lib/x86_64-linux-gnu/libc-2.23.so
+7faca73b6000-7faca73b8000 rwxp 001c4000 08:05 397557                     /lib/x86_64-linux-gnu/libc-2.23.so
+7faca73b8000-7faca73bc000 rwxp 00000000 00:00 0
+7faca73bc000-7faca73bf000 r-xp 00000000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca73bf000
+-7faca75be000 ---p 00003000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca75be000-7faca75bf000 r-xp 00002000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca75bf000-7faca75c0000 rwxp 00003000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca75c0000-7faca75e6000 r-xp 00000000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77b7000-7faca77bb000 rwxp 00000000 00:00 0
+7faca77e1000-7faca77e5000 rwxp 00000000 00:00 0
+7faca77e5000-7faca77e6000 r-xp 00025000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77e6000-7faca77e7000 rwxp 00026000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77e7000-7faca77e8000 rwxp 00000000 00:00 0
+7fff86711000-7fff86732000 rwxp 00000000 00:00 0                          [stack]
+7fff86746000-7fff86748000 r--p 00000000 00:00 0                          [vvar]
+7fff86748000-7fff8674a000 r-xp 00000000 00:00 0                          [vdso]
+fff
+fffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
+u/libdl-2.23.so
+7faca75be000-7faca75bf000 r-xp 00002000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca75bf000-7faca75c0000 rwxp 00003000 08:05 397533                     /lib/x86_64-linux-gnu/libdl-2.23.so
+7faca75c0000-7faca75e6000 r-xp 00000000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77b7000-7faca77bb000 rwxp 00000000 00:00 0
+7faca77e1000-7faca77e5000 rwxp 00000000 00:00 0
+7faca77e5000-7faca77e6000 r-xp 00025000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77e6000-7faca77e7000 rwxp 00026000 08:05 397535                     /lib/x86_64-linux-gnu/ld-2.23.so
+7faca77e7000-7faca77e8000 rwxp 00000000 00:00 0
+7fff86711000-7fff86732000 rwxp 00000000 00:00 0                          [stack]
+7fff86746000-7fff86748000 r--p 00000000 00:00 0                          [vvar]
+7fff86748000-7fff8674a000 r-xp 00000000 00:00 0                          [vdso]
+fff
+
+-------- virtual memory layout --------
+
+[code] [data] [sysmalloc heap] VA 0x000000000000 - 0x000100000000 => PA 0x0000000000 - 0x0100000000 [ user write exec ]
+VA 0x000100000000 - 0x000200000000: unmapped
+VA 0x000200000000 - 0x000300000000 => PA 0x0200000000 - 0x0300000000 [ kernel write no-exec ]
+VA 0x000300000000 - 0x008000000000: unmapped
+[dangless heap] VA 0x008000000000 - 0x008000001000 => PA 0x00015ff000 - 0x0001600000 [ kernel write no-exec ]
+VA 0x008000001000 - 0x008000002000 => PA 0x00015ff000 - 0x0001600000 [ kernel write no-exec ]
+VA 0x008000002000 - 0x7f9d00000000: unmapped
+VA 0x7f9d00000000 - 0x7faca5a00000 => PA 0x7000000000 - 0x7fa5a00000 [ user write exec ]
+VA 0x7faca5a00000 - 0x7faca5e01000 => PA 0x7fa5a00000 - 0x7fa5e01000 [ kernel write no-exec ]
+[mmap heap] VA 0x7faca5e01000 - 0x7faca77e2000 => PA 0x7fa5e01000 - 0x7fa77e2000 [ user write exec ]
+VA 0x7faca77e2000 - 0x7faca77e3000 => PA 0x7fa77e2000 - 0x7fa77e3000 [ kernel write no-exec ]
+VA 0x7faca77e3000 - 0x7facc0000000 => PA 0x7fa77e3000 - 0x7fc0000000 [ user write exec ]
+VA 0x7facc0000000 - 0x7fff80000000: unmapped
+VA 0x7fff80000000 - 0x7fff86711000 => PA 0x7fc0000000 - 0x7fc6711000 [ user write exec ]
+[stack] VA 0x7fff86711000 - 0x7fff86733000 => PA 0x7fc6711000 - 0x7fc6733000 [ kernel write no-exec ]
+VA 0x7fff86733000 - 0x7fff86746000 => PA 0x7fc6733000 - 0x7fc6746000 [ user write exec ]
+VA 0x7fff86746000 - 0x7fff86748000 => PA 0x7fc6746000 - 0x7fc6748000 [ user readonly no-exec ]
+VA 0x7fff86748000 - 0x7fff8674a000 => PA 0x7fc6748000 - 0x7fc674a000 [ user readonly exec ]
+VA 0x7fff8674a000 - 0x7fffc0000000 => PA 0x7fc674a000 - 0x8000000000 [ user write exec ]
+VA 0x7fffc0000000 - 0xffff8183c000: unmapped
+VA 0xffff8183c000 - 0xffff8183e000 => PA 0x7fa77e3000 - 0x7fa77e5000 [ kernel readonly exec ]
+VA 0xffff8183e000 - 0xffffff600000: unmapped
+VA 0xffffff600000 - 0xffffff601000 => PA 0x000062d000 - 0x000062e000 [ user readonly exec ]
+VA 0xffffff601000 - 0x1000000000000: unmapped
