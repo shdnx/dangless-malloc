@@ -8,13 +8,13 @@ configure_file(
   @ONLY
 )
 
-add_library(${CTESTFX_LIB}
+add_library(${CTESTFX_LIB} STATIC
   src/ctestfx.c
 )
 
 target_include_directories(${CTESTFX_LIB}
   PUBLIC
-    "include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
 target_compile_options(${CTESTFX_LIB}

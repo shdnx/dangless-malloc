@@ -5,7 +5,7 @@
 
 #include <errno.h> // perror
 
-#include "dangless/virtmem.h"
+#include <dangless/virtmem.h>
 
 #include "dunetest.h"
 

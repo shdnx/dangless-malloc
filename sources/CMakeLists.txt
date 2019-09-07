@@ -39,13 +39,14 @@ option(TRACE_SYSCALLS_NO_WRITE_STDERR "Whether to ignore write() system calls to
 option(SUPPORT_MULTITHREADING "Whether to enable multi-threading support. EXPERIMENTAL!" OFF)
 
 configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/buildconfig.h.in"
+  "${PROJECT_SOURCE_DIR}/cmake/templates/buildconfig.h.in"
   "${PROJECT_BINARY_DIR}/include/dangless/build/config.h"
   @ONLY
 )
 
 cmake_policy(SET CMP0022 NEW)
 
+set(DANGLESS_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 set(DANGLESS_BIN "dangless")
 
 if(${TRACE_HOOKS_BACKTRACE})
@@ -64,7 +65,7 @@ list(APPEND CMAKE_MODULE_PATH
 find_package(LibDune REQUIRED)
 
 configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/dangless_user.make.in"
+  "${PROJECT_SOURCE_DIR}/cmake/templates/dangless_user.make.in"
   "${PROJECT_BINARY_DIR}/dangless_user.make"
   @ONLY
 )
@@ -145,8 +146,11 @@ target_sources(${DANGLESS_BIN}
     "${INC_VMCALL_FIXUP_INFO_PATH}"
 )
 
-include("cmake/modules/target_sources_local.cmake")
+include("cmake/target_sources_local.cmake")
 
 add_subdirectory(src)
+
+enable_testing()
 add_subdirectory(tests)
+
 add_subdirectory(testapps)
