@@ -29,6 +29,9 @@ Most requirements are posed by [Dune](https://github.com/ix-project/dune):
  - Installed kernel headers for the running kernel
  - Root (sudo) privileges
  - Enabled and sufficient number of hugepages (see below)
+
+The remaining requirements are fairly usual:
+
  - A recent C compiler that supports C11 and the GNU extensions (either GCC or Clang will work)
  - Python 3.6.1 or newer
  - CMake 3.5.2 or newer
@@ -178,10 +181,10 @@ sudo chmod a+rw /dev/dune
 
 ```bash
 # run unit tests
-make test
+make vtest
 
 # run the trivially simple "Hello world" test app
-make testapp APP=hello-world
+testapps/hello-world/hello-world
 ```
 
 # Troubleshooting
