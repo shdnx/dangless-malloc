@@ -1,3 +1,5 @@
+# NOTE: this is currently broken, since everything else was converted to use CMake instead of plan Makefiles. It won't be fixed until ctestfx is moved into a separate repository.
+
 include ../build/ctestfx.mk
 
 CC ?= gcc
