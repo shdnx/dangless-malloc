@@ -9,8 +9,7 @@ configure_file(
 )
 
 add_library(${CTESTFX_LIB}
-  PRIVATE
-    src/ctestfx.c
+  src/ctestfx.c
 )
 
 target_include_directories(${CTESTFX_LIB}
@@ -25,8 +24,8 @@ target_compile_options(${CTESTFX_LIB}
     "-Wno-unused-parameter"
 )
 
-set_property(
-  TARGET ${CTESTFX_LIB}
-  PROPERTY C_STANDARD 11
-  PROPERTY C_EXTENSIONS ON
+set_target_properties(${CTESTFX_LIB}
+  PROPERTIES
+    C_STANDARD 11
+    C_EXTENSIONS ON
 )

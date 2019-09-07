@@ -6,8 +6,13 @@
   #include <execinfo.h>
 #endif
 
+#if DANGLESS_CONFIG_SUPPORT_MULTITHREADING
+  #include <pthread.h>
+#else
+  #include "dangless/pthread_mock.h"
+#endif
+
 #include <stdlib.h> // abort
-#include <pthread.h>
 
 #include "dangless/common.h"
 #include "dangless/common/statistics.h"

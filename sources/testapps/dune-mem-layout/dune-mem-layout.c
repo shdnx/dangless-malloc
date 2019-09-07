@@ -1,7 +1,7 @@
 #include <dangless/virtmem.h>
 #include <dangless/dump.h>
 
-#include <libdune/dune.h>
+#include <dune.h>
 
 #include <stdio.h>
 

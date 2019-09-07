@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 2.6)
-project(dangless_malloc LANGUAGES C)
+cmake_minimum_required(VERSION 3.5)
+project(dangless_malloc LANGUAGES C CXX)
 
 option(OVERRIDE_SYMBOLS "Whether to override the malloc(), calloc(), etc. symbols by their Dangless equivalents using strong aliasing" ON)
 option(REGISTER_PREINIT "Whether to automatically register a .preinit_array section entry that automatically executes dangless_init() at startup" ON)
@@ -44,6 +44,8 @@ configure_file(
   @ONLY
 )
 
+cmake_policy(SET CMP0022 NEW)
+
 set(DANGLESS_BIN "dangless")
 
 if(${TRACE_HOOKS_BACKTRACE})
@@ -67,15 +69,15 @@ configure_file(
   @ONLY
 )
 
-add_library(${DANGLESS_BIN} "")
+add_library(${DANGLESS_BIN} STATIC "")
 
 target_include_directories(${DANGLESS_BIN}
   PUBLIC
     "${PROJECT_BINARY_DIR}/include"
     "${PROJECT_SOURCE_DIR}/include"
+    "${LibDune_INCLUDE_DIR}"
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
-    "${DUNE_ROOT}/libdune"
 )
 
 target_compile_options(${DANGLESS_BIN}
@@ -85,14 +87,35 @@ target_compile_options(${DANGLESS_BIN}
     "-Wno-format-zero-length"
     "-Wno-sign-compare"
     "-Wno-macro-redefined"
-  PUBLIC
-    "-pthread"
+  INTERFACE
+    "-no-pie"
 )
 
-set_property(
-  TARGET ${DANGLESS_BIN}
-  PROPERTY C_STANDARD 11
-  PROPERTY C_EXTENSIONS ON
+target_link_libraries(${DANGLESS_BIN}
+  INTERFACE
+    "-no-pie"
+    "-L${LibDune_DIR}"
+    "-l${LibDune_LIBRARY_NAME}"
+    "-ldl"
+    "${USER_LDFLAGS_EXTRA}"
+)
+
+if(${SUPPORT_MULTITHREADING})
+  target_compile_options(${DANGLESS_BIN}
+    PUBLIC
+      "-pthread"
+  )
+
+  target_link_libraries(${DANGLESS_BIN}
+    INTERFACE
+      "-pthread"
+  )
+endif()
+
+set_target_properties(${DANGLESS_BIN}
+  PROPERTIES
+    C_STANDARD 11
+    C_EXTENSIONS ON
 )
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -126,4 +149,4 @@ include("cmake/modules/target_sources_local.cmake")
 
 add_subdirectory(src)
 add_subdirectory(tests)
-#add_subdirectory(testapps)
+add_subdirectory(testapps)
