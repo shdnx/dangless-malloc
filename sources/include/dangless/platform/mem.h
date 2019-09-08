@@ -6,6 +6,9 @@
 typedef uintptr_t paddr_t;
 typedef uintptr_t vaddr_t;
 
+#define PADDR_FMT "0x%010lx"
+#define VADDR_FMT "0x%012lx"
+
 // x86-64 is assumed
 #define PGSHIFT 12
 #define PGSIZE (1uL << PGSHIFT)
