@@ -20,9 +20,6 @@ static inline bool in_kernel_mode(void) {
 // we treat entries on all page levels the same way and call them PTEs for simplicity
 typedef u64 pte_t;
 
-#define PT_BITS_PER_LEVEL 9
-#define PT_NUM_ENTRIES (1uL << PT_BITS_PER_LEVEL)
-
 enum pte_flags {
   PTE_V = 0x1, // valid
   PTE_W = 0x2, // writable
@@ -65,8 +62,22 @@ enum pt_level {
   PT_1G = PT_L3,
 
   PT_L4 = 4,
-  PT_512G = PT_L4
+  PT_512G = PT_L4,
+
+  PT_NUM_LEVELS = PT_L4
 };
+
+enum {
+  PT_BITS_PER_LEVEL = 9u,
+
+  PT_NUM_ENTRIES = 1uL << PT_BITS_PER_LEVEL,
+
+  // the size of the virtual memory address space, i.e. the ending address
+  // since virtual memory addresses consist of 12 bits + 4 * 9 = 48 bits, this is 2^48 bytes = 512 terrabytes
+  VIRTMEM_END = 1uL << (PGSHIFT + PT_NUM_LEVELS * PT_BITS_PER_LEVEL)
+};
+
+STATIC_ASSERT(VIRTMEM_END == 0x1000000000000uL, "invalid VIRTMEM_END value");
 
 // Calculates the number of 4K pages mapped by an entry at the given pagetable level.
 static inline size_t pt_num_mapped_pages(enum pt_level level) {

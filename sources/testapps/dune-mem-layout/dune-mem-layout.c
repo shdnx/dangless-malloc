@@ -60,12 +60,12 @@ static void print_host_procmap(void) {
 }
 
 static void print_virtmem_region(FILE *os, const struct virtmem_region *region) {
-  fprintf(os, "VA " VADDR_FMT " - " VADDR_FMT, region->va_start, region->va_start + region->length);
+  fprintf(os, "VA " FMT_VADDR " - " FMT_VADDR, region->va_start, region->va_start + region->length);
 
   const bool is_mapped = FLAG_ISSET(region->mapped_flags, PTE_V);
 
   if (is_mapped) {
-    fprintf(os, " => PA " PADDR_FMT " - " PADDR_FMT " [", region->pa_start, region->pa_start + region->length);
+    fprintf(os, " => PA " FMT_PADDR " - " FMT_PADDR " [", region->pa_start, region->pa_start + region->length);
 
     if (FLAG_ISSET(region->mapped_flags, PTE_U)) {
       fprintf(os, " user");
@@ -128,8 +128,6 @@ int main(int argc, const char *argv[]) {
 
   printf("\n-------- virtual memory layout --------\n\n");
 
-  size_t total_len = 0;
-
   bool found_stack_region = false;
   bool found_data_region = false;
   bool found_heap_sysmalloc_region = false;
@@ -138,11 +136,9 @@ int main(int argc, const char *argv[]) {
   bool found_code_region = false;
 
   struct virtmem_region *region;
-  for (region = virtmem_chart_layout();
+  for (region = virtmem_chart_layout(pt_root());
        region != NULL;
        region = region->next_region) {
-    total_len += region->length;
-
     found_code_region |= check_if_region_contains("code", ptr_code, region);
     found_data_region |= check_if_region_contains("data", ptr_data, region);
     found_stack_region |= check_if_region_contains("stack", ptr_stack, region);
@@ -170,8 +166,6 @@ int main(int argc, const char *argv[]) {
 
   if (!found_code_region)
     printf("warning: code region was not found (looking for ptr: %p)\n", ptr_code);
-
-  ASSERT(total_len == 0x1000000000000, "virtmem_chart_layout() was incomplete, total region length = 0x%lx, expected 0x1000000000000 (256 TB)", total_len);
 
   return 0;
 }

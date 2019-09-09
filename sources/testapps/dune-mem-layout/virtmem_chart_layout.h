@@ -22,6 +22,6 @@ void virtmem_region_free(struct virtmem_region *);
 
 void virtmem_region_free_list(struct virtmem_region *list);
 
-struct virtmem_region *virtmem_chart_layout(void);
+struct virtmem_region *virtmem_chart_layout(pte_t *pml4);
 
 #endif

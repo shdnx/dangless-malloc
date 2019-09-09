@@ -117,7 +117,7 @@ static struct virtmem_region *virtmem_chart_layout_internal(
     }
 
     ASSERT(current_region->length % PGSIZE == 0,
-           "current_region (start va = 0x%lx) has invalid length of 0x%lx, not multiple of PGSIZE!",
+           "current_region (start va = " FMT_VADDR ") has invalid length of 0x%lx, not multiple of PGSIZE!",
            current_region->va_start,
            current_region->length);
   } // end for
@@ -125,17 +125,23 @@ static struct virtmem_region *virtmem_chart_layout_internal(
   return current_region;
 }
 
-struct virtmem_region *virtmem_chart_layout(void) {
-  struct virtmem_region *region0 = virtmem_region_alloc();
-  virtmem_chart_layout_internal(region0, pt_root(), PT_L4);
+struct virtmem_region *virtmem_chart_layout(pte_t *pml4) {
+  struct virtmem_region *first_region = virtmem_region_alloc();
+  struct virtmem_region *last_region = virtmem_chart_layout_internal(first_region, pml4, PT_L4);
 
-  if (region0->length == 0) {
+  ASSERT(last_region->va_start + last_region->length == VIRTMEM_END,
+         "virtmem layout is not exhaustive: last region (beginning at " FMT_VADDR ") ends at " FMT_VADDR " instead of the expected " FMT_VADDR,
+         last_region->va_start,
+         last_region->va_start + last_region->length,
+         VIRTMEM_END);
+
+  if (first_region->length == 0) {
     // the initial region we allocated here with flags = 0 may be immediately replaced if VA 0 is, strangely, mapped, in which case it'll end up being a region of 0 length
     // this does not convey any information, so we skip it and just return the next one
-    struct virtmem_region *region1 = region0->next_region;
-    virtmem_region_free(region0);
-    return region1;
+    struct virtmem_region *second_region = first_region->next_region;
+    virtmem_region_free(first_region);
+    return second_region;
   }
 
-  return region0;
+  return first_region;
 }
