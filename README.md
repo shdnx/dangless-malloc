@@ -38,7 +38,7 @@ The remaining requirements are fairly usual:
 
 ## Hugepages
 
-Besides the above, Dune requires some 2 MB hugepages to be available.
+Besides the above, Dune requires some 2 MB hugepages to be available. It will use these during initialization (calling `mmap()` with `MAP_HUGETLB`) for allocating memory for the safe stacks. It will also try to use huge pages for the guest's page allocator, although it will gracefully fall back if there are not enough huge pages available.
 
 To make sure that some huge pages remain available, it's recommended to limit or disable transparent hugepages by setting `/sys/kernel/mm/transparent_hugepage/enabled` to `madvise` or `never` (you will need to use `su` if you want to change it).
 
@@ -54,7 +54,7 @@ HugePages_Surp:        0
 Hugepagesize:       2048 kB
 ```
 
-In my tests, it appears that at minimum **71** free huge pages are required to satisfy Dune. (TODO: why?)
+In my tests, it appears that at minimum **71** free huge pages are required to satisfy Dune, although it's not quite clear to me as to why: by default for 2 safe stacks of size 2 MB each, we should only need 2 hugepages.
 
 You can dedicate more huge pages by modifying `/proc/sys/vm/nr_hugepages` (again, you'll need to use `su` to do so), or by executing:
 
@@ -64,7 +64,7 @@ sudo sysctl -w vm.nr_hugepages=<NUM>
 
 ... where `<NUM>` should be replaced by the desired number, of course.
 
-When there isn't sufficient number of huge pages available, Dangless will fail while trying to enter into Dune mode, and you will see output much like this:
+When there isn't sufficient number of huge pages available, Dangless will fail while trying to enter Dune mode, and you will see output much like this:
 
 >
   dune: failed to mmap() hugepage of size 2097152 for safe stack 0
@@ -74,9 +74,7 @@ When there isn't sufficient number of huge pages available, Dangless will fail w
 
 # Setup
 
-## Building
-
-Building Dangless and its dependencies, you have to do this only once:
+## Building and configuring Dangless
 
 First, download the Dangless dependencies (most importantly, Dune), registered as Git submodules:
 
@@ -117,7 +115,7 @@ cmake -D CMAKE_BUILD_TYPE=Debug -D OVERRIDE_SYMBOLS=ON -D REGISTER_PREINIT=ON -D
 make
 ```
 
-You should be able to see a `libdangless_malloc.a` and a `dangless_user.make` afterwards, which you will need to link your application to Dangless.
+You should be able to see `libdangless_malloc.a` and `dangless_user.make` afterwards in the build directory.
 
 You can see what configuration options were used to build Dangless by listing the CMake cache:
 
@@ -146,6 +144,8 @@ DEBUG_DGLMALLOC:BOOL=OFF
 DEBUG_DUNE_VMCALL_FIXUP:BOOL=OFF
 ...
 ```
+
+You can also use a CMake GUI such [CCMake\(https://cmake.org/cmake/help/latest/manual/ccmake.1.html), or check the [main CMake file](sources/CMakeLists.txt) for the list of available configuration options, their description and default values.
 
 ### Build user applications
 

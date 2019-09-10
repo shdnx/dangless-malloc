@@ -1,43 +1,9 @@
 \chapter{Dangless - Implementation}
 \label{ch:implementation}
 
-\section{API overview}
+\section{Initialization and dedicating virtual memory}
 
-Dangless is a Linux static library \texttt{libdangless.a} that can be linked to any application during build time. \todo{Probably should write about how to build it and how to link it to existing applications.} It defines a set of functions for allocating and deallocating memory:
-
-\begin{lstlisting}
-// sources/include/dangless/dangless_malloc.h
-
-void *dangless_malloc(size_t sz) __attribute__((malloc));
-void *dangless_calloc(size_t num, size_t size) __attribute__((malloc));
-void *dangless_realloc(void *p, size_t new_size);
-int dangless_posix_memalign(void **pp, size_t align, size_t size);
-void dangless_free(void *p);
-\end{lstlisting}
-
-These functions have the exact same signature and behaviour as their standard counterparts \lstinline!malloc()!, \lstinline!calloc()!, and \lstinline!free()!. In fact, because the GNU C Library defines these standard functions as weak symbols~\cite{glibc-malloc-is-weak}, Dangless provides an option (\lstinline!CONFIG_OVERRIDE_SYMBOLS!) to override the symbols with its own implementation, enabling the user code to perform memory management without even being aware that it's using Dangless in the background.
-
-Besides the above functions, Dangless defines a few more functions, out of which the following two are important.
-
-\begin{lstlisting}
-void dangless_init(void);
-\end{lstlisting}
-
-First, \lstinline!dangless_init()! initializes Dangless, and has to be called before any memory management is performed that Dangless should protect. The most important thing that this function does is initialize and enter Dune by calling \lstinline!dune_init()! and \lstinline!dune_enter()!. Dangless relies on Dune to be able to manipulate the page tables. Afterwards, we register our own pagefault handler with Dune, which enables us to detect when a memory access has failed due to the protection that Dangless offers.
-
-By default, Dangless automatically registers this function in the \lstinline!.preinit_array! section of the binary, causing it to be called automatically before any user-defined constructors or the \lstinline!main()! entry point. This can be disabled via the \lstinline!CONFIG_REGISTER_PREINIT! option.
-
-It's important to note that heap memory allocation can and does happen \emph{before} \lstinline!dangless_init()! is called, for example as part of the glibc runtime initialization. This case needs to be handled, so all of the \lstinline!dangless_! functions simply pass the call through to the underlying (system) allocator without doing anything else if they are called before \lstinline!dangless_init()!.
-
-\begin{lstlisting}
-int dangless_dedicate_vmem(void *start, void *end);
-\end{lstlisting}
-
-In order for Dangless to work, it requires exclusive use of some virtual memory to remap user allocations into. This region has to be large, as each \lstinline!dangless_malloc()! call will use up at least one page from it, and currently this virtual memory is never re-used because we lack a mechanism (such as a garbage collector) to be reasonably certain that a given virtual memory page is no longer referenced. This function can be used to make virtual memory regions available to Dangless for this purpose.
-
-Since users of Dangless will typically not know or want to make this decision themselves, we provide the option \lstinline!CONFIG_AUTO_DEDICATE_MAX_PML4ES! which allows Dangless to take ownership of one or more unused PML4 pagetable entries which can each map 512 gigabytes of memory. This occurs at most once when a \lstinline!dangless_malloc()! or similar call is made, but Dangless does not have sufficient virtual memory available to it to protect the call.
-
-This solution is very simplistic, and a smarter way to take ownership of virtual memory is decidedly possible. For instance, any time we require more virtual memory, we could scan the page tables and take ownership of some amount of currently-unused page table entries. Some implementation effort would need to be made to make sure this doesn't conflict with Dune's virtual memory allocation. However, this is very easy in the used Dune version, as Dune's page allocator (as defined in \texttt{libdune/dune.h}) uses maximum \lstinline!MAX_PAGES = (1 << 20)! pages (i.e. 4 GB of memory) starting at \lstinline!PAGEBASE = 0x200000000!. Any memory outside of this that is not used to hold application or kernel code or data is available for use by Dangless uncontested.
+\todo{TODO}
 
 \section{Performing an allocation}
 
@@ -183,7 +149,7 @@ ssize_t writev(int fd, const struct iovec *v, int n);
 
 struct iovec {
 	void  *iov_base; /* Starting address */
-	size_t iov_len;    /* Number of bytes */
+	size_t iov_len;  /* Number of bytes */
 };
 \end{lstlisting}
 

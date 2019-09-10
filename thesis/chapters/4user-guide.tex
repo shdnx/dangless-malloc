@@ -1,0 +1,174 @@
+\chapter{User guide}
+\label{ch:user-guide}
+
+Most of this information in less detail is also described in the repository README file.
+
+\section{System requirements}
+
+Most requirements are posed by Dune itself:
+
+\begin{itemize}
+	\item A 64-bit x86 Linux environment
+	\item A relatively recent Intel CPU with VT-x support
+	\item Kernel version of 4.4.0 or older
+	\item Installed kernel headers for the running kernel
+	\item Root (sudo) privileges
+	\item Enabled and sufficient number of hugepages (see below)
+\end{itemize}
+
+The remaining requirements posed by Dangless itself are fairly usual:
+
+\begin{itemize}
+	\item A recent C compiler that supports C11 and the GNU extensions (either GCC or Clang will work)
+	\item Python 3.6.1 or newer
+	\item CMake 3.5.2 or newer
+\end{itemize}
+
+\subsection{Hugepages}
+
+Besides the above, Dune requires some 2 MB hugepages to be available during initialization for setting up its safe stacks. It will also try to use huge pages to acquire memory for the guest's page allocator, although it will gracefully fall back if there are not enough huge pages available.
+
+To make sure that some huge pages remain available, it's recommended to limit or disable transparent hugepages by setting \texttt{/sys/kernel/mm/transparent\_hugepage/enabled} to \texttt{madvise} or \texttt{never} (you will need to use \texttt{su} if you want to change it).
+
+Then, you can check the number of huge pages available:
+
+\begin{verbatim}
+$ cat /proc/meminfo | grep Huge
+AnonHugePages:     49152 kB
+HugePages_Total:     512
+HugePages_Free:      512
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+\end{verbatim}
+
+In my tests, it appears that at minimum \textbf{71} free huge pages are required to satisfy Dune, although it's not quite clear to me as to why: by default for 2 safe stacks of size 2 MB each, we should only need 2 hugepages.
+
+You can dedicate more huge pages by modifying \texttt{/proc/sys/vm/nr\_hugepages} (again, you'll need to use \texttt{su} to do so), or by executing:
+
+\begin{verbatim}
+sudo sysctl -w vm.nr_hugepages=<NUM>
+\end{verbatim}
+
+... where \texttt{<NUM>} should be replaced by the desired number, of course.
+
+When there isn't sufficient number of huge pages available, Dangless will fail while trying to enter Dune mode, and you will see output much like this:
+
+\begin{verbatim}
+dune: failed to mmap() hugepage of size 2097152 for safe stack 0
+dune: setup_safe_stack() failed
+dune: create_percpu() failed
+Dangless: failed to enter Dune mode: Cannot allocate memory
+\end{verbatim}
+
+\section{Building and configuring Dangless}
+
+The full Dangless source code is available on GitHub at \url{https://github.com/shdnx/dangless-malloc}. After cloning, you will have to start by setting up its dependencies (such as Dune) which are registered as git submodules in the \texttt{vendor} folder:
+
+\begin{verbatim}
+git submodule init
+git submodule update
+\end{verbatim}
+
+Then we have to apply the Dune patches as described in Section~\ref{sec:bg-dune} and build it:
+
+\begin{verbatim}
+cd vendor/dune-ix
+
+# patch dune, so that the physical page metadata is accessible inside the guest, allowing us to e.g. mess with the pagetables
+git apply ../dune-ix-guestppages.patch
+
+# patch dune, so that we can register a prehook function to run before system calls are passed to the host kernel
+git apply ../dune-ix-vmcallprehook.patch
+
+# patch dune, so that it doesn't kill the process with SIGTERM when handling the exit_group syscall - this causes runs to be registered as failures when they succeeded
+git apply ../dune-ix-nosigterm.patch
+
+# need sudo, because it's building a kernel module
+sudo make
+\end{verbatim}
+
+Now configure and build Dangless using CMake:
+
+\begin{verbatim}
+cd ../../sources
+
+# you can also choose to build to a different directory
+mkdir build
+cd build
+
+# you can specify your configuration options here, or e.g. use ninja (-GNinja) instead of make
+cmake -D CMAKE_BUILD_TYPE=Debug -D OVERRIDE_SYMBOLS=ON -D REGISTER_PREINIT=ON -D COLLECT_STATISTICS=OFF ..
+make
+\end{verbatim}
+
+You should be able to see \texttt{libdangless\_malloc.a} and \texttt{dangless\_user.make} afterwards in the build directory.
+
+You can see what configuration options were used to build Dangless by listing the CMake cache:
+
+\begin{verbatim}
+$ cmake -LH
+-- Cache values
+// Whether to allow dangless to gracefully handle running out of virtual memory and continue operating as a proxy to the underlying memory allocator.
+ALLOW_SYSMALLOC_FALLBACK:BOOL=ON
+
+// Whether Dangless should automatically dedicate any unused PML4 pagetable entries (large unused virtual memory regions) for its virtual memory allocator. If disabled, user code will have to call dangless_dedicate_vmem().
+AUTODEDICATE_PML4ES:BOOL=ON
+
+// Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.
+CMAKE_BUILD_TYPE:STRING=Debug
+
+// Install path prefix, prepended onto install directories.
+CMAKE_INSTALL_PREFIX:PATH=/usr/local
+
+// Whether to collect statistics during runtime about Dangless usage. If enabled, statistics are printed after every run to stderr. These are only for local developer use and are not uploaded anywhere.
+COLLECT_STATISTICS:BOOL=OFF
+
+// Debug mode for dangless_malloc.c
+DEBUG_DGLMALLOC:BOOL=OFF
+
+// Debug mode for vmcall_fixup.c
+DEBUG_DUNE_VMCALL_FIXUP:BOOL=OFF
+...
+\end{verbatim}
+
+You can also use a CMake GUI such CCMake~\cite{ccmake-website}, or check the main CMake file (\texttt{sources/CMakeLists.txt}) for the list of available configuration options, their description and default values.
+
+\section{API overview}
+\todo{A lot of this should be moved to ch3 section 1: initialization}
+
+Dangless is a Linux static library \texttt{libdangless.a} that can be linked to any application during build time. It defines a set of functions for allocating and deallocating memory:
+
+\begin{lstlisting}
+// sources/include/dangless/dangless_malloc.h
+
+void *dangless_malloc(size_t sz) __attribute__((malloc));
+void *dangless_calloc(size_t num, size_t size) __attribute__((malloc));
+void *dangless_realloc(void *p, size_t new_size);
+int dangless_posix_memalign(void **pp, size_t align, size_t size);
+void dangless_free(void *p);
+\end{lstlisting}
+
+These functions have the exact same signature and behaviour as their standard counterparts \lstinline!malloc()!, \lstinline!calloc()!, and \lstinline!free()!. In fact, because the GNU C Library defines these standard functions as weak symbols~\cite{glibc-malloc-is-weak}, Dangless provides an option (\lstinline!CONFIG_OVERRIDE_SYMBOLS!) to override the symbols with its own implementation, enabling the user code to perform memory management without even being aware that it's using Dangless in the background.
+
+Besides the above functions, Dangless defines a few more functions, out of which the following two are important.
+
+\begin{lstlisting}
+void dangless_init(void);
+\end{lstlisting}
+
+First, \lstinline!dangless_init()! initializes Dangless, and has to be called before any memory management is performed that Dangless should protect. The most important thing that this function does is initialize and enter Dune by calling \lstinline!dune_init()! and \lstinline!dune_enter()!. Dangless relies on Dune to be able to manipulate the page tables. Afterwards, we register our own pagefault handler with Dune, which enables us to detect when a memory access has failed due to the protection that Dangless offers.
+
+By default, Dangless automatically registers this function in the \lstinline!.preinit_array! section of the binary, causing it to be called automatically before any user-defined constructors or the \lstinline!main()! entry point. This can be disabled via the \lstinline!CONFIG_REGISTER_PREINIT! option.
+
+It's important to note that heap memory allocation can and does happen \emph{before} \lstinline!dangless_init()! is called, for example as part of the glibc runtime initialization. This case needs to be handled, so all of the \lstinline!dangless_! functions simply pass the call through to the underlying (system) allocator without doing anything else if they are called before \lstinline!dangless_init()!.
+
+\begin{lstlisting}
+int dangless_dedicate_vmem(void *start, void *end);
+\end{lstlisting}
+
+In order for Dangless to work, it requires exclusive use of some virtual memory to remap user allocations into. This region has to be large, as each \lstinline!dangless_malloc()! call will use up at least one page from it, and currently this virtual memory is never re-used because we lack a mechanism (such as a garbage collector) to be reasonably certain that a given virtual memory page is no longer referenced. This function can be used to make virtual memory regions available to Dangless for this purpose.
+
+Since users of Dangless will typically not know or want to make this decision themselves, we provide the option \lstinline!CONFIG_AUTO_DEDICATE_MAX_PML4ES! which allows Dangless to take ownership of one or more unused PML4 pagetable entries which can each map 512 gigabytes of memory. This occurs at most once when a \lstinline!dangless_malloc()! or similar call is made, but Dangless does not have sufficient virtual memory available to it to protect the call.
+
+This solution is very simplistic, and a smarter way to take ownership of virtual memory is decidedly possible. For instance, any time we require more virtual memory, we could scan the page tables and take ownership of some amount of currently-unused page table entries. Some implementation effort would need to be made to make sure this doesn't conflict with Dune's virtual memory allocation. However, this is very easy in the used Dune version, as Dune's page allocator (as defined in \texttt{libdune/dune.h}) uses maximum \lstinline!MAX_PAGES = (1 << 20)! pages (i.e. 4 GB of memory) starting at \lstinline!PAGEBASE = 0x200000000!. Any memory outside of this that is not used to hold application or kernel code or data is available for use by Dangless uncontested.

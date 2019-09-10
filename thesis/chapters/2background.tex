@@ -56,6 +56,7 @@ In addition to memory de-duplication, the kernel can also choose to compress or 
 \todo{Oscar, etc.}
 
 \section{Dune: light-weight process virtualization}
+\label{sec:bg-dune}
 
 Dune~\cite{dune-website} is a technology developed to enable the development of Linux applications that can run on an unmodified Linux kernel while having the ability to directly and safely (in isolation from the rest of the system) access hardware features normally reserved for the kernel (ring 0) code~\cite{dune-paper}. Importantly, while getting all the benefits of having direct access to privileged hardware features, the application still has access to the Linux host operating system's interface (system calls) and features. This means that the same process that can, for instance, directly manipulate its own interrupt descriptor table, can also call a normal \lstinline!fopen()! function (or \lstinline!open()! Linux system call) and it'll behave as expected: the system call will pass through to the host kernel.
 
@@ -80,18 +81,46 @@ I have patched Dune with a couple of modifications to allow Dangless to do its w
 Finally, Dangless contains a work-around for an issue in Dune which appears with allocation-heavy code. \texttt{glibc}'s default \lstinline!malloc()! implementation relies on the \lstinline!brk()! system call to perform small memory allocations (in my tests, up to 9000 bytes). After a sufficient number of \lstinline!brk()! calls, the resulting address crosses the 4 GB boundary, i.e. the memory address \texttt{0x100000000}. However, this area doesn't appear to be mapped by Dune in the embedded page table, causing an EPT violation error on access. In the Dangless source code, \texttt{testapps/memstress} can be used to trigger this bug:
 
 \begin{verbatim}
-$ cd dangless/testapps
-$ bin/memstress 1500000 9000
+$ cd build/testapps/memstress
+$ ./memstress 1500000 9000
 \end{verbatim}
 
 To work around this, Dangless registers a post-vmcall hook, and if it detects a \lstinline!brk()! system call with a parameter above the 4 GB mark, it overwrites the system call's return code to make it appear to have failed. \texttt{glibc}'s memory allocator will then fall back to using \lstinline!mmap()! even for these smaller allocations, which will continue to work.
 
-\todo{Important: memory layout, how is virtual memory mapped by default, since we make extensive use of that}
+\subsection{Memory layout}
+
+Dune offers two memory layouts, specified when calling \lstinline!dune_init()!: precise mappings and full mappings.
+With precise mappings, Dune will consult \texttt{/proc/self/maps} for the memory regions of the so-far ordinary Linux process and map each region found there into the guest environment. With the version of Dune I was using for development, this did not appear to work correctly, and so I used full mappings for Dangless.
+
+In full mappings, Dune creates the following mappings in the guest virtual memory:
+
+\begin{itemize}
+	\item Identity-mapping for the first 4 GB of memory: this is where the executable code and data lives, so this is also where the default \lstinline!malloc()! implementation places small memory allocations (allocated via \lstinline!brk()!)
+	\item The stack memory, max 1 GB
+	\item The mmap memory region, max 63 GB
+	\item The static \texttt{VDSO} and \texttt{VVAR} regions
+	\item Any mappings needed for the executable and libraries (code and data)
+\end{itemize}
+
+Furthermore, the Dune kernel module creates the embedded page table (EPT), the part of the Intel VT-x virtualization technology that is used for translating host virtual addresses (HVA) to guest physical addresses (GPA) and vica versa. The EPT is set up and is kept in sync with the process memory automatically, meaning that mappings are created on-demand on EPT faults, within the limits of the layout defined by Dune and described above.
+
+Dangless makes extensive use of the knowledge of the guest memory layout, for instance for translating physical addresses (e.g. of pagetable pages) to virtual addresses.
+
 \todo{Also write about how multi-threading is not currently supported by Dune, and how one could go about supporting it using the vmcall-hooks.}
 
 \todo{Also have to write about the requirements of Dangless and how to build it}
 
-\section{Rumprun}
+\section{Unikernels and Rumprun}
+
+Unikernels offer a way to specialize an operating system kernel to a specific application~\cite{unikernels-intro} -- typically a web server -- in order to reduce its image size by eliminating any features not required, reducing its attack surface, and potentially improving performance. Since 2013 the widespread use of cloud technologies have made this into a popular research topic, and gave rise to related solutions such as Docker, offering a slightly different approach. \todo{Probably some more citations here?}
+
+---
+
+Rumprun and rumpkernels is an example of unikernels, based on the NetBSD kernel.
+
+When the development of Dangless began, it was initially aimed to support both Rumprun and Dune. However, Rumprun has always been more difficult to work with of the two, given how it works: compiling an application adapted specifically for this purpose from its list of supported packages, then building it into a virtual machine image together with a stripped-down version of the kernel. The application executes entirely in its own virtual machine, making testing and debugging it difficult.
+
+Furthermore, Rumprun is built to be only used on packages that were specifically prepared for it, and the intention never was to be able to easily extend it. For instance, it defines its own strong aliases for the memory management functions \lstinline!malloc()!, \lstinline!free()!, etc. leaving no way to replace them with Dangless' functions without modifying Rumprun itself.
 
 \todo{I think these are called unikernels - there was a discussion on these recently on HN}
 \todo{Development started on rumprun, why did I end up dropping it?}
