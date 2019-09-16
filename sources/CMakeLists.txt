@@ -9,7 +9,7 @@ option(COLLECT_STATISTICS "Whether to collect statistics during runtime about Da
 option(REPORT_RUSAGE "Whether to report resource usage as measured by the kernel alongside the statistics at the end of each execution to stderr." ON)
 option(ENABLE_PERF_EVENTS "Whether to enable hardware performance counters about the TLB. If enabled, these are printed alongside the statistics at the end of the each execution to stderr." ON)
 
-option(AUTODEDICATE_PML4ES "Whether Dangless should automatically dedicate any unused PML4 pagetable entries (large unused virtual memory regions) for its virtual memory allocator. If disabled, user code will have to call dangless_dedicate_vmem()." ON)
+option(AUTO_DEDICATE_PML4ES "Whether Dangless should automatically dedicate any unused PML4 pagetable entries (each representing 512 GB of virtual memory) for its virtual memory allocator. If disabled, user code will have to call dangless_dedicate_vmem()." ON)
 set(CALLOC_SPECIAL_BUFSIZE 32 CACHE INTERNAL "Buffer size for special handling of the first calloc() call originating from dlsym().")
 option(SYSCALLMETA_HAS_INFO "Whether to embed metadata information about system calls. If enabled, then system call logging will be more useful." ON)
 set(PRINTF_NOMALLOC_BUFFER_SIZE 4096 CACHE STRING "Global buffer size for printf_nomalloc(). Printing a string longer than this will fail.")

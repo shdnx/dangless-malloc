@@ -120,7 +120,8 @@ int pt_map_page(paddr_t pa, vaddr_t va, enum pte_flags flags) {
   pte_t *ppte;
   enum pt_level level = pt_walk((void *)va, PGWALK_FULL, OUT &ppte);
 
-  ASSERT(!FLAG_ISSET(*ppte, PTE_V), "Attempted to replace a hugepage mapping for VA %p at %p (PTE: 0x%lx) with a 4K page mapping to %p!", (void *)va, ppte, *ppte, (void *)pa);
+  // TODO: we shouldn't assert in this case, just return an error, so that vremap_map() can maybe try allocating a different virtual memory page
+  ASSERT(!FLAG_ISSET(*ppte, PTE_V), "attempted to replace a mapping for VA %p represented by the L%d PTE at %p (value: 0x%lx) with a 4K page mapping to %p!", (void *)va, level, ppte, *ppte, (void *)pa);
 
 #define CREATE_LEVEL(LVL) \
   do { \

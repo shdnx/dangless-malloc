@@ -32,8 +32,8 @@
   #define LOG_NOMALLOC(...) /* empty */
 #endif
 
-static bool g_initialized = false;
 static pthread_once_t g_auto_dedicate_once = PTHREAD_ONCE_INIT;
+static bool g_auto_dedicate_happened = false;
 
 STATISTIC_DEFINE_COUNTER(st_num_allocations);
 STATISTIC_DEFINE_COUNTER(st_num_allocations_2mb_plus);
@@ -46,39 +46,35 @@ STATISTIC_DEFINE_COUNTER(st_num_deallocations);
 STATISTIC_DEFINE_COUNTER(st_num_deallocated_vpages);
 
 int dangless_dedicate_vmem(void *start, void *end) {
-  g_initialized = true;
-
   LOG("dedicating virtual memory: %p - %p\n", start, end);
   return vp_free_region(start, end);
 }
 
+// Look for any unused PML4 entries that each represent 512 GB of virtual memory, and dedicate them to the Dangless virtual memory allocator.
 // TODO: make this platform-specific
 static void auto_dedicate_vmem(void) {
   // TODO: maybe refactor this? There's an almost identical function in tests/dune/basics.c...
-  const size_t pte_addr_mult = 1ul << pt_level_shift(PT_L4);
+  const size_t pte_mapped_size = 1uL << pt_level_shift(PT_L4);
   pte_t *ptroot = pt_root();
 
   size_t nentries_dedicated = 0;
 
   size_t i;
-  for (i = 0; i < PT_NUM_ENTRIES && nentries_dedicated < DANGLESS_CONFIG_AUTO_DEDICATE_MAX_PML4ES; i++) {
+  for (i = 0; i < PT_NUM_ENTRIES; i++) {
     if (ptroot[i])
       continue;
 
     int result = dangless_dedicate_vmem(
-      (void *)(i * pte_addr_mult),
-      (void *)((i + 1) * pte_addr_mult)
+      (void *)(i * pte_mapped_size),
+      (void *)((i + 1) * pte_mapped_size)
     );
 
-    if (result != 0)
-      continue;
-
-    nentries_dedicated++;
+    if (result == 0)
+      nentries_dedicated++;
   }
 
   LOG("auto-dedicated %zu PML4 entries!\n", nentries_dedicated);
-
-  g_initialized = true;
+  g_auto_dedicate_happened = true;
 }
 
 static THREAD_LOCAL unsigned g_hook_depth = 0;
@@ -172,19 +168,24 @@ static void *do_vremap(void *p, size_t sz, const char *func_name) {
 retry:
   result = vremap_map(p, actual_sz, OUT &remapped_ptr);
 
-  if (UNLIKELY(result == EVREM_NO_VM && !g_initialized)) {
-    LOG("auto-dedicating available virtual memory to dangless...\n");
+#if DANGLESS_CONFIG_AUTO_DEDICATE_PML4ES
+  if (UNLIKELY(result == EVREM_NO_VM && !g_auto_dedicate_happened)) {
+    LOG("auto-dedicating available virtual memory to Dangless...\n");
 
     pthread_once(&g_auto_dedicate_once, auto_dedicate_vmem);
 
     LOG("re-trying vremap...\n");
     goto retry;
-  } else if (result < 0) {
+  }
+#endif
+
+  if (result < 0) {
     #if DANGLESS_CONFIG_ALLOW_SYSMALLOC_FALLBACK
+      // TODO: this should set a flag or something, to ensure that the whole thing is not re-tried unless we get more virtual memory
       LOG("failed to remap %s's %p of size %zu: %s (code %d); falling back to proxying sysmalloc\n", func_name, p, actual_sz, vremap_diag(result), result);
       return p;
     #else
-      fprintf_nomalloc(stderr, "Dangless: FATAL ERROR: failed to remap %s's %p of size %zu: %s (code %d); falling back to sysmalloc proxying is disallowed, failing\n", func_name, p, actual_sz, vremap_diag(result), result);
+      fprintf_nomalloc(stderr, "[dangless_malloc] FATAL ERROR: failed to remap %s's %p of size %zu: %s (code %d); falling back to sysmalloc proxying is disallowed, failing\n", func_name, p, actual_sz, vremap_diag(result), result);
       abort();
     #endif
   }
