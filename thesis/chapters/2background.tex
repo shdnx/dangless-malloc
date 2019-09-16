@@ -106,10 +106,6 @@ Furthermore, the Dune kernel module creates the embedded page table (EPT), the p
 
 Dangless makes extensive use of the knowledge of the guest memory layout, for instance for translating physical addresses (e.g. of pagetable pages) to virtual addresses.
 
-\todo{Also write about how multi-threading is not currently supported by Dune, and how one could go about supporting it using the vmcall-hooks.}
-
-\todo{Also have to write about the requirements of Dangless and how to build it}
-
 \section{Unikernels and Rumprun}
 
 Unikernels offer a way to specialize an operating system kernel to a specific application~\cite{unikernels-intro} -- typically a web server -- in order to reduce its image size by eliminating any features not required, reducing its attack surface, and potentially improving performance. Since 2013 the widespread use of cloud technologies have made this into a popular research topic, and gave rise to related solutions such as Docker, offering a slightly different approach. \todo{Probably some more citations here?}

@@ -1,9 +1,14 @@
-\chapter{Dangless - Implementation}
+\chapter{Dangless -- Implementation}
 \label{ch:implementation}
 
-\section{Initialization and dedicating virtual memory}
+\section{Initialization}
+\label{sec:dangless-init}
 
-\todo{TODO}
+Dangless has to be initialized before any memory allocation is performed, otherwise those allocations will not be protected. The \lstinline!REGISTER_PREINIT! option, enabled by default, controls whether Dangless should automatically register its initialization function (\lstinline!dangless_init()!) to the \lstinline!.preinit_array! section of the executable, to be called automatically during start-up.
+
+During initialization, Dangless initializes and enters Dune by calling \lstinline!dune_init()! and \lstinline!dune_enter()!. Dangless relies on Dune to enter into a virtualized environment where it can have direct access to the page tables. Dangless also uses Dune to register its own pagefault handler function, which enables us to detect when a memory access has failed due to the protection that Dangless offers.
+
+It's important to note that heap memory allocation can and does happen \emph{before} Dangless is initialized -- whether manually or automatically -- for example as part of the glibc runtime initialization. This case needs to be handled, so all of the \lstinline!dangless_! functions simply pass the call through to the underlying (system) allocator without doing anything else if they are called before initialization. A noteworthy edge-case that Dangless has to be able to handle is when an allocation happens before Dangless initialization, so is not protected, but then it's used and finally deallocated after initialization.
 
 \section{Performing an allocation}
 
@@ -36,8 +41,15 @@ The implementation of Dangless cannot handle the system allocator returning a (g
 Note that it does not matter whether the host physical memory is contiguous or not: any \lstinline!mmap()! (or \lstinline!brk()! for that matter) allocation is mapped into the guest memory contiguously. \todo{I think that's the case though, but I'm not totally sure. Check this? Note that the implementation can be fixed if necessary.}
 
 \subsection{Allocating virtual memory}
+\label{sec:dangless-alloc-virtmem}
 
-Given a physical memory address of the user allocation, Dangless needs to allocate the same amount of virtual memory pages from the regions dedicated to it. Furthermore, we need to guarantee that these virtual memory addresses are only be used for exactly one allocation, and are never reused. For this purpose, Dangless employs a simple freelist-based span allocator. A freelist is simply a singly linked-list of \lstinline!vp_span! objects each representing a free span of virtual memory, ordered by their end address:
+Given a physical memory address of the user allocation, Dangless needs to allocate the same amount of virtual memory pages that user code will interact with. In the memory layout created by Dune, there's plenty of virtual memory that is not used, nor will ever be used normally due to the size limitations of the various memory regions that Dune enforces.
+
+For simplicity, and in order to minimize the chance of conflicts, by default Dangless upon the first memory allocation request that it can't satisfy due to not having sufficient virtual memory, will take any unused entries from the top-level page table (PML4)  and initialize its virtual memory allocator with them marked as available. This behaviour can be disabled using the \lstinline!AUTO_DEDICATE_PML4ES! option. Users can also dedicate virtual memory to Dangless using the \lstinline!dangless_dedicate_vmem(void *start, void *end)! function (declared in \texttt{dangless\_malloc.h}).
+
+The amount of virtual memory available to Dangless has to be very large, as each allocation will use up at least one whole 4 KB page from it. This is done so that during deallocation the page can be marked as unmapped in order to cause any further accesses to it fail. (The most precise level of granularity it is possible to do this on x86-64 based systems today is the 4 KB page.) This means that 1 GB of virtual memory can be used to satisfy $1 GB / 4 KB = 256 * 1024 = 262 144$ allocations, assuming each of them is less than 4 KB in size. This is because currently Dangless lacks any mechanisms for detecting that a virtual memory region is no longer referenced, meaning that it will never mark a virtual memory page as available for reuse.
+
+To keep track of the virtual memory available to it, Dangless employs a simple freelist-based span allocator. A freelist is simply a singly linked-list of \lstinline!vp_span! objects each representing a free span of virtual memory, ordered by their end address:
 
 \begin{lstlisting}
 struct vp_span {
@@ -56,17 +68,21 @@ struct vp_freelist {
 
 When virtual memory is needed, the freelist is walked until a \lstinline!vp_span! object representing a region of sufficient size is found. When one is found, the allocated space is removed from the beginning of the span (by adjusting \lstinline!start!), and the span is deleted if it is now empty. If no such span is found, the allocation fails.
 
+When an allocation fails, Dangless checks if it's allowed to auto-dedicate virtual memory by consulting the \lstinline!AUTO_DEDICATE_PML4ES! option. If this option is enabled, and Dangless hasn't yet done so, it will proceed to do this before re-trying the allocation.
+
+Otherwise, Dangless concludes that it's unable to satisfy the user's memory allocation. If \lstinline!ALLOW_SYSMALLOC_FALLBACK! is enabled (defaults to off), then Dangless proceeds by simply acting as a proxy to the system allocator, and gives up on attempting to protect the allocation. Otherwise, Dangless prints an error message and terminates the application.
+
 Note that in the current, simple implementation of the virtual memory allocator there is only a single freelist, which is sufficient because we do not ever re-use any virtual memory. If we were to add a garbage collector-like solution, then this approach would likely lead to significant fragmentation with a negative performance impact on each allocation. In this situation, a possible enhancement would be to have several independent freelists of different page sizes, similar to common memory allocator designs. Other improvements are also possible: memory allocation is a well-understood problem.
 
 \subsection{Remapping}
 
 \todo{Use diagrams for this, such as the ones used in the presentation}
 
-Now that Dangless has the physical memory address and a brand new virtual memory address, all that is left to do is mapping the virtual memory to the physical memory by modify the guest page tables. In a normal Linux userland application, this would not be possible to do directly or cheaply without implementing a Linux kernel module. Dune makes it possible for us to do this, as inside the virtualized environment, we have ring 0 privileges, so we can read control register 3 (\lstinline!cr3!) containing the (guest) physical address of the page table root. Thanks to the \texttt{dune-ix-guestppages.patch} patch to Dune, the host memory pages used to hold the guest's page tables are mapped into the guest virtual memory, allowing us to manipulate them during runtime from inside the guest.
+Now that Dangless has the physical memory address and a brand new virtual memory address, all that is left to do is mapping the virtual memory to the physical memory by modify the corresponding page table.
 
-Should the physical memory allocation fail, the machine is out of memory, and Dangless can do little but pass on this failure to the caller.
+In a normal Linux userland application, in order to do this we would have to perform a system call, given that page table manipulation requires ring 0 privileges meaning that it's only available to the kernel. However, thanks to Dune, the process is running inside its own virtualized environment, in which we can act as the kernel, and for instance read control register 3 (\lstinline!cr3!) containing the (guest) physical address of the page table root.
 
-We have a different situation however if it's the virtual memory allocation that fails. I have already talked about Dangless' ability to automatically acquire virtual memory for its allocator by scanning the page table and taking unused PML4 entries for its own use. If even despite this mechanism Dangless does not have sufficient virtual memory to protect the user allocation by remapping it, then Dangless gives up. If the \lstinline!CONFIG_ALLOW_SYSMALLOC_FALLBACK! option is enabled, then Dangless simply forwards all later memory management function calls to the system allocator, to ensure that the user application keeps functioning. Otherwise, it exits the application.
+Having applied the \texttt{dune-ix-guestppages.patch} patch to Dune, the host memory pages used to hold the guest's page tables are mapped into the guest virtual memory, allowing us to manipulate them during runtime from inside the guest environment.
 
 \subsection{Deallocations}
 \label{ssec:deallocations}
