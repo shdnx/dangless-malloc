@@ -9,6 +9,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 // libdune/entry.c, __setup_mappings_full():
 // - first 4 GB: identity-mapped
