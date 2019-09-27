@@ -53,7 +53,47 @@ In addition to memory de-duplication, the kernel can also choose to compress or 
 
 \section{Prior art}
 
-\todo{Oscar, etc.}
+Memory errors are a well-understood problem and a significant amount of research has already been conducted in this field. Numerous solutions have been proposed, often using similar ideas and offering alternative approaches, optimizations, or other incremental improvements.
+
+Dhurjati et al.~\cite{dhurjati2003memory} proposed a solution for type-safe memory re-use in 2003: although this doesn't prevent all dangling pointer errors, but ensures that type confusion does no occur, limiting the attack vector.
+
+Cling~\cite{akritidis2010cling} builds on top of the same ideas and is a memory allocator that similarly limits, but does not prevent, the threat surface posed by dangling pointer errors by limiting memory re-use to objects of the same type. It does so by noting down the caller function of each memory allocation, assigning a unique memory pool to each, under the assumption that one call site always performs allocations of the same type.
+
+---
+
+\cite{dhurjati2006efficiently}
+
+Some work [20, 17, 9, 8] provides no guarantees, only heuristics; cannot actually detect a dangling pointer after it's been reallocated
+
+SafeC: global capabilities store, fat pointer with a capability value, free removes capability, check before each memory access; good overhead on allocation-heavy software, but increases physical memory usage by 1.6-4x. Improvements by FisherPatil[15] and Xu et al [19].
+
+Purify, Vanguard: for debugging
+
+Electric Fence [16], PageHeap [13]
+ - they use page protections, both are only useful as debugging tools, greatly increasing physical memory usage (single object per physical memory page)
+
+DSN paper: relies on page protections, but does remappings same as Dangless; but also builds upon a compiler transformation called Automatic Pool Allocation to reclaim virtual memory but needs source code for this; does stuff with system calls though so adds an extra system call per allocation and deallocation; increases TLB misses; also increases physical memory usage by 8 bytes per allocation (to record the canonical address)
+
+---
+
+Cling: infers type information at runtime by exmining the call stack ?
+
+Oscar
+
+\section{Unikernels and Rumprun}
+
+The idea of unikernels stems from the observation~\cite{unikernels-intro} that in many cloud deployment scenarios, a virtual machine is typically used to host only a single application, such as a web server or database server. These virtual machines all run a commodity operating system -- typically a Linux distribution, or less often, Windows -- that is built to support multiple users and many arbitrary applications running concurrently on various hardware. This adds up to a significant amount of effectively dead code in these scenarios.
+A tiny library operating system with only the necessary modules enabled and tied directly together with the application would result in a much more efficient image.
+
+Given the widespread use of cloud technologies and the prevalence of commodity cloud providers since 2013, unikernels and similar technologies became a topic of research and development, yielding solutions such as MirageOS, IncludeOS, Rump kernels, HaLVM, and OSv~\cite{unikernels-list}. Notably, similar research has also resulted in technologies such as Docker~\cite{docker-web}.
+
+One approach to building unikernels is basing them on applications developed for commodity operating systems, and then through a mix of manual and automated methods adapt them to be able to run with a unikernel runtime. This approach is taken by Rump kernels~\cite{rumpkernels-web}, which provides various drivers and operating system modules (based on NetBSD) as well as a near-complete POSIX system call interface, allowing many existing applications to be run without any modifications~\cite{rumpkernels-doc}.
+
+When the development of Dangless began, it was initially supporting both Rumpkernels and Dune. However, over time, maintaining both has become a major burden, and focus shifted to only supporting Dune. One of the reasons for this was entirely practical: development of Dangless on Rumpkernels was more difficult, due to the complete virtual machine isolation which is required to run them, making debugging and data collection (statistics, logging) more difficult.
+
+Furthermore, Rumpkernels would have also needed custom modifications (similarly to how Dune ended up requiring them), for instance in order to make it possible for Dangless to provide the symbols for \lstinline!malloc()! and co. while Rumpkernels also define the same strong symbols.
+
+Regardless, I still believe that unikernels are a promising field, because it's focused on providing environments for efficiently hosting long-running, publicly exposed services such as web servers, which are particularly relevant for security research, and by extension for Dangless itself.
 
 \section{Dune: light-weight process virtualization}
 \label{sec:bg-dune}
@@ -63,8 +103,6 @@ Dune~\cite{dune-website} is a technology developed to enable the development of 
 This is achieved using hardware-assisted virtualization (Intel VT-x) on the process level, rather than on the more common machine level. Dune consists of a kernel module \texttt{dune.ko} for x86-64 Linux that initializes the virtual environment and mediates between the Dune-mode process and the host kernel, as well as a user-level library called \texttt{libdune} for setting up and managing the virtualized (guest) hardware. The two components communicate via the \lstinline!ioctl()! system call on the \texttt{/dev/dune} special device that is exposed by the kernel module. Finally, \texttt{libdune/dune.h} exposes a number of functions to help the application manage the now-accessible hardware features.
 
 An application wishing to use Dune has to statically link to \texttt{libdune.a}, and call \lstinline!dune_init()! and \lstinline!dune_enter()! to enter Dune mode. For this to succeed, the Dune kernel mode has to be already loaded. That done, the application keeps running as before: file descriptors remain valid, system calls continue to work, and so on, except privileged hardware features also become available. This opens up drastically more efficient methods of implementing some applications, such as those utilizing garbage collection, process migration, and sandboxing untrusted code. It also enables Dangless to work efficiently.
-
-Dune sets up the guest environment by default so it's sufficient to just make whatever modifications you need. For instance, Dune sets up system calls in the virtualized guest environment so that they are forwarded to the host kernel. It is also possible to implement your own system call handler, as many of the Dune demo applications do. Dune also sets up the virtual memory mappings. \todo{Write more about this}
 
 \subsection{Patching Dune}
 
@@ -105,18 +143,3 @@ In full mappings, Dune creates the following mappings in the guest virtual memor
 Furthermore, the Dune kernel module creates the embedded page table (EPT), the part of the Intel VT-x virtualization technology that is used for translating host virtual addresses (HVA) to guest physical addresses (GPA) and vica versa. The EPT is set up and is kept in sync with the process memory automatically, meaning that mappings are created on-demand on EPT faults, within the limits of the layout defined by Dune and described above.
 
 Dangless makes extensive use of the knowledge of the guest memory layout, for instance for translating physical addresses (e.g. of pagetable pages) to virtual addresses.
-
-\section{Unikernels and Rumprun}
-
-Unikernels offer a way to specialize an operating system kernel to a specific application~\cite{unikernels-intro} -- typically a web server -- in order to reduce its image size by eliminating any features not required, reducing its attack surface, and potentially improving performance. Since 2013 the widespread use of cloud technologies have made this into a popular research topic, and gave rise to related solutions such as Docker, offering a slightly different approach. \todo{Probably some more citations here?}
-
----
-
-Rumprun and rumpkernels is an example of unikernels, based on the NetBSD kernel.
-
-When the development of Dangless began, it was initially aimed to support both Rumprun and Dune. However, Rumprun has always been more difficult to work with of the two, given how it works: compiling an application adapted specifically for this purpose from its list of supported packages, then building it into a virtual machine image together with a stripped-down version of the kernel. The application executes entirely in its own virtual machine, making testing and debugging it difficult.
-
-Furthermore, Rumprun is built to be only used on packages that were specifically prepared for it, and the intention never was to be able to easily extend it. For instance, it defines its own strong aliases for the memory management functions \lstinline!malloc()!, \lstinline!free()!, etc. leaving no way to replace them with Dangless' functions without modifying Rumprun itself.
-
-\todo{I think these are called unikernels - there was a discussion on these recently on HN}
-\todo{Development started on rumprun, why did I end up dropping it?}

@@ -1,5 +1,10 @@
 \chapter{Evaluation}
 
+\todo{This needs a lot more work.}
+
+\section{Performance on SPEC 2006}
+\todo{...}
+
 % Performance overhead: Dune vs Dangless vs Oscar
 \begin{figure}
     \centering
@@ -99,3 +104,11 @@
     \end{tikzpicture}
     \caption{Dune vs Dangless vs Oscar: memory overhead}
 \end{figure}
+
+\section{Limitations and improvement opportunities}
+
+ - multi-threading support
+ - clone() support
+ - smarter virtual memory auto-dedication logic
+ - on >2 MB, >1 GB allocations, hugepages could be used
+ - garbage collector

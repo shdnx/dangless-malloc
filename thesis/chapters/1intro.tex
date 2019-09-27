@@ -171,18 +171,49 @@ This is an example of how dangling pointer errors can pose a security vulnerabil
 
 It's worth noting that using a correct implementation of reference-counting, such as with the standard \lstinline!std::shared_ptr! (since C++11), this problem could have been avoided. However, while smart pointers go a long way towards making dynamic memory safer and more convenient to use, they do have limitations even in the current C++ version (C++17 as of the time of writing). For instance, it's common to use plain pointers to represent a non-owning, optional reference to memory owned by another object, such as an \lstinline!std::unique_ptr!, enabling dangling pointer errors to occur.
 
-\section{Overview}
+\subsection{Dangling pointers and late binding in C++}
 
-\todo{Better title? Move it somewhere else? I don't think the introduction is the right place for this.}
+Dangling pointers are an even more severe vulnerability in C++ because it supports the object-oriented programming paradigm, and therefore allows programmers to define classes, virtual methods, and express inheritance. In order to support virtual methods being overridden in derived classes, the C++ compiler creates a data structure called a \texttt{vtable} for each class that contains virtual methods, whether defined in the class or inherited from a base class. This \texttt{vtable} is essentially a look-up table, containing function pointers to the class' own implementations of the virtual methods. Furthermore, an additional \texttt{vptr} pointer field is added to any objects of such classes, which points to the correct \texttt{vtable}. This pointer value persists even through derived-to-base casts, to allow the program to behave as expected. For instance:
 
-\todo{We have useful figures from the presentation, we should definitely include them}
+\begin{lstlisting}
+class Base {
+public:
+virtual ~Base() = default;
 
-Dangless is a drop-in replacement memory allocator that provides a custom implementation of the standard C memory management functions \lstinline!malloc()!, \lstinline!calloc()!, \lstinline!realloc()!, \lstinline!free()! and a few others. It aims to solve the problems that dangling pointers lead to by guaranteeing that any access through a dangling pointer will fail, and the application will terminate. It relies on the underlying memory allocator to perform the actual allocation and deallocation. In principle, because Dangless makes no assumptions on the nature or behaviour of the underlying allocator -- referred to as "system allocator" by Dangless --, it should be usable on top of even non-standard implementations such as Google tcmalloc.
+virtual std::string getTypeName() const {
+return "Base";
+}
+};
+\end{lstlisting}
 
-Catching dangling pointer accesses is ensured by \emph{permanently} marking memory regions as no longer in use upon deallocation (e.g. a call to \lstinline!free()!). Therefore, during the lifetime of the application, in principle, no other memory will be allocated in such a way that it would visibly alias a previously used location. Of course, the physical memory available is very limited even on modern systems, and not re-using is hopeless. The trick then, is to leave the management of physical memory to the system allocator, and change how the physical allocations are mapped to virtual memory: the address space that user applications interact with. Virtual memory is plentiful: on the x86-64 architecture, pointers are 64-bit long, which in theory means $2^{64}$ bytes of addressable memory. In practice however, on all current processors that use this architecture, only 48 bits are used, which limits the size of the address space we can work with to $2^{48}$ bytes, or 256 terrabytes. That's also not unlimited, but as it turns out, in practice it almost is.
+This defines a class \texttt{Base} with a virtual method \lstinline!getTypeName()!, the default implementation of which returns the string \lstinline!"Base"!. Since the class contains virtual methods, the C++ compiler emits a \texttt{vtable} for it with 2 entries: one for the destructor, and one for \lstinline!getTypeName()!, both of them pointing to \lstinline!Base!'s own implementations. When we call the \lstinline!Base()! constructor and instantiate an object of the class, it will contain a hidden field (usually as the first field, placed before any user-defined ones): the \texttt{vptr} that points to Base's own \texttt{vtable}. (The destructor has to be virtual, otherwise objects may not be correctly destroyed.)
 
-Normally, the difference between physical and virtual memory is entirely hidden from the user code, and is dealt with only by the operating system kernel. This allows the overwhelming majority of users and developers - even programmers working with lower-level languages such as C++ - to work and develop software without ever being aware of the difference, while enjoying the benefits of it. The Linux kernel does provide some system calls that allow the virtual memory to be manipulated, notably \lstinline!mprotect()! which is used to manage access permissions (readable, writeable, executable) of memory regions. This is useful for example when developing just-in-time (JIT) compilers such as the ones employed by browsers to run JavaScript code. Another example is \lstinline!mremap()!, which allows a memory region to be moved almost for free, an ability that makes it useful for garbage collectors for instance. Of course,  \lstinline!mmap()! and \lstinline!munmap()! also primarily work by manipulating virtual memory mappings.
+\begin{lstlisting}
+class Derived : public Base {
+/* virtual */ std::string getTypeName() const override {
+return "Derived";
+}
+};
+\end{lstlisting}
 
-These system calls are sufficient to implement the functionality of Dangless, with some caveats -- in fact, this is exactly how Oscar operates \todo{reference}. The biggest issue is that of performance: system calls are expensive compared to normal memory allocations, and in this scheme, for every single memory allocation, at least one extra system call would be required. The costs and possibilities for optimizations are explored in depth by the Oscar paper.
+We have now defined a second class which inherits from \lstinline!Base! and overrides \lstinline!getTypeName()! with its own implementation, one that returns \lstinline!"Derived"!. (The compiler also automatically emits a trivial destructor that overrides the base class'.) The \texttt{vtable} emitted for \lstinline!Derived! has the same structure as that of \lstinline!Base!, but contains the addresses to \lstinline!Derived!'s virtual method implementations. Similarly, when a \lstinline!Derived! object is constructed, the object contains a \texttt{vptr} hidden field pointing to its \texttt{vtable}.
 
-The solution Dangless uses is a technology called Dune \todo{reference}: a Linux kernel module and library that provides a lightweight virtualization layer based on Intel VT-x. Using Dune, a normal Linux application can choose to enter a virtualized environment where it has ring-0 privileges, allowing it to efficiently and directly manipulate virtual memory mappings and the interrupt descriptor table, while retaining the ability to perform system calls on the host kernel using the \lstinline!vmcall! instruction. In principle, an application running in Dune mode has the best of both worlds; normal Linux libraries and executables are able to run in Dune mode without any modifications, while gaining access to ring-0 features when beneficial. While there is an overhead associated with running in a virtualized environment, especially when performing \lstinline!vmcall!s, in practice this turns out to be negligible for most applications.
+\begin{lstlisting}
+void print(const Base& obj) {
+std::cout << obj.getTypeName() << '\n';
+}
+
+int main() {
+print(Base{}); // prints "Base"
+print(Derived{}); // prints "Derived"
+return 0;
+}
+\end{lstlisting}
+
+Note how the global function \lstinline!print()! accepts a \lstinline!const Base&!: this function has no idea about any derived of \lstinline!Base!. Yet when it calls the \lstinline!getTypeName()! method on it, the actual function executed is different between the two calls. The reason is that when a virtual method is called, the C++ compiler will emit code that dereferences the \texttt{vptr} field, searches the referenced \texttt{vtable} for the entry corresponding to the method being called, and performs an indirect function call to the address contained in the entry. This is how late binding function calls are implemented in C++.
+
+Now we know enough to understand why dangling pointers are particularly dangerous in applications written in C++: should the attacker be able to construct its own fake \texttt{vtable} in memory, as well as get the application to perform a virtual method call on an object whose \texttt{vptr} field it managed to overwrite with one pointing to the fake \texttt{vtable}, the attacker can hijack the control flow of the application. This can be tricky to do, as the \texttt{vptr} is typically at the same offset in all objects, which makes it more difficult to overwrite with attacker-controlled data.
+
+It's also worth noting that although rare, objects of classes that inherit from multiple base classes (since C++ allows multiple inheritance) have multiple \texttt{vptr} fields at different offsets. This potentially makes the job of the attacker easier. Furthermore, access through dangling pointers are not the only way to perform such an attack: a buffer overflow or underflow vulnerability in the object can also enable the attacker to hijack the \texttt{vptr} field.
+
+Defenses against such attacks do exist: examples include SafeDispatch~\cite{cpp-vptr-safedispatch}, work by Gawlik et al~\cite{cpp-vptr-gawlik}, or the research of Bounov et al~\cite{cpp-vptr-bounov}.
