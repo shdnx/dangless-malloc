@@ -3,12 +3,36 @@
 
 \section{Overview}
 
-\todo{We have useful figures from the presentation, we should definitely include them}
-\todo{This was moved here from Introduction: check if it still makes like this}
+Dangless is a drop-in replacement memory allocator that provides a custom implementation of the standard C memory management functions \lstinline!malloc()!, \lstinline!calloc()!, \lstinline!realloc()!, \lstinline!free()! and a few others. It aims to solve the problems that dangling pointers lead to by guaranteeing that any access through a dangling pointer will fail, and the application will terminate. It relies on the underlying memory allocator to perform the actual allocation and deallocation. In principle, because Dangless makes no assumptions on the nature or behaviour of the underlying allocator -- referred to as "system allocator" by Dangless --, it should be usable on top of even non-standard implementations such as Google tcmalloc~\cite{google-tcmalloc}.
 
-Dangless is a drop-in replacement memory allocator that provides a custom implementation of the standard C memory management functions \lstinline!malloc()!, \lstinline!calloc()!, \lstinline!realloc()!, \lstinline!free()! and a few others. It aims to solve the problems that dangling pointers lead to by guaranteeing that any access through a dangling pointer will fail, and the application will terminate. It relies on the underlying memory allocator to perform the actual allocation and deallocation. In principle, because Dangless makes no assumptions on the nature or behaviour of the underlying allocator -- referred to as "system allocator" by Dangless --, it should be usable on top of even non-standard implementations such as Google tcmalloc.
+Catching dangling pointer accesses is ensured by \emph{permanently} marking memory regions as no longer in use upon deallocation (e.g. a call to \lstinline!free()!). Therefore, during the lifetime of the application, in principle, no other memory will be allocated in such a way that it would visibly alias a previously used location: see Figure~\ref{fig:dangless_simplified}.
 
-Catching dangling pointer accesses is ensured by \emph{permanently} marking memory regions as no longer in use upon deallocation (e.g. a call to \lstinline!free()!). Therefore, during the lifetime of the application, in principle, no other memory will be allocated in such a way that it would visibly alias a previously used location. Of course, the physical memory available is very limited even on modern systems, and not re-using is hopeless. The trick then, is to leave the management of physical memory to the system allocator, and change how the physical allocations are mapped to virtual memory: the address space that user applications interact with. Virtual memory is plentiful: on the x86-64 architecture, pointers are 64-bit long, which in theory means $2^{64}$ bytes of addressable memory. In practice however, on all current processors that use this architecture, only 48 bits are used, which limits the size of the address space we can work with to $2^{48}$ bytes, or 256 terrabytes. That's also not unlimited, but as it turns out, in practice it almost is.
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{img/dangless_simplified.png}
+	\caption{A simplified view of the virtual memory address space when using Dangless: memory pages are never re-used.}
+	\label{fig:dangless_simplified}
+\end{figure}
+
+Of course, the physical memory available is very limited even on modern systems, and not re-using is hopeless. The trick then, is to leave the management of physical memory to the system allocator, and change how the physical allocations are mapped to virtual memory: the address space that user applications interact with.
+
+Since we want to rely on the system allocator to efficiently manage physical memory, instead of hijacking the pointer it returns following a successful allocation, we rather \emph{re-map} the physical memory region into a new virtual memory region that's entirely controlled by us. This means that the same allocation will be visible at two virtual memory addresses: the canonical address, managed by the system allocator but not returned to the user code; and the remapped address, managed by Dangless. Note that this re-mapping occurs on the page level (as all virtual memory management has to be), leading to each allocation using up at least one virtual memory page, even if it's smaller than that. See Figure~\ref{fig:dangless_virtremap_mappings} and Figure~\ref{fig:dangless_virtremap_view}. A detailed explanation of these diagrams will follow in Section~\ref{ssec:remapping}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{img/dangless_virtremap_mappings_xyz.png}
+	\caption{Remapping the same physical memory region into a new virtual memory region: the same allocation will be visible in virtual memory at two addresses.}
+	\label{fig:dangless_virtremap_mappings}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{img/dangless_virtremap.png}
+	\caption{View of the virtual memory with Dangless remapping allocations}
+	\label{fig:dangless_virtremap_view}
+\end{figure}
+
+Virtual memory is plentiful: on the x86-64 architecture, pointers are 64-bit long, which in theory means $2^{64}$ bytes of addressable memory. In practice however, on all current processors that use this architecture, only 48 bits are used, which limits the size of the address space we can work with to $2^{48}$ bytes, or 256 terrabytes. That's also not unlimited, but in practice it's close enough to be sufficient. \todo{Need to elaborate on this somewhere, or cite}
 
 Normally, the difference between physical and virtual memory is entirely hidden from the user code, and is dealt with only by the operating system kernel. This allows the overwhelming majority of users and developers - even programmers working with lower-level languages such as C++ - to work and develop software without ever being aware of the difference, while enjoying the benefits of it. The Linux kernel does provide some system calls that allow the virtual memory to be manipulated, notably \lstinline!mprotect()! which is used to manage access permissions (readable, writeable, executable) of memory regions. This is useful for example when developing just-in-time (JIT) compilers such as the ones employed by browsers to run JavaScript code. Another example is \lstinline!mremap()!, which allows a memory region to be moved almost for free, an ability that makes it useful for garbage collectors for instance. Of course,  \lstinline!mmap()! and \lstinline!munmap()! also primarily work by manipulating virtual memory mappings.
 
@@ -27,16 +51,16 @@ It's important to note that heap memory allocation can and does happen \emph{bef
 
 \section{Performing an allocation}
 
-Whenever Dangless is asked to allocate some memory via a call to \lstinline!dangless_malloc()!, \lstinline!dangless_calloc()!, or \lstinline!dangless_realloc()!, a number of steps have to happen: physical memory has to be allocated, virtual memory has to be allocated, and the mapping created. Most of the process is the same regardless of the exact function called. The only exception is \lstinline!dangless_realloc()!, which I will detail later.
+Whenever Dangless is asked to allocate some memory via a call to \lstinline!dangless_malloc()!, \lstinline!dangless_calloc()!, or \lstinline!dangless_realloc()!, a number of steps have to happen: physical memory has to be allocated, virtual memory has to be allocated, and the mapping between the two created. Most of the process is the same regardless of the exact function called. The only exception is \lstinline!dangless_realloc()!, which I will cover later.
 
 \subsection{Allocating physical memory}
 
 The first step Dangelss has to perform is to acquire the physical memory it can use to satisfy the allocation. It does not currently defer allocating physical memory like kernels typically do, although in principle it could.
-Since the goal of Dangless is only to provide security benefits, Dangless has no strategy of physical memory management unlike normal implementations. In fact, the way this is done ultimately does not matter for Dangless' purposes. Due to these reasons, Dangless delegates the responsibility of actually performing (physical) memory allocation to the memory allocator that was in place before Dangless "hijacked" the memory management function symbols.
+Since the goal of Dangless is only to provide security benefits, Dangless has no strategy of physical memory management that we would find in normal implementations. In fact, the way this is done ultimately does not matter for Dangless' purposes. Due to these reasons, Dangless delegates the responsibility of actually performing (physical) memory allocation to the memory allocator that was in place before Dangless "hijacked" the memory management function symbols.
 
 Specifically, it uses \lstinline!dlsym(RTLD_NEXT, "malloc")! to determine the address of the original \lstinline!malloc()!, etc. functions. Then it simply calls these functions whenever it needs physical memory allocation done: primarily when the user code requests an allocation, but sometimes also for internal purposes, such as for keeping track of available virtual memory regions.
 
-There is a caveat to using \lstinline!dlsym()!: when \lstinline!dlsym()! it is first called on a thread, it allocates a thread-specific buffer for holding a \lstinline!struct dl_action_result! object using \lstinline!calloc()!~\cite{glibc-dlsym-calls-calloc}. This means that without special handling for this case, execution can easily get into an infinite loop:
+There is a caveat to using \lstinline!dlsym()!: when \lstinline!dlsym()! is first called on a thread, it allocates a thread-specific buffer for holding a \lstinline!struct dl_action_result! object using \lstinline!calloc()!~\cite{glibc-dlsym-calls-calloc}. This means that without special handling for this case, execution can easily get into an infinite loop:
 
 \begin{enumerate}
 	\item User calls \lstinline!malloc()!, which is a strong alias of \lstinline!dangless_malloc()!
@@ -50,10 +74,11 @@ There is a caveat to using \lstinline!dlsym()!: when \lstinline!dlsym()! it is f
 
 To get around this, \lstinline!syscalloc()! uses a static buffer of \lstinline!CONFIG_CALLOC_SPECIAL_BUFSIZE! size for the very first allocation. This allows \lstinline!dlsym()! to complete and populate the addresses of the original allocation functions, which are used normally for all subsequent calls. The same approach was used by other projects that implement their own memory allocator replacements~\cite{dlsym-calloc-special-ex1}.
 
-Finally, when \lstinline!sysmalloc()!, etc. returns, we have a completed physical memory allocation. However, what is returned to us is a virtual memory address. We could perform a pagetable walk to find the corresponding physical memory address, but this is unnecessary, as the mapping provided by Dune is very simple, so it's sufficient to use Dune's \lstinline!dune_va_to_pa()! function from \texttt{libdune/dune.h} that is far cheaper computationally than a page-table walk.
+Finally, when \lstinline!sysmalloc()!, etc. returns, we have a completed physical memory allocation. However, what is returned to us is a virtual memory address, while we need a physical one in order to create a second virtual memory mapping. We could perform a pagetable walk to find the corresponding physical memory address, but this is unnecessary, as the mapping provided by Dune is very simple, so it's sufficient to use Dune's \lstinline!dune_va_to_pa()! function from \texttt{libdune/dune.h} that is far cheaper computationally than a page-table walk.
 
-The implementation of Dangless cannot handle the system allocator returning a (guest) virtual memory region that is backed by non-contiguous (guest) physical memory. This should not normally be a problem, unless Dangless is used together with code that implements the system calls used by memory allocators (usually \lstinline!brk()! and \lstinline!mmap()!).
-Note that it does not matter whether the host physical memory is contiguous or not: any \lstinline!mmap()! (or \lstinline!brk()! for that matter) allocation is mapped into the guest memory contiguously. \todo{I think that's the case though, but I'm not totally sure. Check this? Note that the implementation can be fixed if necessary.}
+The current implementation of Dangless cannot handle the system allocator returning a (guest) virtual memory region that is backed by non-contiguous (guest) physical memory. This should not normally be a problem, unless Dangless is used together with code that implements the system calls used by memory allocators, such as \lstinline!brk()! and \lstinline!mmap()!. This is not a limitation of the design, and can be addressed easily if necessary.
+
+Note that it does not matter whether the host physical memory is contiguous or not: any \lstinline!mmap()! (or \lstinline!brk()! for that matter) allocation is mapped into the guest memory contiguously by Dune.
 
 \subsection{Allocating virtual memory}
 \label{sec:dangless-alloc-virtmem}
@@ -90,8 +115,7 @@ Otherwise, Dangless concludes that it's unable to satisfy the user's memory allo
 Note that in the current, simple implementation of the virtual memory allocator there is only a single freelist, which is sufficient because we do not ever re-use any virtual memory. If we were to add a garbage collector-like solution, then this approach would likely lead to significant fragmentation with a negative performance impact on each allocation. In this situation, a possible enhancement would be to have several independent freelists of different page sizes, similar to common memory allocator designs. Other improvements are also possible: memory allocation is a well-understood problem.
 
 \subsection{Remapping}
-
-\todo{Use diagrams for this, such as the ones used in the presentation}
+\label{ssec:remapping}
 
 Now that Dangless has the physical memory address and a brand new virtual memory address, all that is left to do is mapping the virtual memory to the physical memory by modify the corresponding page table.
 
@@ -99,20 +123,39 @@ In a normal Linux userland application, in order to do this we would have to per
 
 Having applied the \texttt{dune-ix-guestppages.patch} patch to Dune, the host memory pages used to hold the guest's page tables are mapped into the guest virtual memory, allowing us to manipulate them during runtime from inside the guest environment.
 
+It is important to understand that the system allocator will generally place smaller allocations adjacent to each other, and often inside the same page. Consider the earlier example shown on Figure~\ref{fig:dangless_virtremap_mappings}: X and Y share the same page, with Y overflowing a bit onto the next page that it's sharing with Z and some unallocated memory at the end.
+
+Now, when Dangless is re-mapping X, it has to do so with the entire page that holds X, given that that's the granularity of virtual memory management on x86 (as well as most modern architectures). The remapped page will unavoidably also contain a part of Y, although that address for Y is never going to be presented to the user code. However, the user code could still, by error, access Y through the page dedicated to X, for instance via an out-of-bounds access into X. This will result in the same (undefined) behaviour that the program would display when compiled and ran without Dangless.
+
+In turn, consider the allocation Z on the same diagram: it does not start at the beginning of page, since that is where the second part of Y lives. So when remapping Z (more precisely: the page holding Z), in order to get a pointer to Z itself inside the page, we have to take into account its in-page offset, as shown on the diagram. You can observe the same behaviour for Y.
+
+The allocation Y holds an additional caveat: it \emph{spans} two pages instead of one due to its in-page offset, even though its size is less than the size of a page. As an effect, when remapping Y, we have to allocate two virtual pages.
+
+In the same fashion, it's true in general for all allocations that we re-map, that due to the remapping they will each use at least one whole extra virtual memory page in addition to the one(s) managed by the system allocator. This is the main cause of the virtual memory overhead of using Dangless, as well as its physical memory overhead, although small: the page tables that have to be allocated in order to contain the mappings for the remapped regions.
+
 \subsection{Deallocations}
 \label{ssec:deallocations}
 
-When deallocating some memory using \lstinline!dangless_free()!, the challenge is detecting whether the given pointer was successfully remapped previously, and if so, obtaining the original virtual address that can be passed to \lstinline!sysfree()!.
+Whenever Dangless is given a pointer in \lstinline!realloc()! or \lstinline!free()!, the first thing it needs to figure out is whether the pointer is a canonical address, i.e. references a virtual memory region managed directly by the system allocator, or does it point to a remapped virtual memory region managed by Dangless. The former is possible in two circumstances:
+
+\begin{enumerate}
+	\item The allocation happened before Dangless was initialized. This means that the process wasn't yet executing in Dune mode, and therefore Dangless could not have accessed the page tables directly to perform the remapping.
+	\item The allocation happened when Dangless did not have sufficient virtual memory dedicated to its allocator to be able to perform the remapping. Unless the user manages the virtual memory that Dangless can use for such purpose (e.g. by calling \lstinline!dangless_dedicate_vmem()!) this means that Dangless has ran out of virtual memory.
+\end{enumerate}
+
+If we can determine that the pointer we received was canonical, then Dangless had nothing to do with the original allocation, and therefore now also has nothing to do besides forwarding the call to the system allocator's \lstinline!free()! function -- \lstinline!sysfree()!.
+
+The challenge then is detecting whether the given pointer was successfully remapped previously, and if so, obtaining the original virtual address that can be passed to \lstinline!sysfree()!.
 This is necessary if we don't want to make assumptions about the underlying allocator's implementation details. Typically, memory allocators will not behave correctly if a different virtual memory address is used for deallocation than the one returned during allocation, even if both map to the same physical memory address.
 
-To obtain the original virtual memory address, we make use of Dune's simple memory layout. First, we perform a page walk on the virtual memory address to obtain the corresponding physical memory address. Then we can compare \lstinline!dune_va_to_pa(ptr)! (where \lstinline!ptr! is the potentially-remapped memory address we're trying to free) to the resulting physical address.
-If they match, then \lstinline!ptr! was mapped into virtual memory by Dune itself, meaning that it's not a memory address assigned by Dangless. This is possible, on allocations that were performed before Dangless finished initializing. In this case, we can simply call \lstinline!sysfree()! to perform the deallocation.
+To obtain the original virtual memory address, we make use of Dune's simple memory layout. First, we perform a page walk on the virtual memory address to obtain the corresponding physical address. Then we compare it to physical address that would result in that virtual address being assigned by Dune, by calling \lstinline!dune_va_to_pa(ptr)!, where \lstinline!ptr! is the potentially-remapped memory address we're trying to free.
+If they match, then \lstinline!ptr! was mapped into virtual memory by Dune itself, meaning that it's not a memory address assigned by Dangless: as discussed earlier, we can just forward the call to \lstinline!sysfree()! and we're done.
 
-Otherwise, we have to determine what Dune-mapped virtual memory address belongs to the obtained physical memory address. In other words, given \lstinline!PA!, we have to determine \lstinline!VA! such that \lstinline!dune_va_to_pa(VA) = PA!. Once again, this is something that Dune's memory layout makes easy to do, as these conversions are performed using simple arithmetic. Finally, we can call \lstinline!sysfree()! to perform the physical memory deallocation.
+Otherwise we have to determine the canonical pointer belonging to this allocation. In other words, given the physical memory address \lstinline!PA!, we have to determine the canonical virtual address \lstinline!VA! such that \lstinline!dune_va_to_pa(VA) = PA!. Once again, this is something that Dune's memory layout makes easy to do, as these conversions are performed using simple arithmetic: we simply invert the logic of \lstinline!dune_va_to_pa()!. Finally, we can proceed to call \lstinline!sysfree()! to perform the physical memory deallocation.
 
-What is left to do is invalidating the page table entries for the remapped virtual memory address, to make sure that any dangling pointer access will fail. Locating the relevant page table entries is done by performing a page-table walk down to the 4K pages. The relevant page table entries are then overwritten by an entry that does not have the \emph{present} bit set. Dangless uses the 64-bit value \lstinline!0xDEAD00! for this purpose, to make the invalidated entries easily identifiable. We then flush the TLB (Translation Lookaside Buffer; used to cache the results of pagewalks for performance) to force the CPU to check the PTE should an access occur.
+What is left to do is invalidating the page table entries for the remapped virtual memory address, to ensure that any later dangling pointer access will fail. Locating the relevant page table entries is done by performing a page-table walk down to the 4K pages, which are then overwritten by an entry that does not have the \emph{present} bit set. Dangless uses the 64-bit value \lstinline!0xDEAD00! for this purpose, in order to make the invalidated entries easily identifiable. We then flush the Translation Lookaside Buffer (TLB) which is used by the CPU's Memory Management Unit (MMU) to cache the results of page walks to improve performance, to make sure that the old, now invalidated entry values will not accidentally be used again (which would defeat the entire purpose of Dangless).
 
-In order to determine how many of the page table entries we need to invalidate, we have to know how many 4K pages did the allocation span. Recall that Dangless places each allocation on virtual memory pages that will never be used for anything else. \lstinline!malloc_usable_size()! is used to get the size of the allocation in bytes. (Of course, this has to be done before calling \lstinline!sysfree()!.) Note though that determining the number of spanned pages is not as easy as it might seem at the first glance, because the allocation can start anywhere within a memory page. This means that, for instance a 512-byte region can span 1 or 2 pages depending on where it begins within the first page (Figure~\ref{fig:allocation-spanned-pages}).
+In order to determine how many of the page table entries we need to invalidate, we have to know how many 4K pages did the allocation span. Recall that Dangless places each allocation on one or more dedicated virtual memory pages that will never be used for anything else. \lstinline!malloc_usable_size()! is used to get the size of the allocation in bytes. (Of course, this has to be done before calling \lstinline!sysfree()!.) Note though that determining the number of spanned pages is not as easy as it might seem at the first glance, because the allocation can start anywhere within a memory page. This means that, for instance a 512-byte region can span 1 or 2 pages depending on where it begins within the first page (Figure~\ref{fig:allocation-spanned-pages}).
 
 \begin{figure}
 	\centering
@@ -121,21 +164,28 @@ In order to determine how many of the page table entries we need to invalidate, 
 	\caption{A memory allocation can span different number of pages depending on where it begins}
 \end{figure}
 
-\subsection{Handling realloc}
-\todo{Is this interesting to write about? It's just a software engineering problem, nothing theoretically interesting about it}
+\subsection{Handling re-allocations}
 
-%The standard \lstinline!realloc()! function has more complicated behaviour. For instance, \lstinline!realloc(NULL, some_size)! is valid and equivalent to calling \lstinline!malloc(some_size)! in order to simplify user code. Next, Dangless needs to be able the cases both when the original came from Dangless (so is a remapped pointer), and when it did not. For instance, it's possible that the original pointer came from an allocation before Dangless finished initializing, or was created when Dangless did not have available virtual memory to perform remapping.
-%
-%In order to determine whether the original pointer was remapped or not, we use the same logic as during \lstinline!dangless_free()!: perform a page-table walk to get the backing physical address and then check whether the received pointer is one that would be generated by Dune when mapping its memory layout by checking the result of \lstinline!dune_pa_to_va()!. If we find that it's not a remapped pointer, then for the purposes of Dangless, this is a new allocation: simply forward the call to \lstinline!sysrealloc()! and remap the resulting pointer.
-%
-%Otherwise, the situation is more complicated. We have to handle the case when \lstinline!sysrealloc()! performed an in-place resize.
+Handling \lstinline!realloc()! is a combination of a deallocation and an allocation, with a couple of tweaks. I will present the logic here in the conceptual level, as the Dangless-specific technical details of it are the same as with allocations and deallocations already covered previously.
+
+First, the call \lstinline!realloc(NULL, some_size)! is valid according to the standard and is equivalent to \lstinline!malloc(some_size)!. Second, we have to be able to handle the unusual case when the original pointer did not originate from Dangless, but directly from the system allocator: this can happen for instance if the original allocation occurred before Dangless was initialized. We deal with both of these cases by treating them the same way as a \lstinline!malloc()! call: simply allocate some new virtual memory to remap the system allocator's result to.
+
+Finally, we want to perform the reallocation in-place when possible: that is, re-use the same remapped virtual memory region. There are 3 cases to consider with regards to how the number of pages spanned by the allocation changes:
+
+\begin{enumerate}
+	\item Stays the same: nothing to do.
+	\item Decreases, i.e. the new size is less than the old size such that the allocation is now held by fewer pages than before: invalidate the pages that were cut off, in the same way as we would handle a deallocation.
+	\item Increases, i.e. the new size is greater than the old size such that the allocation is now held by more pages than before: allocate a new virtual memory region large enough to fit the new allocation size, and invalidate the entire old region. This could potentially be optimized: if the virtual memory allocator owns the pages that are directly after the old virtual memory region (ensuring that these pages are not in use nor have they been invalidated before), then we could simply grow our virtual memory region in-place.
+\end{enumerate}
+
+It's worth noting that if the system allocator was unable to perform the reallocation in-place, that does not mean that we can't perform our work in-place: in this case it's sufficient if we just update the physical memory addresses of the original virtual memory region and flush the corresponding TLB entries. However, this optimization is not currently implemented in Dangless.
 
 \section{Fixing up vmcalls}
 \label{sec:vmcall-pointer-rewriting}
 
 \subsection{The problem}
 
-One of the goals of Dune is to remain as simple as possible, and not re-implement most functionality of operating system kernels when not absolutely necessary. This means that most system calls performed the application running inside Dune are not actually handled by Dune itself, but rather are passed on to the host kernel via the \lstinline!vmcall! instruction. (\lstinline!vmcall! is identical to \lstinline!syscall!, except it exits the virtual environment first.) This includes tasks as common as I/O operations (such as \lstinline!printf()! or \lstinline!fopen()!), or even memory management (such as \lstinline!mmap()!).
+One of the goals of Dune is to remain as simple as possible, and not re-implement most functionality of operating system kernels when not absolutely necessary. This means that most system calls performed by the application running inside Dune are not actually handled by Dune itself, but rather are passed on to the host kernel via the \lstinline!vmcall! instruction. (\lstinline!vmcall! is identical to \lstinline!syscall!, except it exits the virtual environment first.) This includes tasks as common as I/O operations (such as \lstinline!printf()! or \lstinline!fopen()!), or even memory management (such as \lstinline!mmap()!).
 
 This presents a challenge for Dangless, which can be efficient because it can directly manipulate the page tables inside the virtual environment (guest machine) itself, without having to manipulate the host's page tables (which would only be possible via a system call such as \lstinline!mprotect()!). However, any virtual memory addresses returned from Dangless will only be valid inside the guest environment, meaning that attempting to pass such a memory address to the host kernel when performing a system call (vmcall) will fail with \lstinline!EINVAL!.
 
@@ -162,7 +212,7 @@ puts("\n");
 free(answerBuffer);
 \end{lstlisting}
 
-I hope that the problem is now clear: we're passing a \lstinline!malloc()!-d buffer to \lstinline!puts()!. Since \lstinline!malloc()! refers to \lstinline!dangless_malloc()!, it will perform virtual memory remapping inside the guest system, yielding a pointer value in \lstinline!answer! that is valid inside the guest machine, but not in the host machine. (Of course, the data is present in the host physical memory, but is not mapped to host virtual memory.) The \lstinline!write()! system call when executed by the host, is not going to be amused by this fact, and is going to return the error code \texttt{EINVAL}, indicating an invalid argument.
+The problem here is that we are passing a \lstinline!malloc()!-d buffer to \lstinline!puts()!. Since \lstinline!malloc()! refers to \lstinline!dangless_malloc()!, it will perform virtual memory remapping inside the guest system, yielding a pointer value in \lstinline!answer! that is valid inside the guest machine, but not in the host machine. (Of course, the data is present in the host physical memory, but is not mapped to host virtual memory.) The \lstinline!write()! system call when executed by the host, is not going to be amused by this fact, and is going to return the error code \texttt{EINVAL}, indicating an invalid argument.
 
 In this case by knowing how Dangless works it is easy to spot the problem. However, often dynamic memory allocation is performed and the resulting pointer is passed to a system call in a way that's not immediately obvious from the user code, such as when done internally by the standard library implementation. The simplest example is probably \lstinline!printf()!, which can call \lstinline!malloc()! in some circumstances~\cite{glibc-printf-malloc}~\cite{glibc-printf-malloc-vulnerability}. I've also already mentioned how \lstinline!dlsym()! when running for the first time will call \lstinline!calloc()!.
 

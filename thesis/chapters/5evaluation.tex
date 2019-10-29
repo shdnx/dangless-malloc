@@ -107,6 +107,9 @@
 
 \section{Limitations and improvement opportunities}
 
+ - virtual remapping should be able to handle getting a virtual memory region from the system allocator that's not backed by a contiguous physical memory region
+ - realloc() should try to do an in-place reallocation with the virtual remapped region; if the system allocator couldn't perform it in-place, then we simply have to adjust our existing region by updating each PTE's PA to the new physical memory region.
+ - realloc() should try to grow the remapped virtual memory region in-place if the following pages are owned by the virtual memory allocator (which ensures that these are not in use by anything else, nor have they been invalidated before)
  - multi-threading support
  - clone() support
  - smarter virtual memory auto-dedication logic

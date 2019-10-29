@@ -29,20 +29,29 @@ A \emph{dangling pointer} is a pointer which outlives the memory region it refer
 
 In the very best-case scenario, the memory access fails, and the application is killed by the operating system kernel; for example on Unix systems by sending it a signal like \lstinline!SIGSEGV!, leading to the well-known "Segmentation fault" error and a groan from the programmer. This is useful (and often highly underrated by programmers), because it clearly indicates a bug, and the responsible memory address is readily available, greatly helping with debugging.
 
-Unfortunately, in the majority of cases in practice, the memory access will not fail. The reason for this is that most modern architectures in widespread use (such as x86 and ARM) handle memory on the granularity of \emph{pages}, where a single page is usually 4096 bytes (4 kilobytes). From the point of view of the hardware, and so the kernel, a page is either in use or is not; pages are treated as a unit and are never split up. Of course, typical memory allocations tend to be significantly smaller than this, and it would be wasteful to dedicate an entire page of memory to just hold for instance 200 bytes of user data.
+Unfortunately, in the majority of cases in practice, the memory access will not fail. The reason for this is that most modern architectures in widespread use (such as x86 and ARM) handle memory on the granularity of \emph{pages}, where a single page is usually 4096 bytes (4 kilobytes). From the point of view of the hardware and the kernel, a page is either in use or is not; pages are treated as a unit and are never split up. Of course, typical memory allocations tend to be significantly smaller than this, and it would be wasteful to dedicate an entire page of memory to just hold for instance 200 bytes of user data.
 
 Therefore, all memory allocator implementations used in practice do split up pages, and will readily place two allocations on the same page, typically even directly next to each other (not counting any meta-data). After the deallocation of one of the objects, the page as a whole still remains in use, and so the hardware will not fault on subsequent accesses to it, regardless of the offset; see Figure~\ref{fig:mem_two_small_allocs}. Notably, even if a memory page holds no live objects, it's often still not returned to the system; the memory allocator retains it as an optimization, expecting more allocations in the future. (This is because the memory allocators being discussed run in user-space, so in order to gain access to memory pages to use, they have to perform a system call such as \lstinline|mmap()| or \lstinline|brk()|, which is costly.)
 
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{img/dangling_pointer_basics.png}
+    \includegraphics[width=\textwidth]{diagrams/dangling_pointer_basics.png}
     \caption{Memory layout of two small allocations. \emph{X} and \emph{Y} are pointers, referencing their corresponding memory regions. \emph{X} becomes dangling}
     \label{fig:mem_two_small_allocs}
 \end{figure}
 
 If a page is known to be unused by the hardware and kernel, then accessing it will trigger a page fault in the kernel, which will generally terminate the application, leading to the best-case scenario described earlier. This is a far more manageable problem than the alternative, because the error is clear, even if in practice it's often difficult to discover the underlying reason, given that time may have passed between the deallocation and attempted access, and so the code executing at the time of access may not have any relation to the code that was responsible for the deallocation. Furthermore, this scenario doesn't generally pose a security problem, as a crashed application is difficult to exploit. Therefore, I will generally ignore this scenario for the remainder of this thesis.
 
-The effect of an unchecked access through a dangling pointer depends on whether or not the referenced memory region has been reused since the time of deallocation. If it hasn't, the data read often will still be valid, and execution may continue without anyone the wiser, masking the bug until a modification in the code or one of the libraries leads to a change in the memory allocation pattern. Otherwise, the data read or overwritten will almost always be a source of unexpected behaviour. One typical case is \emph{type confusion}: the value read or written will be treated as a different type than the value stored there. A string value can be for instance accessed as an integer, causing the characters that make up the string to be interpreted as bytes in an integer, essentially leading to the same behaviour as this code snippet:
+The effect of an unchecked access through a dangling pointer depends on whether or not the referenced memory region has been reused since the time of deallocation. If it hasn't, the data read often will still be valid, and execution may continue without anyone the wiser, masking the bug -- at least until a modification in the code or one of the libraries leads to a change in the memory allocation pattern. Otherwise, the dangling pointer will point inside another allocation, and the data read or overwritten will almost always be a source of unexpected behaviour: see Figure~\ref{fig:normal_malloc}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\textwidth]{img/normal_malloc.png}
+	\caption{(Simplified) Memory layout view when using traditional malloc(): memory is re-used}
+	\label{fig:normal_malloc}
+\end{figure}
+
+One typical case is \emph{type confusion}: the value read or written will be treated as a different type than the value stored there. A string value can be for instance accessed as an integer, causing the characters that make up the string to be interpreted as bytes in an integer, essentially leading to the same behaviour as this code snippet:
 
 \begin{lstlisting}
 char *s = "foobar";
@@ -178,11 +187,11 @@ Dangling pointers are an even more severe vulnerability in C++ because it suppor
 \begin{lstlisting}
 class Base {
 public:
-virtual ~Base() = default;
+	virtual ~Base() = default;
 
-virtual std::string getTypeName() const {
-return "Base";
-}
+	virtual std::string getTypeName() const {
+		return "Base";
+	}
 };
 \end{lstlisting}
 
@@ -190,9 +199,9 @@ This defines a class \texttt{Base} with a virtual method \lstinline!getTypeName(
 
 \begin{lstlisting}
 class Derived : public Base {
-/* virtual */ std::string getTypeName() const override {
-return "Derived";
-}
+	std::string getTypeName() const override {
+		return "Derived";
+	}
 };
 \end{lstlisting}
 
@@ -200,13 +209,13 @@ We have now defined a second class which inherits from \lstinline!Base! and over
 
 \begin{lstlisting}
 void print(const Base& obj) {
-std::cout << obj.getTypeName() << '\n';
+	std::cout << obj.getTypeName() << '\n';
 }
 
 int main() {
-print(Base{}); // prints "Base"
-print(Derived{}); // prints "Derived"
-return 0;
+	print(Base{}); // prints "Base"
+	print(Derived{}); // prints "Derived"
+	return 0;
 }
 \end{lstlisting}
 
