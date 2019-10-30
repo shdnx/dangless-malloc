@@ -111,8 +111,14 @@ mkdir build
 cd build
 
 # you can specify your configuration options here, or e.g. use ninja (-GNinja) instead of make
-cmake -D CMAKE_BUILD_TYPE=Debug -D OVERRIDE_SYMBOLS=ON -D REGISTER_PREINIT=ON -D COLLECT_STATISTICS=OFF ..
-make
+cmake \
+  -D CMAKE_BUILD_TYPE=Debug \
+  -D OVERRIDE_SYMBOLS=ON \
+  -D REGISTER_PREINIT=ON \
+  -D COLLECT_STATISTICS=OFF \
+  ..
+
+cmake --build .
 ```
 
 You should be able to see `libdangless_malloc.a` and `dangless_user.make` afterwards in the build directory.

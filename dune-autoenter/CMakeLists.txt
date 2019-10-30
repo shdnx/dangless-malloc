@@ -1,31 +1,43 @@
-cmake_minimum_required(VERSION 2.6)
-project(dune_autoenter VERSION 1.0 LANGUAGES C)
+cmake_minimum_required(VERSION 3.5)
+project(dune_autoenter LANGUAGES C)
 
-set(DUNE_ROOT "" CACHE PATH "Absolute path to the Dune repository. Required.")
-if (NOT ${DUNE_ROOT})
-  message(FATAL_ERROR "The DUNE_ROOT option must be set to the absolute path to the Dune repository")
-endif()
+get_filename_component(DANGLESS_ROOT
+  "../"
+  REALPATH
+  BASE_DIR "${CMAKE_CURRENT_LIST_DIR}"
+)
 
-set(BIN "dune-autoenter")
+list(APPEND CMAKE_MODULE_PATH
+  "${DANGLESS_ROOT}/sources/cmake/modules"
+)
+
+find_package(LibDune REQUIRED)
+
+set(LIB "dune-autoenter")
 
 configure_file(
   "${PROJECT_SOURCE_DIR}/user.make.in"
   "${PROJECT_BINARY_DIR}/user.make"
+  @ONLY
 )
 
-add_library(${BIN}
+add_library(${LIB} STATIC
   dune-autoenter.c
 )
 
-target_include_directories(${BIN}
+target_compile_options(${LIB}
   PRIVATE
-    "${DUNE_ROOT}/libdune"
+    "-Wall"
+    "-Wextra"
 )
 
-target_compile_options(${BIN}
-  "-Wall"
-  "-Wextra"
-  "-pthread"
+set_target_properties(${LIB}
+  PROPERTIES
+    C_STANDARD 11
+    C_EXTENSIONS ON
 )
 
-target_compile_features(${BIN} PUBLIC c_std_11)
+target_link_libraries(${LIB}
+  PUBLIC
+    Dune::LibDune
+)

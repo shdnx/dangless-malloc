@@ -76,7 +76,7 @@ target_include_directories(${DANGLESS_BIN}
   PUBLIC
     "${PROJECT_BINARY_DIR}/include"
     "${PROJECT_SOURCE_DIR}/include"
-    "${LibDune_INCLUDE_DIR}"
+    "${LibDune_INCLUDE_DIRS}"
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
 )
@@ -93,11 +93,12 @@ target_compile_options(${DANGLESS_BIN}
 )
 
 target_link_libraries(${DANGLESS_BIN}
+  PRIVATE
+    "-ldl"
+  PUBLIC
+    Dune::LibDune
   INTERFACE
     "-no-pie"
-    "-L${LibDune_DIR}"
-    "-l${LibDune_LIBRARY_NAME}"
-    "-ldl"
     "${USER_LDFLAGS_EXTRA}"
 )
 

@@ -52,12 +52,12 @@ struct vp_freelist {
 };
 
 #define VP_FREELIST_INIT(PTR) { \
-    LIST_HEAD_INITIALIZER(&(PTR)->items), \
-    PTHREAD_MUTEX_INITIALIZER, \
-    /*nallocs=*/0 \
+    .items = LIST_HEAD_INITIALIZER(&(PTR)->items), \
+    .mutex = PTHREAD_MUTEX_INITIALIZER, \
+    .nallocs = 0 \
   }
 
-static struct vp_freelist g_freelist_main = VP_FREELIST_INIT(&vp_freelist_main);
+static struct vp_freelist g_freelist_main = VP_FREELIST_INIT(&g_freelist_main);
 
 static void *freelist_alloc(struct vp_freelist *list, size_t npages) {
   pthread_mutex_lock(&list->mutex);

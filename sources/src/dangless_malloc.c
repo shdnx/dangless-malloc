@@ -364,6 +364,9 @@ void *dangless_realloc(void *p, size_t new_size) {
 
   if (newp == original_ptr) {
     // we can potentially do it in-place
+    // TODO: we could do it in-place even if the system allocator couldn't; we just have to update the mapping of all of the old pages
+
+    // TODO: does this logic even make sense? we should take a look at the ending virtual page number of the original allocation and the ending virtual page number of the reallocation instead of calculating the number of pages - this would make the logic a lot simpler also
 
     //const size_t new_npages = ROUND_UP(new_size, PGSIZE) / PGSIZE;
     const size_t new_npages = NUM_SPANNED_PAGES(newp, actual_new_size);

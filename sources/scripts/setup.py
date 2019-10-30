@@ -4,7 +4,6 @@ import sys
 import os.path
 import shutil
 
-DEBUG = True
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if not os.path.exists(os.path.join(CURRENT_DIR, "README.md")):
@@ -28,30 +27,18 @@ class DanglessMalloc(infra.Instance):
         self._runtime = LibDanglessMalloc(dune)
 
     def add_build_args(self, parser):
-        parser.add_argument("--dangless-profile",
-            dest="dangless_profile",
-            default="release",
-            help="Dangless profile to use (equivalent to passing PROFILE=value to 'make config'): 'debug' or 'release'. Defaults to 'release'."
-        )
-
-        parser.add_argument("--dangless-platform",
-            dest="dangless_platform",
-            default="dune",
-            help="Dangless platform to use (equivalent to passing PLATFORM=value to 'make config'): 'dune' or 'rumprun'. Defaults to 'dune'."
-        )
-
         parser.add_argument("--dangless-debug",
             action="store_true",
             dest="dangless_debug",
             default=False,
-            help="Activates debug mode for Dangless. Sets PROFILE=debug regardless of --dangless-profile, and disables optimizations. Defaults to False."
+            help="Configures Dangless to be built in debug mode instead of release. Defaults to False."
         )
 
         parser.add_argument("--dangless-config",
             action="append",
             dest="dangless_config",
             default=[],
-            help="Dangless configuration options, to be passed to 'make config' as-is."
+            help="Add an extra Dangless CMake configuration option, each to be passed to 'cmake' prefixed with '-D'"
         )
 
     def add_run_args(self, parser):
@@ -152,30 +139,21 @@ class Dune(infra.Package):
             "-ldl"
         ]
 
+
 class LibDanglessMalloc(infra.Package):
     def __init__(self, dune=None):
-        self._dune = dune if dune is not None else Dune()
+        self.dune = dune if dune is not None else Dune()
 
-        self._source_dir = os.path.join(CURRENT_DIR, "sources")
-        self._build_dir = os.path.join(self._source_dir, "build")
-
-    def get_profile(self, ctx):
-        return ctx.args.dangless_profile if not ctx.args.dangless_debug else "debug"
-
-    def get_platform(self, ctx):
-        return ctx.args.dangless_platform
-
-    def _get_bin_dir(self, ctx):
-        return os.path.join(self._build_dir, self.get_platform(ctx) + "_" + self.get_profile(ctx))
-
-    def _get_bin_path(self, ctx):
-        return os.path.join(self._get_bin_dir(ctx), "libdangless.a")
+        self.source_dir = os.path.join(CURRENT_DIR, "sources")
+        self.build_dir = os.path.join(self.source_dir, "build")
+        self.bin_name = "libdangless_malloc.a"
+        self.bin_path = os.path.join(self.build_dir, self.bin_name)
 
     def ident(self):
-        return "libdangless"
+        return "libdangless_malloc"
 
     def dependencies(self):
-        yield self._dune
+        yield self.dune
 
     def is_fetched(self, ctx):
         return True
@@ -184,22 +162,33 @@ class LibDanglessMalloc(infra.Package):
         pass
 
     def is_built(self, ctx):
-        return os.path.exists(self._get_bin_path(ctx))
+        return os.path.exists(self.bin_path)
 
     def build(self, ctx):
-        os.chdir(self._source_dir)
+        if not os.path.exists(self.build_dir):
+            os.makedirs(self.build_dir)
+
+        os.chdir(self.build_dir)
+
+        infra.util.run(ctx,
+            [
+                "cmake",
+                "-D CMAKE_BUILD_TYPE=" + ("Debug" if ctx.args.dangless_debug else "RelWithDebInfo"),
+                "-D DUNE_ROOT=" + self.dune.root_dir
+            ] + [
+                "-D " + option \
+                    for option in ctx.args.dangless_config
+            ] + [
+                self.source_dir
+            ]
+        )
 
         infra.util.run(ctx, [
-            "make",
-            "config",
-            "PLATFORM=" + self.get_platform(ctx),
-            "PROFILE=" + self.get_profile(ctx),
-            "DUNE_ROOT=" + self._dune.root_dir
-        ] + ctx.args.dangless_config)
-
-        infra.util.run(ctx, [
-            "make",
-            "-j" + str(ctx.jobs)
+            "cmake",
+            "--build",
+            ".",
+            "--",
+            "-j{}".format(ctx.jobs)
         ])
 
     def is_installed(self, ctx):
@@ -208,7 +197,7 @@ class LibDanglessMalloc(infra.Package):
             return False
 
         os.chdir(install_dir)
-        return os.path.exists("libdangless.a")
+        return os.path.exists(self.bin_name)
 
     def install(self, ctx):
         install_dir = self.path(ctx, "install")
@@ -216,16 +205,16 @@ class LibDanglessMalloc(infra.Package):
             os.makedirs(install_dir)
 
         os.chdir(install_dir)
-        shutil.copyfile(self._get_bin_path(ctx), "./libdangless.a")
+        shutil.copyfile(self.bin_path, "./" + self.bin_name)
 
     def is_clean(self, ctx):
         return super(LibDanglessMalloc, self).is_clean(ctx) \
-            and not os.path.exists(self._get_bin_path(ctx))
+            and not os.path.exists(self.bin_path)
 
     def clean(self, ctx):
         super(LibDanglessMalloc, self).clean(ctx)
 
-        os.chdir(self._source_dir)
+        os.chdir(self.source_dir)
         infra.util.run(ctx, [
             "make",
             "clean"
@@ -253,20 +242,20 @@ class LibDanglessMalloc(infra.Package):
         ctx.ldflags += [
             "-L" + self.path(ctx, "install"),
             "-Wl,-whole-archive",
-            "-ldangless",
+            "-ldangless_malloc",
             "-Wl,-no-whole-archive",
             "-pthread",
             "-ldl"
         ]
 
-        self._dune.configure(ctx)
+        self.dune.configure(ctx)
 
 
 class DuneOnly(infra.Instance):
     name = "dune-only"
 
     def __init__(self, dune=None):
-        self._runtime = LibDuneAutoEnter(dune)
+        self.runtime = LibDuneAutoEnter(dune)
 
     def add_build_args(self, parser):
         parser.add_argument("--dune-only-debug",
@@ -277,10 +266,10 @@ class DuneOnly(infra.Instance):
         )
 
     def dependencies(self):
-        yield self._runtime
+        yield self.runtime
 
     def configure(self, ctx):
-        self._runtime.configure(ctx)
+        self.runtime.configure(ctx)
 
     def prepare_run(self, ctx):
         pass
@@ -288,20 +277,21 @@ class DuneOnly(infra.Instance):
 
 class LibDuneAutoEnter(infra.Package):
     def __init__(self, dune=None):
-        self._dune = dune if dune is not None else Dune()
+        self.dune = dune if dune is not None else Dune()
 
-        self._dir = os.path.join(
+        self.source_dir = os.path.join(
             CURRENT_DIR,
-            "sources",
             "dune-autoenter"
         )
-        self._lib_path = os.path.join(self._dir, "build", "libdune-autoenter.a")
+        self.build_dir = os.path.join(self.source_dir, "build")
+        self.lib_name = "libdune-autoenter.a"
+        self.lib_path = os.path.join(self.build_dir, self.lib_name)
 
     def ident(self):
         return "libdune-autoenter"
 
     def dependencies(self):
-        yield self._dune
+        yield self.dune
 
     def is_fetched(self, ctx):
         return True
@@ -310,20 +300,25 @@ class LibDuneAutoEnter(infra.Package):
         pass
 
     def is_built(self, ctx):
-        return os.path.exists(self._lib_path)
+        return os.path.exists(self.lib_path)
 
     def build(self, ctx):
-        os.chdir(self._dir)
+        if not os.path.exists(self.build_dir):
+            os.makedirs(self.build_dir)
 
-        extra_args = []
-        if ctx.args.duneonly_debug:
-            extra_args.append("PROFILE=debug")
+        os.chdir(self.build_dir)
+
+        infra.util.run(ctx, [
+            "cmake",
+            "-D CMAKE_BUILD_TYPE=" + ("Debug" if ctx.args.duneonly_debug else "RelWithDebInfo"),
+            "-D DUNE_ROOT=" + self.dune.root_dir,
+            self.source_dir
+        ])
 
         infra.util.run(ctx, [
             "make",
-            "-j" + str(ctx.jobs),
-            "DUNE_ROOT=" + self._dune.root_dir
-        ] + extra_args)
+            "-j" + str(ctx.jobs)
+        ])
 
     def is_installed(self, ctx):
         install_dir = self.path(ctx, "install")
@@ -331,7 +326,7 @@ class LibDuneAutoEnter(infra.Package):
             return False
 
         os.chdir(install_dir)
-        return os.path.exists("libdune-autoenter.a")
+        return os.path.exists(self.lib_name)
 
     def install(self, ctx):
         install_dir = self.path(ctx, "install")
@@ -339,16 +334,16 @@ class LibDuneAutoEnter(infra.Package):
             os.makedirs(install_dir)
 
         os.chdir(install_dir)
-        shutil.copyfile(self._lib_path, "./libdune-autoenter.a")
+        shutil.copyfile(self.lib_path, "./" + self.lib_name)
 
     def is_clean(self, ctx):
         return super(LibDuneAutoEnter, self).is_clean(ctx) \
-            and not os.path.exists(self._lib_path)
+            and not os.path.exists(self.lib_path)
 
     def clean(self, ctx):
         super(LibDuneAutoEnter, self).clean(ctx)
 
-        os.chdir(self._dir)
+        os.chdir(self.source_dir)
         infra.util.run(ctx, [
             "make",
             "clean"
@@ -362,23 +357,23 @@ class LibDuneAutoEnter(infra.Package):
             "-ldl"
         ]
 
-        self._dune.configure(ctx)
+        self.dune.configure(ctx)
 
 
 class BaselineReportTLB(infra.Instance):
     name = "baseline-report-tlb"
 
     def __init__(self):
-        self._runtime = LibPerfTLBReport()
+        self.runtime = LibPerfTLBReport()
 
     def add_build_args(self, parser):
         pass
 
     def dependencies(self):
-        yield self._runtime
+        yield self.runtime
 
     def configure(self, ctx):
-        self._runtime.configure(ctx)
+        self.runtime.configure(ctx)
 
     def prepare_run(self, ctx):
         pass
@@ -386,12 +381,13 @@ class BaselineReportTLB(infra.Instance):
 
 class LibPerfTLBReport(infra.Package):
     def __init__(self, dune=None):
-        self._dir = os.path.join(
+        self.source_dir = os.path.join(
             CURRENT_DIR,
-            "vendor",
             "libperf-tlb-report"
         )
-        self._lib_path = os.path.join(self._dir, "build", "libperf-tlb-report.a")
+        self.build_dir = os.path.join(self.source_dir, "build")
+        self.lib_name = "libperf-tlb-report.a"
+        self.lib_path = os.path.join(self.build_dir, self.lib_name)
 
     def ident(self):
         return "libperf-tlb-report"
@@ -407,16 +403,24 @@ class LibPerfTLBReport(infra.Package):
         pass
 
     def is_built(self, ctx):
-        return os.path.exists(self._lib_path)
+        return os.path.exists(self.lib_path)
 
     def build(self, ctx):
-        os.chdir(self._dir)
+        if not os.path.exists(self.build_dir):
+            os.makedirs(self.build_dir)
+
+        os.chdir(self.build_dir)
+
+        infra.util.run(ctx, [
+            "cmake",
+            "-D CMAKE_BUILD_TYPE=RelWithDebInfo",
+            "-D STANDALONE=True",
+            self.source_dir
+        ])
 
         infra.util.run(ctx, [
             "make",
-            "-j" + str(ctx.jobs),
-            "-DENABLED=1",
-            "-DINDEPENDENT=1"
+            "-j" + str(ctx.jobs)
         ])
 
     def is_installed(self, ctx):
@@ -425,7 +429,7 @@ class LibPerfTLBReport(infra.Package):
             return False
 
         os.chdir(install_dir)
-        return os.path.exists("libperf-tlb-report.a")
+        return os.path.exists(self.lib_name)
 
     def install(self, ctx):
         install_dir = self.path(ctx, "install")
@@ -433,16 +437,16 @@ class LibPerfTLBReport(infra.Package):
             os.makedirs(install_dir)
 
         os.chdir(install_dir)
-        shutil.copyfile(self._lib_path, "./libperf-tlb-report.a")
+        shutil.copyfile(self._lib_path, "./" + self.lib_name)
 
     def is_clean(self, ctx):
         return super(LibPerfTLBReport, self).is_clean(ctx) \
-            and not os.path.exists(self._lib_path)
+            and not os.path.exists(self.lib_path)
 
     def clean(self, ctx):
         super(LibPerfTLBReport, self).clean(ctx)
 
-        os.chdir(self._dir)
+        os.chdir(self.build_dir)
         infra.util.run(ctx, [
             "make",
             "clean"

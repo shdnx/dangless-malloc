@@ -1,2 +1,2 @@
 DUNE_AUTOENTER_USER_CFLAGS := -pthread
-DUNE_AUTOENTER_USER_LDFLAGS := -L${PROJECT_BINARY_DIR} -ldune-autoenter -L${DUNE_ROOT}/libdune -ldune -ldl -pthread
+DUNE_AUTOENTER_USER_LDFLAGS := -L@PROJECT_BINARY_DIR@ -ldune-autoenter -L@LibDune_DIR@ -ldune -ldl -pthread
