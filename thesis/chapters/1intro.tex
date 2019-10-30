@@ -25,7 +25,7 @@ This thesis is focused specifically on dangling pointer errors, a class of memor
 
 \section{Dangling pointers}
 
-A \emph{dangling pointer} is a pointer which outlives the memory region it references. Subsequent accesses to the pointer usually lead to unwanted, confusing behaviour.
+A pointer is said to be \emph{dangling} when it outlives the memory region it references. Dereferencing such a pointer will generally lead to unwanted, confusing behaviour.
 
 In the very best-case scenario, the memory access fails, and the application is killed by the operating system kernel; for example on Unix systems by sending it a signal like \lstinline!SIGSEGV!, leading to the well-known "Segmentation fault" error and a groan from the programmer. This is useful (and often highly underrated by programmers), because it clearly indicates a bug, and the responsible memory address is readily available, greatly helping with debugging.
 

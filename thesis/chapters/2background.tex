@@ -55,7 +55,13 @@ In addition to memory de-duplication, the kernel can also choose to compress or 
 
 Memory errors are a well-understood problem and a significant amount of research has already been conducted in this field. Numerous solutions have been proposed, often using similar ideas and offering alternative approaches, optimizations, or other incremental improvements.
 
-Dhurjati et al.~\cite{dhurjati2003memory} proposed a solution for type-safe memory re-use in 2003: although this doesn't prevent all dangling pointer errors, but ensures that type confusion does no occur, limiting the attack vector.
+Rational Purify~\cite{hastings1991purify} is one of the earliest comprehensive tools for detecting memory errors, originally published in 1991, and existing in various forms until today as a paid product. Purify works by instrumenting the object code in order to keep track of each memory allocation and check every access. It provides a widespread range of features, detecting uninitialized memory accesses, buffer overflows and underflows, as well as dangling pointer errors so long as the memory has not been reused. However, there doesn't seem to be any published results on its performance characteristics.
+
+Electric Fence~\cite{electric-fence} and Microsoft PageHeap~\cite{pageheap} (now existing as part of the Global Flags Editor on Windows) are similar tools developed before 2000. They work by placing each allocation on their own virtual memory pages that is marked as protected upon deallocation to catch temporal memory errors. They also provide bounds checking using extra virtual memory. As such, they are the earliest implementations of the same idea that powers Dangless, but they do so with a very heavy overhead in performance and memory usage, so they are advertised as debugging tools similarly to Valgrind~\cite{nethercote2007valgrind}.
+
+Dhurjati et al.~\cite{dhurjati2003memory} proposed a solution for type-safe memory re-use in 2003, meaning that objects of different types are never allocated in a location where they could ever possibly alias. This doesn't prevent all dangling pointer errors, but ensures that type confusion does not occur, limiting the attack vector.
+
+In 2006~\cite{dhurjati2006efficiently} they presented an approach for detecting all dangling pointers efficiently enough for it to be practical to use in production. Building on top of the idea presented by earlier tools such as Electric Fence, 
 
 Cling~\cite{akritidis2010cling} builds on top of the same ideas and is a memory allocator that similarly limits, but does not prevent, the threat surface posed by dangling pointer errors by limiting memory re-use to objects of the same type. It does so by noting down the caller function of each memory allocation, assigning a unique memory pool to each, under the assumption that one call site always performs allocations of the same type.
 
