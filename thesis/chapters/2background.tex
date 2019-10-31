@@ -59,32 +59,19 @@ Rational Purify~\cite{hastings1991purify} is one of the earliest comprehensive t
 
 Electric Fence~\cite{electric-fence} and Microsoft PageHeap~\cite{pageheap} (now existing as part of the Global Flags Editor on Windows) are similar tools developed before 2000. They work by placing each allocation on their own virtual memory pages that is marked as protected upon deallocation to catch temporal memory errors. They also provide bounds checking using extra virtual memory. As such, they are the earliest implementations of the same idea that powers Dangless, but they do so with a very heavy overhead in performance and memory usage, so they are advertised as debugging tools similarly to Valgrind~\cite{nethercote2007valgrind}.
 
-Dhurjati et al.~\cite{dhurjati2003memory} proposed a solution for type-safe memory re-use in 2003, meaning that objects of different types are never allocated in a location where they could ever possibly alias. This doesn't prevent all dangling pointer errors, but ensures that type confusion does not occur, limiting the attack vector.
+In 2006 Dhurjati et al.~\cite{dhurjati2006efficiently} presented a paper building on the ideas of Electric Fence and PageHeap, claiming that their approach detects all dangling pointer errors efficiently enough for it to be practical to use in production. They combine the idea of virtual memory remapping (using system calls) with a modified version of LLVM's~\cite{llvm-web} compiler transformation called Automatic Pool Allocation that allows them to safely reclaim virtual memory in cases when they are able to prove that no references remain to the allocated region. This requires the target application's source code to be available and the build process to be significantly modified. Their approach also adds an 8 byte overhead to each allocation, similarly to Electric Fence, in order to keep track of the canonical pointer.
 
-In 2006~\cite{dhurjati2006efficiently} they presented an approach for detecting all dangling pointers efficiently enough for it to be practical to use in production. Building on top of the idea presented by earlier tools such as Electric Fence, 
+The same group proposed a different approach earlier, in 2003~\cite{dhurjati2003memory}, that limits the severity of temporal memory errors by restricting memory re-use to be type-safe. This means that objects of different types are never allocated in a location where they could ever possibly alias. This doesn't prevent all dangling pointer errors, but ensures that type confusion does not occur.
 
-Cling~\cite{akritidis2010cling} builds on top of the same ideas and is a memory allocator that similarly limits, but does not prevent, the threat surface posed by dangling pointer errors by limiting memory re-use to objects of the same type. It does so by noting down the caller function of each memory allocation, assigning a unique memory pool to each, under the assumption that one call site always performs allocations of the same type.
+Cling~\cite{akritidis2010cling} builds on top of the same idea and is a memory allocator that similarly limits, but does not prevent, the threat surface posed by dangling pointer errors by restricting memory re-use to objects of the same type. It does so by noting down the caller function of each memory allocation, assigning a unique memory pool to each, under the assumption that one call site always performs allocations of the same type.
 
----
+------
 
-\cite{dhurjati2006efficiently}
+\todo{SafeC}: global capabilities store, fat pointer with a capability value, free removes capability, check before each memory access; good overhead on allocation-heavy software, but increases physical memory usage by 1.6-4x. Improvements by FisherPatil[15] and Xu et al [19].
 
-Some work [20, 17, 9, 8] provides no guarantees, only heuristics; cannot actually detect a dangling pointer after it's been reallocated
+\todo{Oscar}
 
-SafeC: global capabilities store, fat pointer with a capability value, free removes capability, check before each memory access; good overhead on allocation-heavy software, but increases physical memory usage by 1.6-4x. Improvements by FisherPatil[15] and Xu et al [19].
-
-Purify, Vanguard: for debugging
-
-Electric Fence [16], PageHeap [13]
- - they use page protections, both are only useful as debugging tools, greatly increasing physical memory usage (single object per physical memory page)
-
-DSN paper: relies on page protections, but does remappings same as Dangless; but also builds upon a compiler transformation called Automatic Pool Allocation to reclaim virtual memory but needs source code for this; does stuff with system calls though so adds an extra system call per allocation and deallocation; increases TLB misses; also increases physical memory usage by 8 bytes per allocation (to record the canonical address)
-
----
-
-Cling: infers type information at runtime by exmining the call stack ?
-
-Oscar
+\todo{What Dangless improves on compared to these}
 
 \section{Unikernels and Rumprun}
 
