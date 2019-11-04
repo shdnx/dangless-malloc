@@ -194,19 +194,183 @@
 	organization={Citeseer}
 }
 
-@inproceedings{nethercote2007valgrind,
-	title={Valgrind: a framework for heavyweight dynamic binary instrumentation},
-	author={Nethercote, Nicholas and Seward, Julian},
-	booktitle={ACM Sigplan notices},
-	volume={42},
-	number={6},
-	pages={89--100},
-	year={2007},
-	organization={ACM}
+@inproceedings{valgrind2007,
+	author    = {Nicholas Nethercote and
+	Julian Seward},
+	title     = {Valgrind: a framework for heavyweight dynamic binary instrumentation},
+	booktitle = {Proceedings of the {ACM} {SIGPLAN} 2007 Conference on Programming
+	Language Design and Implementation, San Diego, California, USA, June
+	10-13, 2007},
+	pages     = {89--100},
+	year      = {2007},
+	crossref  = {DBLP:conf/pldi/2007},
+	url       = {https://doi.org/10.1145/1250734.1250746},
+	doi       = {10.1145/1250734.1250746},
+	timestamp = {Tue, 06 Nov 2018 16:59:30 +0100},
+	biburl    = {https://dblp.org/rec/bib/conf/pldi/NethercoteS07},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@misc{valgrind-memcheck-web,
+	title = {Valgrind memcheck tool},
+	howpublished = {\url{http://valgrind.org/docs/manual/mc-manual.html}},
+	note = {Accessed 2019-11-04}
 }
 
 @misc{llvm-web,
 	title = {The LLVM compiler infrastructure},
 	howpublished = {\url{http://llvm.org}},
 	note = {Accessed 2019-10-31}
+}
+
+@inproceedings{dangdone2018,
+	author    = {Yu Wang and
+	Fengjuan Gao and
+	Lingyun Situ and
+	Lingzhang Wang and
+	Bihuan Chen and
+	Yang Liu and
+	Jianhua Zhao and
+	Xuandong Li},
+	title     = {DangDone: Eliminating Dangling Pointers via Intermediate Pointers},
+	booktitle = {Proceedings of the Tenth Asia-Pacific Symposium on Internetware, Internetware
+	2018, Beijing, China, September 16-16, 2018},
+	pages     = {6:1--6:10},
+	year      = {2018},
+	crossref  = {DBLP:conf/internetware/2018},
+	url       = {https://doi.org/10.1145/3275219.3275231},
+	doi       = {10.1145/3275219.3275231},
+	timestamp = {Tue, 18 Jun 2019 17:13:27 +0200},
+	biburl    = {https://dblp.org/rec/bib/conf/internetware/WangGSW0LZL18},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{undangle2012,
+	author    = {Juan Caballero and
+	Gustavo Grieco and
+	Mark Marron and
+	Antonio Nappa},
+	title     = {Undangle: early detection of dangling pointers in use-after-free and
+	double-free vulnerabilities},
+	booktitle = {International Symposium on Software Testing and Analysis, {ISSTA}
+	2012, Minneapolis, MN, USA, July 15-20, 2012},
+	pages     = {133--143},
+	year      = {2012},
+	crossref  = {DBLP:conf/issta/2012},
+	url       = {https://doi.org/10.1145/2338965.2336769},
+	doi       = {10.1145/2338965.2336769},
+	timestamp = {Tue, 06 Nov 2018 16:57:30 +0100},
+	biburl    = {https://dblp.org/rec/bib/conf/issta/CaballeroGMN12},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@misc{dangling-ptr-smashing-webpdf,
+	title={Dangling pointer: Smashing the pointer for fun and profit},
+	author={Afek, Jonathan and Sharabani, Adi},
+	year={2007},
+	howpublished = {\url{https://dl.packetstormsecurity.net/papers/general/dangling-pointer.pdf}},
+	note = {Accessed 2019-11-04}
+}
+
+@inproceedings{memerrors-past-present-future,
+	author    = {Victor van der Veen and
+	Nitish dutt{-}Sharma and
+	Lorenzo Cavallaro and
+	Herbert Bos},
+	title     = {Memory Errors: The Past, the Present, and the Future},
+	booktitle = {Research in Attacks, Intrusions, and Defenses - 15th International
+	Symposium, {RAID} 2012, Amsterdam, The Netherlands, September 12-14,
+	2012. Proceedings},
+	pages     = {86--106},
+	year      = {2012},
+	crossref  = {DBLP:conf/raid/2012},
+	url       = {https://doi.org/10.1007/978-3-642-33338-5\_5},
+	doi       = {10.1007/978-3-642-33338-5\_5},
+	timestamp = {Sun, 02 Jun 2019 21:19:14 +0200},
+	biburl    = {https://dblp.org/rec/bib/conf/raid/VeendCB12},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{bitblaze-temu2008,
+	author    = {Dawn Xiaodong Song and
+	David Brumley and
+	Heng Yin and
+	Juan Caballero and
+	Ivan Jager and
+	Min Gyung Kang and
+	Zhenkai Liang and
+	James Newsome and
+	Pongsin Poosankam and
+	Prateek Saxena},
+	title     = {BitBlaze: {A} New Approach to Computer Security via Binary Analysis},
+	booktitle = {Information Systems Security, 4th International Conference, {ICISS}
+	2008, Hyderabad, India, December 16-20, 2008. Proceedings},
+	pages     = {1--25},
+	year      = {2008},
+	crossref  = {DBLP:conf/iciss/2008},
+	url       = {https://doi.org/10.1007/978-3-540-89862-7\_1},
+	doi       = {10.1007/978-3-540-89862-7\_1},
+	timestamp = {Tue, 14 May 2019 10:00:36 +0200},
+	biburl    = {https://dblp.org/rec/bib/conf/iciss/SongBYCJKLNPS08},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@misc{qemu-web,
+	title={QEMU: Open-Source Processor Emulator},
+	howpublished = {\url{https://www.qemu.org/}},
+	note = {Accessed 2019-11-04}
+}
+
+@inproceedings{safec1994,
+	author    = {Todd M. Austin and
+	Scott E. Breach and
+	Gurindar S. Sohi},
+	title     = {Efficient Detection of All Pointer and Array Access Errors},
+	booktitle = {Proceedings of the {ACM} SIGPLAN'94 Conference on Programming Language
+	Design and Implementation (PLDI), Orlando, Florida, USA, June 20-24,
+	1994},
+	pages     = {290--301},
+	year      = {1994},
+	crossref  = {DBLP:conf/pldi/1994},
+	url       = {https://doi.org/10.1145/178243.178446},
+	doi       = {10.1145/178243.178446},
+	timestamp = {Tue, 06 Nov 2018 16:59:30 +0100},
+	biburl    = {https://dblp.org/rec/bib/conf/pldi/AustinBS94},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{safec-improved1997,
+	author    = {Harish Patil and
+	Charles N. Fischer},
+	title     = {Low-Cost, Concurrent Checking of Pointer and Array Accesses in {C}
+	Programs},
+	journal   = {Softw., Pract. Exper.},
+	volume    = {27},
+	number    = {1},
+	pages     = {87--110},
+	year      = {1997},
+	url       = {https://doi.org/10.1002/(SICI)1097-024X(199701)27:1\<87::AID-SPE78\>3.0.CO;2-P},
+	doi       = {10.1002/(SICI)1097-024X(199701)27:1\<87::AID-SPE78\>3.0.CO;2-P},
+	timestamp = {Sun, 28 May 2017 13:23:59 +0200},
+	biburl    = {https://dblp.org/rec/bib/journals/spe/PatilF97},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{safec-improved2004,
+	author    = {Wei Xu and
+	Daniel C. DuVarney and
+	R. Sekar},
+	title     = {An efficient and backwards-compatible transformation to ensure memory
+	safety of {C} programs},
+	booktitle = {Proceedings of the 12th {ACM} {SIGSOFT} International Symposium on
+	Foundations of Software Engineering, 2004, Newport Beach, CA, USA,
+	October 31 - November 6, 2004},
+	pages     = {117--126},
+	year      = {2004},
+	crossref  = {DBLP:conf/sigsoft/2004},
+	url       = {https://doi.org/10.1145/1029894.1029913},
+	doi       = {10.1145/1029894.1029913},
+	timestamp = {Tue, 06 Nov 2018 16:59:23 +0100},
+	biburl    = {https://dblp.org/rec/bib/conf/sigsoft/XuDS04},
+	bibsource = {dblp computer science bibliography, https://dblp.org}
 }
