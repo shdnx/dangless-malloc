@@ -38,22 +38,11 @@ option(TRACE_SYSCALLS_NO_WRITE_STDERR "Whether to ignore write() system calls to
 
 option(SUPPORT_MULTITHREADING "Whether to enable multi-threading support. EXPERIMENTAL!" OFF)
 
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/templates/buildconfig.h.in"
-  "${PROJECT_BINARY_DIR}/include/dangless/build/config.h"
-  @ONLY
-)
-
+# https://cmake.org/cmake/help/v3.5/command/target_link_libraries.html#libraries-for-both-a-target-and-its-dependents
 cmake_policy(SET CMP0022 NEW)
 
 set(DANGLESS_ROOT "${CMAKE_CURRENT_LIST_DIR}")
 set(DANGLESS_BIN "dangless")
-
-if(${TRACE_HOOKS_BACKTRACE})
-  # -rdynamic is required with the GNU linker to make symbol names available for backtrace_symbols() and backtrace_symbols_fd()
-  # see: https://linux.die.net/man/3/backtrace_symbols
-  set(USER_LDFLAGS_EXTRA "-rdynamic")
-endif()
 
 get_filename_component(LINUX_SYSCALLMETA_PATH "../vendor/linux-syscallmd" REALPATH)
 
@@ -63,12 +52,6 @@ list(APPEND CMAKE_MODULE_PATH
 )
 
 find_package(LibDune REQUIRED)
-
-configure_file(
-  "${PROJECT_SOURCE_DIR}/cmake/templates/dangless_user.make.in"
-  "${PROJECT_BINARY_DIR}/dangless_user.make"
-  @ONLY
-)
 
 add_library(${DANGLESS_BIN} STATIC "")
 
@@ -99,8 +82,19 @@ target_link_libraries(${DANGLESS_BIN}
     Dune::LibDune
   INTERFACE
     "-no-pie"
-    "${USER_LDFLAGS_EXTRA}"
 )
+
+if(${TRACE_HOOKS_BACKTRACE})
+  # -rdynamic is required with the GNU linker to make symbol names available for backtrace_symbols() and backtrace_symbols_fd()
+  # see: https://linux.die.net/man/3/backtrace_symbols
+  target_link_libraries(${DANGLESS_BIN}
+    INTERFACE
+      "-rdynamic"
+  )
+
+  # used by the configured dangless_user.make.in
+  set(USER_LDFLAGS_EXTRA "-rdynamic")
+endif()
 
 if(${SUPPORT_MULTITHREADING})
   target_compile_options(${DANGLESS_BIN}
@@ -148,6 +142,19 @@ target_sources(${DANGLESS_BIN}
 )
 
 include("cmake/target_sources_local.cmake")
+include("cmake/configure_file_generate.cmake")
+
+configure_file_generate(
+  "${PROJECT_SOURCE_DIR}/cmake/templates/dangless_user.make.in"
+  "${PROJECT_BINARY_DIR}/dangless_user.make"
+  @ONLY
+)
+
+configure_file_generate(
+  "${PROJECT_SOURCE_DIR}/cmake/templates/buildconfig.h.in"
+  "${PROJECT_BINARY_DIR}/include/dangless/build/config.h"
+  @ONLY
+)
 
 add_subdirectory(src)
 
@@ -155,3 +162,7 @@ enable_testing()
 add_subdirectory(tests)
 
 add_subdirectory(testapps)
+
+# TODO: install
+# TODO: export targets
+# see https://pabloariasal.github.io/2018/02/19/its-time-to-do-cmake-right/
