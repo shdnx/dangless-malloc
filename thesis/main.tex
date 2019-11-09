@@ -5,6 +5,31 @@
 \usepackage[T1]{fontenc}
 \usepackage{beramono}
 \usepackage{xcolor}
+\usepackage{natbib}
+\usepackage[Lenny]{fncychap}
+
+%\setlength{\headheight}{15pt}
+%\usepackage[llbracket]{stmaryrd}
+
+\usepackage{titlesec}
+\titleformat{\section}
+{\Large\bfseries\rm}
+	{\thesection}{1em}{}
+
+\titleformat{\subsection}
+{\large\bfseries\rm}
+	{\thesubsection}{1em}{}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+
+\fancyhf{}
+\lhead{}
+\rhead{\rightmark}
+\cfoot{\thepage}
+
+\usepackage{booktabs}
+\usepackage{xspace}
 
 \usepackage[linktocpage=true]{hyperref}
 \hypersetup{
@@ -72,21 +97,59 @@
   basicstyle=\scriptsize\ttfamily
 }
 
-%\graphicspath{img/}
-
 \newcommand{\todo}[1]{\textbf{\textcolor{red}{TODO: #1}}}
 
 \title{Dangless: Safe Dangling Pointer Errors}
 \author{Gábor Kozár}
 \date{\today}
 
+\usepackage{textcomp}
 \begin{document}
 
-\maketitle
-\clearpage
+\makeatletter
+\begin{titlepage}
+	\centering
+	\includegraphics[width=0.15\textwidth, trim={0 0.15cm 0 0}, clip]{img/vu.png} \hspace{1.3cm}
+	\includegraphics[width=0.15\textwidth, trim={0 0.74cm 0 0}, clip]{img/uva.eps}\par\vspace{1cm}
+	{\scshape\huge Vrije Universiteit Amsterdam \par Universiteit van Amsterdam \par}
+
+	\vspace{1.5cm}
+
+	{\scshape\LARGE Master's thesis\par \par
+		\vspace{0.2cm}
+		\small \textit{Submitted in partial fulfillment of the requirements for\\ the joint degree of Master of Science in Computer Science.}\par}
+	\vspace{1.5cm}
+
+	{\Huge\bfseries \rm \textbf{\@title}\par}
+	\vspace{1.5cm}
+
+	{\Large\itshape\rm \noindent\textit{\@author}\\}
+	\vspace{1mm}
+	\textit{(VU ID: 2574038, UvA ID: 11158190)}
+	\vfill
+
+	\rm \noindent \textit{supervisors} \\ \vspace{0.15cm}
+	%\begin{tabular}{r@{\hskip 0.4in}l}
+	%	\rm \textbf{Vrije Universiteit Amsterdam} & \textbf{ING} \\
+	%	dr.\ J.C.\ \textsc{Blanchette} & ir. R.W.\ \textsc{van Dalen} \\
+	%	prof.\ dr.\ W.J.\ \textsc{Fokkink}
+	%\end{tabular}
+	\rm \textbf{Vrije Universiteit Amsterdam} \\
+	prof.\ dr.\ H. \textsc{Bos} \\
+	assistant prof.\ dr.\ C. \textsc{Giuffrida} \\
+	dr.\ K. \textsc{Koning}
+	\vfill
+	
+	{\large \@date\par}
+\end{titlepage}
+\makeatother
+
+%\include{chapters/preface}
 
 \tableofcontents
-\clearpage
+\listoffigures
+
+\newpage
 
 \include{chapters/0abstract}
 \include{chapters/1intro}
@@ -95,35 +158,7 @@
 \include{chapters/4user-guide}
 \include{chapters/5evaluation}
 
-\bibliography{bibliography}{}
-\bibliographystyle{plain}
-
-%\chapter{The memory allocation design}
-
-%\section{Physical and virtual memory}
-
-%\section{Virtual aliasing}
-
-%\chapter{Implementation}
-
-%\section{Virtualization}
-
-%\section{Physical memory allocation}
-
-%\section{Virtual memory allocation}
-
-%\section{Virtual aliases and \texttt{vmcall}s}
-
-%\chapter{Evaluation}
-
-%\section{Overview}
-
-%\section{Performance evaluation: SPEC 2006}
-
-%\section{Summary of contributions}
-
-%\section{Limitations and future work}
-
-%\section{Conclusion}
+\bibliographystyle{alpha}
+\bibliography{bibliography.bib}
 
 \end{document}
