@@ -99,6 +99,19 @@
 
 \newcommand{\todo}[1]{\textbf{\textcolor{red}{TODO: #1}}}
 
+% redefine \texttt so that we can break on /, _ and .
+% source: https://tex.stackexchange.com/a/219497
+\renewcommand{\texttt}[1]{%
+	\begingroup
+	\ttfamily
+	\begingroup\lccode`~=`/\lowercase{\endgroup\def~}{/\discretionary{}{}{}}%
+	\begingroup\lccode`~=`_\lowercase{\endgroup\def~}{_\discretionary{}{}{}}%
+	\begingroup\lccode`~=`.\lowercase{\endgroup\def~}{.\discretionary{}{}{}}%
+	\catcode`/=\active\catcode`_=\active\catcode`.=\active
+	\scantokens{#1\noexpand}%
+	\endgroup
+}
+
 \title{Dangless: Safe Dangling Pointer Errors}
 \author{Gábor Kozár}
 \date{\today}
@@ -136,7 +149,7 @@
 	%\end{tabular}
 	\rm \textbf{Vrije Universiteit Amsterdam} \\
 	prof.\ dr.\ H. \textsc{Bos} \\
-	assistant prof.\ dr.\ C. \textsc{Giuffrida} \\
+	dr.\ C. \textsc{Giuffrida} \\
 	dr.\ K. \textsc{Koning}
 	\vfill
 	
