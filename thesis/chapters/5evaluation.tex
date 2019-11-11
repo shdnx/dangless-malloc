@@ -32,7 +32,7 @@ cmake \
 cmake --build .
 \end{lstlisting}
 
-\begin{lstlisting}
+\begin{lstlisting}[breaklines, language=bash, style=]
 ./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
 \end{lstlisting}
 
@@ -142,17 +142,24 @@ Dangless successfully runs on all C and C++ benchmarks with the exception of \pa
 
 Dangless Malloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance price associated with system calls. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex.
 
-
+\todo{Anything else?}
 
 \section{Limitations and improvement opportunities}
 
- - virtual remapping should be able to handle getting a virtual memory region from the system allocator that's not backed by a contiguous physical memory region
- - realloc() should try to do an in-place reallocation with the virtual remapped region; if the system allocator couldn't perform it in-place, then we simply have to adjust our existing region by updating each PTE's PA to the new physical memory region.
- - realloc() should try to grow the remapped virtual memory region in-place if the following pages are owned by the virtual memory allocator (which ensures that these are not in use by anything else, nor have they been invalidated before)
- - multi-threading support
- - clone() support
- - smarter virtual memory auto-dedication logic
- - on >2 MB, >1 GB allocations, hugepages could be used
- - garbage collector
- - Dangless should support installing and also export its CMake targets to make it easier to integrate
- 
+Dangless Malloc was created as a proof of concept, and its implementation could be improved in various ways.
+
+For instance, the \lstinline!realloc()! implementation is not optimal: even if the system allocator was unable to perform an in-place reallocation, we could still potentially do so with the remapped pages, if the virtual memory region following them is available. Care should only be taken to modify the page table entry of each of the old virtual page mappings to point to the new physical addresses.
+
+Similarly, there's no real reason why Dangless is currently unable to handle the system allocator returning a virtual memory region that is not backed by contiguous guest physical memory.
+
+As discussed earlier, Dangless could be smarter about its virtual memory auto-dedication logic, for example by acquiring unused virtual memory regions on-demand. We could also be using hugepages for the shadow virtual memory when the allocation size is greater than 2 MB or 1 GB.
+
+In order to make it easier to incorporate Dangless into projects, it should support installation and exporting its CMake targets.
+
+Major improvement opportunities would be supporting multi-threaded applications, after investigating Dune's state of support for it, and supporting the \lstinline!clone()! system call.
+
+Finally, some mechanism for reclaiming virtual memory once we can reasonably guarantee the absence of pointers to them would ensure that we never run out of virtual memory even in long-running applications such as web servers.
+
+\section{Conclusion}
+
+\todo{...}
