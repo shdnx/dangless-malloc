@@ -42,7 +42,7 @@ option(SUPPORT_MULTITHREADING "Whether to enable multi-threading support. EXPERI
 cmake_policy(SET CMP0022 NEW)
 
 set(DANGLESS_ROOT "${CMAKE_CURRENT_LIST_DIR}")
-set(DANGLESS_BIN "dangless")
+set(DANGLESS_BIN "dangless_malloc")
 
 get_filename_component(LINUX_SYSCALLMETA_PATH "../vendor/linux-syscallmd" REALPATH)
 

@@ -232,6 +232,7 @@ class LibDanglessMalloc(infra.Package):
             ctx.cxxflags += debug_flags
 
 
+        # TODO: -no-pie ??
         common_flags = [
             "-pthread"
         ]
@@ -316,8 +317,11 @@ class LibDuneAutoEnter(infra.Package):
         ])
 
         infra.util.run(ctx, [
-            "make",
-            "-j" + str(ctx.jobs)
+            "cmake",
+            "--build",
+            ".",
+            "--",
+            "-j{}".format(ctx.jobs)
         ])
 
     def is_installed(self, ctx):
@@ -419,8 +423,11 @@ class LibPerfTLBReport(infra.Package):
         ])
 
         infra.util.run(ctx, [
-            "make",
-            "-j" + str(ctx.jobs)
+            "cmake",
+            "--build",
+            ".",
+            "--",
+            "-j{}".format(ctx.jobs)
         ])
 
     def is_installed(self, ctx):

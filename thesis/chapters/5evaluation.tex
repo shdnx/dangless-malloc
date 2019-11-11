@@ -1,9 +1,42 @@
 \chapter{Evaluation}
 
-\todo{This needs a lot more work.}
-
 \section{Performance on SPEC 2006}
-\todo{...}
+
+All measurements were made on Intel ?? with 8 GB RAM, running Ubuntu 14.04 LTS, with Linux kernel version ??.
+
+Performance overhead of Dangless was measured on the standard SPEC2006 benchmarking suite using the VUSec group's \texttt{instrumentation-infra} framework~\cite{vusec-infra}. Dangless was built and configured in the following manner:
+
+\begin{lstlisting}[breaklines, language=bash, style=]
+./setup.py build \
+	--dangless-config ALLOW_SYSMALLOC_FALLBACK=Off \
+	--dangless-config COLLECT_STATISTICS=Off \
+	--dangless-config ENABLE_PERF_EVENTS=Off \
+	--dangless-config REPORT_RUSAGE=Off \
+	--dangless-config SYSCALLMETA_HAS_INFO=Off \
+	--targets spec2006 \
+	--instances dangless-malloc
+\end{lstlisting}
+
+This corresponds to building Dangless manually using:
+
+\begin{lstlisting}[breaklines, language=bash, style=]
+cmake \
+	-D CMAKE_BUILD_TYPE=RelWithDebInfo \
+	-D ALLOW_SYSMALLOC_FALLBACK=Off \
+	-D COLLECT_STATISTICS=Off \
+	-D ENABLE_PERF_EVENTS=Off \
+	-D REPORT_RUSAGE=Off \
+	-D SYSCALLMETA_HAS_INFO=Off \
+	..
+
+cmake --build .
+\end{lstlisting}
+
+\begin{lstlisting}
+./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
+\end{lstlisting}
+
+Dangless successfully runs on all C and C++ benchmarks with the exception of \path{400.perlbench} with test workload due to its use of the unsupported \lstinline!clone()! system call. \todo{Perlbench also doesn't run in reference, why?}
 
 % Performance overhead: Dune vs Dangless vs Oscar
 \begin{figure}
@@ -105,6 +138,12 @@
     \caption{Dune vs Dangless vs Oscar: memory overhead}
 \end{figure}
 
+\section{Summary of contributions}
+
+Dangless Malloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance price associated with system calls. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex.
+
+
+
 \section{Limitations and improvement opportunities}
 
  - virtual remapping should be able to handle getting a virtual memory region from the system allocator that's not backed by a contiguous physical memory region
@@ -115,3 +154,5 @@
  - smarter virtual memory auto-dedication logic
  - on >2 MB, >1 GB allocations, hugepages could be used
  - garbage collector
+ - Dangless should support installing and also export its CMake targets to make it easier to integrate
+ 

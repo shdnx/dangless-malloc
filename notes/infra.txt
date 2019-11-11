@@ -4,7 +4,7 @@ Clean:
 $ ./setup.py clean --packages libdune-autoenter libdangless --targets spec2006
 
 Build:
-$ ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc
+$ ./setup.py build --targets spec2006 --instances baseline dune-only dangless-malloc
 
 Build for testing/debugging:
 $ ./setup.py build --dangless-debug --targets spec2006 --instances dangless-malloc
@@ -52,4 +52,4 @@ $ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --target
 
 Full, reportable reference run (everything, 3 iterations):
 
-$ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --dangless-profile="release" --targets spec2006 --instances baseline dune-only dangless-malloc && ./setup.py run --parallel=proc --parallelmax=1 --iterations=3 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp
+$ rm -rf build && sources/scripts/spec2006_clear.sh && ./setup.py build --targets spec2006 --instances baseline dune-only dangless-malloc && ./setup.py run --parallel=proc --parallelmax=1 --iterations=3 spec2006 baseline dune-only dangless-malloc --benchmarks all_c all_cpp

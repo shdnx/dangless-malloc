@@ -1,7 +1,8 @@
 \chapter{User guide}
 \label{ch:user-guide}
 
-Most of this information in less detail is also described in the repository README file.
+This chapter is about building, configuring, and using Dangless.
+Most of this information in less detail is also described in the repository \path{README} file.
 
 \section{System requirements}
 
@@ -28,11 +29,11 @@ The remaining requirements posed by Dangless itself are fairly usual:
 
 Besides the above, Dune requires some 2 MB hugepages to be available during initialization for setting up its safe stacks. It will also try to use huge pages to acquire memory for the guest's page allocator, although it will gracefully fall back if there are not enough huge pages available.
 
-To make sure that some huge pages remain available, it is recommended to limit or disable transparent hugepages by setting \path{/sys/kernel/mm/transparent_hugepage/enabled} to \texttt{madvise} or \texttt{never} (you will need to use \texttt{su} if you want to change it).
+To make sure that some huge pages remain available, it is recommended to limit or disable transparent hugepages by setting \path{/sys/kernel/mm/transparent_hugepage/enabled} to \emph{madvise} or \emph{never} (you will need to use \path{su} if you want to change it).
 
 Then, you can check the number of huge pages available:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=, style=]
 $ cat /proc/meminfo | grep Huge
 AnonHugePages:     49152 kB
 HugePages_Total:     512
@@ -40,39 +41,39 @@ HugePages_Free:      512
 HugePages_Rsvd:        0
 HugePages_Surp:        0
 Hugepagesize:       2048 kB
-\end{verbatim}
+\end{lstlisting}
 
 In my tests, it appears that at minimum \textbf{71} free huge pages are required to satisfy Dune, although it is not quite clear to me as to why: by default for 2 safe stacks of size 2 MB each, we should only need 2 hugepages.
 
 You can dedicate more huge pages by modifying \path{/proc/sys/vm/nr_hugepages} (again, you will need to use \texttt{su} to do so), or by executing:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=, style=]
 sudo sysctl -w vm.nr_hugepages=<NUM>
-\end{verbatim}
+\end{lstlisting}
 
 ... where \texttt{<NUM>} should be replaced by the desired number, of course.
 
 When there is not a sufficient number of huge pages available, Dangless will fail while trying to enter Dune mode, and you will see output much like this:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=, style=]
 dune: failed to mmap() hugepage of size 2097152 for safe stack 0
 dune: setup_safe_stack() failed
 dune: create_percpu() failed
 Dangless: failed to enter Dune mode: Cannot allocate memory
-\end{verbatim}
+\end{lstlisting}
 
-\section{Building and configuring Dangless}
+\section{Building and configuring}
 
 The full Dangless source code is available on GitHub at \url{https://github.com/shdnx/dangless-malloc}. After cloning, you will have to start by setting up its dependencies (such as Dune) which are registered as git submodules in the \path{vendor} folder:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=bash, style=]
 git submodule init
 git submodule update
-\end{verbatim}
+\end{lstlisting}
 
 Then we have to apply the Dune patches as described in Section~\ref{sec:bg-dune} and build it:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=bash, style=]
 cd vendor/dune-ix
 
 # patch dune, so that the physical page metadata is accessible inside the guest, allowing us to e.g. mess with the pagetables
@@ -86,27 +87,32 @@ git apply ../dune-ix-nosigterm.patch
 
 # need sudo, because it is building a kernel module
 sudo make
-\end{verbatim}
+\end{lstlisting}
 
 Now configure and build Dangless using CMake:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=bash, style=]
 cd ../../sources
 
-# you can also choose to build to a different directory
 mkdir build
 cd build
 
 # you can specify your configuration options here, or e.g. use ninja (-GNinja) instead of make
-cmake -D CMAKE_BUILD_TYPE=Debug -D OVERRIDE_SYMBOLS=ON -D REGISTER_PREINIT=ON -D COLLECT_STATISTICS=OFF ..
-make
-\end{verbatim}
+cmake \
+	-D CMAKE_BUILD_TYPE=Debug \
+	-D OVERRIDE_SYMBOLS=ON \
+	-D REGISTER_PREINIT=ON \
+	-D COLLECT_STATISTICS=OFF \
+	..
+
+cmake --build .
+\end{lstlisting}
 
 You should be able to see \path{libdangless_malloc.a} and \path{dangless_user.make} afterwards in the build directory.
 
 You can see what configuration options were used to build Dangless by listing the CMake cache:
 
-\begin{verbatim}
+\begin{lstlisting}[breaklines, language=C, style=]
 $ cmake -LH
 -- Cache values
 // Whether to allow dangless to gracefully handle running out of virtual memory and continue operating as a proxy to the underlying memory allocator.
@@ -130,14 +136,13 @@ DEBUG_DGLMALLOC:BOOL=OFF
 // Debug mode for vmcall_fixup.c
 DEBUG_DUNE_VMCALL_FIXUP:BOOL=OFF
 ...
-\end{verbatim}
+\end{lstlisting}
 
 You can also use a CMake GUI such CCMake~\cite{ccmake-website}, or check the main CMake file (\path{sources/CMakeLists.txt}) for the list of available configuration options, their description and default values.
 
 \section{API overview}
-\todo{A lot of this should be moved to ch3 section 1: initialization}
 
-Dangless is a Linux static library \path{libdangless.a} that can be linked to any application during build time. It defines a set of functions for allocating and deallocating memory:
+Dangless is a Linux static library \path{libdangless_malloc.a} that can be linked to any application during build time. It defines a set of functions for allocating and deallocating memory:
 
 \begin{lstlisting}
 // sources/include/dangless/dangless_malloc.h
@@ -166,5 +171,14 @@ int dangless_dedicate_vmem(void *start, void *end);
 Dedicates a memory region to Dangless's virtual memory allocator, as described in Section~ref{sec:dangless-alloc-virtmem}.
 Whether or not any dedication happens automatically is controlled by the \lstinline!AUTO_DEDICATE_PML4ES! option.
 
-%\todo{Section on adding Dangless to an existing application}
-%\todo{Maybe a reference guide to all the configuration options available?}
+\section{Integrating into existing applications}
+
+Dangless can be integrated into an application which relies, directly or indirectly, the C memory management API. To do this:
+\begin{itemize}
+	\item link to \path{libdangless_malloc.a} using the \texttt{--whole-library} option
+	\item link to \path{libdune.a}
+	\item link to \path{libdl} to allow Dangless to resolve the symbols for the system allocator
+	\item disable building a position-independent executable (PIE) using \texttt{-no-pie}, due to the limitation of Dune
+\end{itemize}
+
+When building, Dangless generates a \path{dangless_user.make} file that makes this easier to do with Makefile-based build systems.
