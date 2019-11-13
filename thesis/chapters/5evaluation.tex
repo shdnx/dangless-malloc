@@ -36,7 +36,17 @@ cmake --build .
 ./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
 \end{lstlisting}
 
-Dangless successfully runs on all C and C++ benchmarks with the exception of \path{400.perlbench} with test workload due to its use of the unsupported \lstinline!clone()! system call. \todo{Perlbench also doesn't run in reference, why?}
+Dangless successfully runs on all C and C++ benchmarks with following exceptions:
+
+\begin{itemize}
+	\item \path{400.perlbench} with test workload fails due to using the unsupported \lstinline!clone()! system call
+	\item \path{400.perlbench} and \path{471.omnetpp} with reference workload both fail in very similar circumstances, indicating an EPT violation error. It is not clear what the cause is, but I suspect it is some limitation or bug in Dune.
+\end{itemize}
+
+Performance overhead comes from:
+ - Dangless just does more work per allocation/deallocation (e.g. page table walks and having to allocate page tables)
+ - additional TLB pressure and misses (since every allocation has a unique address)
+ - the overhead posed by Dune (virtualization, especially for vmcalls)
 
 % Performance overhead: Dune vs Dangless vs Oscar
 \begin{figure}
@@ -138,11 +148,18 @@ Dangless successfully runs on all C and C++ benchmarks with the exception of \pa
     \caption{Dune vs Dangless vs Oscar: memory overhead}
 \end{figure}
 
+\todo{Add a table with the precise numbers}
+\todo{Explain the overheads}
+
 \section{Summary of contributions}
 
-Dangless Malloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance price associated with system calls. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex.
+Dangless Malloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance penalties. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex.
 
-\todo{Anything else?}
+Specifically, by running the process in a virtualized environment, Dangless does not have to perform a system call for managing the remapped (shadow) virtual memory, being able to manipulate the (guest) page tables directly -- at the minor cost of having to pass all normal system calls to the host kernel as measured by the original Dune research paper~\cite{dune-paper}.
+
+Because these extra virtual memory mappings only exist in the guest system, the hosting Linux kernel is not aware of them, and does not have to maintain a \lstinline!vm_area_struct! structure for each of them -- something that is a source of significant overhead in similar approaches~\cite{oscar2017}. This comes at the cost of having to ``fix-up'' remapped pointers in system call arguments before they can be passed on the host kernel, but in practice this was not found to have noticeable performance implications.
+
+Finally, Dangless does not have to store the canonical memory address of each allocation, because the virtual memory layout of Dune is very simple and predictable, allowing us to compute the canonical virtual addresses based on the physical ones. This does add the overhead of a single page walk to determine the physical memory address for every allocation management operation such as \lstinline!realloc()! and \lstinline!free()!, but the cost of these is insignificant compared to cost of prior approaches. Therefore, the only memory overhead posed by Dangless is the extra page tables used to encode these virtual memory mappings.
 
 \section{Limitations and improvement opportunities}
 

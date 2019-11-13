@@ -113,7 +113,7 @@ omnetpp.err: Segmentation fault
 
 In both cases, the faulting memory address is the same: just barely above the 10 GB mark.
 The code fails in pp_zalloc(), on the memset() call.
-Looks like the machine is out of physical memory?
+definitely not out-of-memory, maybe a bug in Dune?
 
 Download URL: http://koenk.net/spec2006.iso
 gabor@cswatt.labs.vu.n
