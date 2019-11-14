@@ -2,9 +2,9 @@
 
 \section{Performance on SPEC 2006}
 
-All measurements were made on Intel ?? with 8 GB RAM, running Ubuntu 14.04 LTS, with Linux kernel version ??.
+All measurements were made on Intel Core i7-4510U CPU @ 2.00GHz with 16 GB RAM, running Ubuntu 14.04 LTS, with Linux kernel version 4.4.0-161. Performance overhead was measured on the standard SPEC2006 benchmarking suite using the VUSec group's \texttt{instrumentation-infra} framework~\cite{vusec-infra}.
 
-Performance overhead of Dangless was measured on the standard SPEC2006 benchmarking suite using the VUSec group's \texttt{instrumentation-infra} framework~\cite{vusec-infra}. Dangless was built and configured in the following manner:
+Dangless was built and configured in the following manner:
 
 \begin{lstlisting}[breaklines, language=bash, style=]
 ./setup.py build \
@@ -14,10 +14,17 @@ Performance overhead of Dangless was measured on the standard SPEC2006 benchmark
 	--dangless-config REPORT_RUSAGE=Off \
 	--dangless-config SYSCALLMETA_HAS_INFO=Off \
 	--targets spec2006 \
-	--instances dangless-malloc
+	--instances baseline dune-only dangless-malloc
 \end{lstlisting}
 
-This corresponds to building Dangless manually using:
+This builds SPEC2006 in three configurations (referred to as ``instances''):
+\begin{enumerate}
+	\item \emph{baseline}: plain, unmodified benchmarks.
+	\item \emph{dune-only}: all benchmarks are built linking to \path{libdune}, as well as a small utility library ensuring that Dune is entered automatically at program startup (\path{libdune-autoenter}). This is used to measure the overhead of Dune itself compared to \emph{baseline}.
+	\item \emph{dangless-malloc}: linking to \path{libdangless-malloc} and its dependencies, measuring the overhead of Dangless itself.
+\end{enumerate}
+
+The above command line corresponds to building Dangless manually like so:
 
 \begin{lstlisting}[breaklines, language=bash, style=]
 cmake \
@@ -32,9 +39,21 @@ cmake \
 cmake --build .
 \end{lstlisting}
 
+Finally, the benchmarks were run using the command:
+
 \begin{lstlisting}[breaklines, language=bash, style=]
-./setup.py run spec2006 dangless-malloc --test --benchmarks all_c all_cpp
+./setup.py run \
+	--parallel=proc \
+	--parallelmax=1 \
+	--iterations=5 \
+	spec2006 \
+	baseline \
+	dune-only \
+	dangless-malloc \
+	--benchmarks all_c all_cpp
 \end{lstlisting}
+
+This runs all of the C and C++ SPEC2006 benchmarks in all three configurations, sequentially (\texttt{parallelmax=1}), 5 times each.
 
 Dangless successfully runs on all C and C++ benchmarks with following exceptions:
 
@@ -43,12 +62,38 @@ Dangless successfully runs on all C and C++ benchmarks with following exceptions
 	\item \path{400.perlbench} and \path{471.omnetpp} with reference workload both fail in very similar circumstances, indicating an EPT violation error. It is not clear what the cause is, but I suspect it is some limitation or bug in Dune.
 \end{itemize}
 
-Performance overhead comes from:
- - Dangless just does more work per allocation/deallocation (e.g. page table walks and having to allocate page tables)
- - additional TLB pressure and misses (since every allocation has a unique address)
- - the overhead posed by Dune (virtualization, especially for vmcalls)
+\todo{So both benchmarks in ref workload fail with GPA = GVA = 0x2801ff000. Dune's PAGEBASE starts at 0x200000000. Does it maybe get overwritten after heap allocations? Test it!}
+
+The performance overhead results are summarized in Table~\ref{tab:perf-dune-dangless-oscar} and visualized in Figure~\ref{fig:perf-dune-dangless-oscar}. Memory overhead results are summarized in Table~\ref{tab:mem-dune-dangless-oscar} and visualized in Figure~\ref{fig:mem-dune-dangless-oscar}. For comparison, I have included the overheads from Oscar~\cite{oscar2017}, which represents the current state of the art. Because unfortunately they have not published the exact numbers, these are estimations based on their included graphs.
 
 % Performance overhead: Dune vs Dangless vs Oscar
+\begin{table}[]
+	\centering
+	\begin{tabular}{|l|l|l|l|}
+		\hline
+		\textbf{Benchmark} & \textbf{Dune} & \textbf{Dangless} & \textbf{Oscar} \\ \hline
+		401.bzip2          & 0.995         & 1.013             & 1.000                      \\ \hline
+		403.gcc            & 0.987         & 1.152             & 1.250                      \\ \hline
+		429.mcf            & 1.003         & 1.115             & 1.000                      \\ \hline
+		433.milc           & 1.039         & 1.107             & 1.055                      \\ \hline
+		444.namd           & 1.000         & 1.004             & 1.000                      \\ \hline
+		445.gobmk          & 1.001         & 1.025             & 1.005                      \\ \hline
+		447.dealII         & 1.008         & 1.074             & 2.900                      \\ \hline
+		450.soplex         & 1.004         & 1.030             & 1.040                      \\ \hline
+		453.povray         & 1.003         & 0.997             & 1.050                      \\ \hline
+		456.hmmer          & 1.023         & 1.023             & 1.007                      \\ \hline
+		458.sjeng          & 0.999         & 1.011             & 1.010                      \\ \hline
+		462.libquantum     & 0.993         & 0.995             & 1.025                      \\ \hline
+		464.h264ref        & 1.001         & 0.997             & 1.045                      \\ \hline
+		470.lbm            & 0.997         & 1.003             & 1.000                      \\ \hline
+		473.astar          & 1.013         & 1.246             & 1.400                      \\ \hline
+		482.sphinx3        & 1.012         & 1.030             & 1.080                      \\ \hline
+		483.xalancbmk      & 1.018         & 1.198             & 4.050                      \\ \hline
+	\end{tabular}
+	\caption{Runtime performance overhead measurements: Dune, Dangless, and Oscar. A value of 1.0 indicates no performance overhead. Note that some values are below that in the Dune and Dangless instances: these should be considered measurement errors.}
+	\label{tab:perf-dune-dangless-oscar}
+\end{table}
+
 \begin{figure}
     \centering
     \begin{tikzpicture}
@@ -95,8 +140,37 @@ Performance overhead comes from:
             \legend{Dune only, Dangless, Oscar}
         \end{axis}
     \end{tikzpicture}
+    \label{fig:perf-dune-dangless-oscar}
     \caption{Dune vs Dangless vs Oscar: performance overhead}
 \end{figure}
+
+% Memory overhead: Dune vs Dangless vs Oscar
+\begin{table}[]
+	\centering
+	\begin{tabular}{|l|l|l|l|}
+		\hline
+		\textbf{Benchmark} & \textbf{Dune} & \textbf{Dangless} & \textbf{Oscar} \\ \hline
+		401.bzip2          & 1.000         & 1.001             & 1.000          \\ \hline
+		403.gcc            & 1.000         & 1.005             & 1.050          \\ \hline
+		429.mcf            & 1.000         & 1.000             & 1.000          \\ \hline
+		433.milc           & 1.000         & 1.002             & 1.180          \\ \hline
+		444.namd           & 1.007         & 1.022             & 1.010          \\ \hline
+		445.gobmk          & 1.010         & 1.030             & 1.000          \\ \hline
+		447.dealII         & 1.000         & 1.512             & 5.100          \\ \hline
+		450.soplex         & 1.000         & 1.000             & 1.720          \\ \hline
+		453.povray         & 1.000         & 1.119             & 1.400          \\ \hline
+		456.hmmer          & 1.004         & 1.034             & 1.350          \\ \hline
+		458.sjeng          & 1.001         & 1.004             & 1.000          \\ \hline
+		462.libquantum     & 1.002         & 1.010             & 1.040          \\ \hline
+		464.h264ref        & 1.001         & 1.014             & 1.100          \\ \hline
+		470.lbm            & 1.001         & 1.002             & 1.000          \\ \hline
+		473.astar          & 1.000         & 1.003             & 1.450          \\ \hline
+		482.sphinx3        & 1.008         & 1.033             & 5.000          \\ \hline
+		483.xalancbmk      & 1.000         & 1.942             & 2.800          \\ \hline
+	\end{tabular}
+	\caption{Memory overhead measurements: Dune, Dangless, and Oscar. A value of 1.0 indicates no performance overhead.}
+	\label{tab:mem-dune-dangless-oscar}
+\end{table}
 
 % Memory overhead: Dune vs Dangless vs Oscar
 \begin{figure}
@@ -145,11 +219,17 @@ Performance overhead comes from:
             \legend{Dune only, Dangless, Oscar}
         \end{axis}
     \end{tikzpicture}
+    \label{fig:mem-dune-dangless-oscar}
     \caption{Dune vs Dangless vs Oscar: memory overhead}
 \end{figure}
 
-\todo{Add a table with the precise numbers}
-\todo{Explain the overheads}
+\todo{Why are there overhead values with Dune and Dangless that are less than 1.0??}
+\todo{Explain the overheads. For this, we should probably log allocations in the benchmarks: their number and frequency. Maybe get information from TLB misses? I think we should already have that somewhere.}
+
+Performance overhead comes from:
+- Dangless just does more work per allocation/deallocation (e.g. page table walks and having to allocate page tables)
+- additional TLB pressure and misses (since every allocation has a unique address)
+- the overhead posed by Dune (virtualization, especially for vmcalls)
 
 \section{Summary of contributions}
 

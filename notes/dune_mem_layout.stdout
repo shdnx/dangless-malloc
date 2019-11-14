@@ -130,6 +130,8 @@ fff
 
 [code] [data] [sysmalloc heap] VA 0x000000000000 - 0x000100000000 => PA 0x0000000000 - 0x0100000000 [ user write exec ]
 VA 0x000100000000 - 0x000200000000: unmapped
+(NOTE:)
+VA 0x000200000000 - 0x000200100000: Dune page allocator pool
 VA 0x000200000000 - 0x000300000000 => PA 0x0200000000 - 0x0300000000 [ kernel write no-exec ]
 VA 0x000300000000 - 0x008000000000: unmapped
 [dangless heap] VA 0x008000000000 - 0x008000001000 => PA 0x00015ff000 - 0x0001600000 [ kernel write no-exec ]
