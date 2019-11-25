@@ -112,7 +112,7 @@ An application wishing to use Dune has to statically link to \path{libdune.a}, a
 
 Dangless was built using ix-project's fork of Dune~\cite{dune-github-ix}, because when the Dangless project started that was more maintained and supported more recent kernel versions. However, since then, work appears to have resumed on the original Dune repository~\cite{dune-github-original}, and they now claim to be supporting Linux kernel versions 4.x.
 
-I have patched Dune with a couple of modifications to allow Dangless to do its work. These are available in the \texttt{vendor} directory in the Dangless source code.
+I have patched Dune with a couple of modifications to allow Dangless to do its work. These are available in the \path{vendor} directory in the Dangless source code.
 
 \path{dune-ix-guestppages.patch}: this maps the guest system's pagetable pages into its own virtual memory, allowing Dangless to modify them. The code for this already existed in the original implementation of Dune, but was removed at some point from the ix-project's fork.
  
@@ -127,11 +127,11 @@ $ cd build/testapps/memstress
 $ ./memstress 1500000 9000
 \end{verbatim}
 
-To work around this, Dangless registers a post-vmcall hook, and if it detects a \lstinline!brk()! system call with a parameter above the 4 GB mark, it overwrites the system call's return code to make it appear to have failed. \texttt{glibc}'s memory allocator will then fall back to using \lstinline!mmap()! even for these smaller allocations, which will continue to work.
+To work around this, Dangless registers a post-\lstinline!vmcall! hook, and if it detects a \lstinline!brk()! system call with a parameter above the 4 GB mark, it overwrites the system call's return code to make it appear to have failed. \texttt{glibc}'s memory allocator will then fall back to using \lstinline!mmap()! even for these smaller allocations, which will continue to work.
 
 \subsection{Memory layout}
 
-Dune offers two memory layouts, specified when calling \lstinline!dune_init()!: precise mappings and full mappings.
+Dune offers two memory layouts, specified when calling \lstinline!dune_init()!: precise and full mappings.
 With precise mappings, Dune will consult \path{/proc/self/maps} for the memory regions of the so-far ordinary Linux process and map each region found there into the guest environment. With the version of Dune I was using for development, this did not appear to work correctly, and so I used full mappings for Dangless.
 
 In full mappings, Dune creates the following mappings in the guest virtual memory:

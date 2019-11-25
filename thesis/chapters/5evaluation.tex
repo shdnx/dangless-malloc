@@ -67,13 +67,11 @@ Dangless successfully runs on all C and C++ benchmarks with following exceptions
 	\item \path{400.perlbench} and \path{471.omnetpp} with reference workload both fail in very similar circumstances, indicating an EPT violation error. It is not clear what the cause is, but I suspect it is some limitation or bug in Dune.
 \end{itemize}
 
-\todo{So both benchmarks in ref workload fail with GPA = GVA = 0x2801ff000. Dune's PAGEBASE starts at 0x200000000. Does it maybe get overwritten after heap allocations? Test it!}
-
 The performance overhead results are summarized in Table~\ref{tab:perf-dune-dangless-oscar} and visualized in Figure~\ref{fig:perf-dune-dangless-oscar}. Memory overhead results are summarized in Table~\ref{tab:mem-dune-dangless-oscar} and visualized in Figure~\ref{fig:mem-dune-dangless-oscar}.
 
 For comparison with Dangless, I have included the overheads from Oscar~\cite{oscar2017}, which represents the current state of the art with overheads that are lower than that of previous technologies. Unfortunately, they have not published the exact numbers, so the values I reported for them are estimations based on their graphs.
 
-The overhead values of Dune were measured together with those of Dangless, and correspond to the \texttt{dune-only} instance configured earlier. These numbers confirm the findings of the Dune publication~\cite{dune-paper} in which they indicated insignificant performance overhead. Dune is therefore a promising technology to base further protections on.
+The overhead values of Dune were measured together with those of Dangless, and correspond to the \texttt{dune-only} instance configured earlier. These numbers confirm the findings of the Dune paper~\cite{dune-paper}, in which they indicated insignificant performance overhead. Dune is therefore a promising technology to base further protections on.
 
 % Performance overhead: Dune vs Dangless vs Oscar
 \begin{table}[]
@@ -116,7 +114,7 @@ The overhead values of Dune were measured together with those of Dangless, and c
             xticklabel style={rotate=90},
             yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
             ymin=0,
-            ymax=0.5,
+            ymax=0.42,
             point meta={y*100},
             %nodes near coords={\pgfmathprintnumber\pgfplotspointmeta\%},
             %nodes near coords align={horizontal},
@@ -127,6 +125,7 @@ The overhead values of Dune were measured together with those of Dangless, and c
                 anchor=north,
                 %legend columns=-1
             },
+        	clip=true
         ]
             \addplot table [
                 x expr=\coordindex,
@@ -146,14 +145,22 @@ The overhead values of Dune were measured together with those of Dangless, and c
                 %skip coords between index={15}{100}
             ] {data/perf_vs_oscar.dat};
             
+            % Oscar overhead of 447.dealII, which is 90%
+            \node at (axis cs:6.1,0.418) [anchor=west] (Aval) {};
+            \node at (axis cs:5.5,0.41) [anchor=east] (Aexpl) {\textcolor{brown}{90\%}};
+            \draw [->, line width=0.35mm] (Aexpl) -- (Aval);
+
+            % Oscar overhead of 483.xalancbmk, which is 305%
+			\node at (axis cs:16.1,0.42) [anchor=west] (Bval) {};
+			\node at (axis cs:16.1,0.39) [anchor=east] (Bexpl) {\textcolor{brown}{305\%}};
+			\draw [->, line width=0.35mm] (Bexpl) -- (Bval);
+            
             \legend{Dune only, Dangless, Oscar}
         \end{axis}
     \end{tikzpicture}
     \label{fig:perf-dune-dangless-oscar}
     \caption{Dune vs Dangless vs Oscar: performance overhead}
 \end{figure}
-
-
 
 % Memory overhead: Dune vs Dangless vs Oscar
 \begin{table}[]
@@ -197,7 +204,7 @@ The overhead values of Dune were measured together with those of Dangless, and c
             xticklabel style={rotate=90},
             yticklabel={\pgfmathparse{\tick*100}\pgfmathprintnumber{\pgfmathresult}\%},
             ymin=0,
-            ymax=1.5,
+            ymax=1,
             point meta={y*100},
             %nodes near coords={\pgfmathprintnumber\pgfplotspointmeta\%},
             %nodes near coords align={horizontal},
@@ -227,14 +234,27 @@ The overhead values of Dune were measured together with those of Dangless, and c
                 %skip coords between index={15}{100}
             ] {data/mem_vs_oscar.dat};
             
+            % Oscar overhead of 447.dealII, which is 410%
+            \node at (axis cs:6.1,0.99) [anchor=west] (Aval) {};
+            \node at (axis cs:5.5,0.975) [anchor=east] (Aexpl) {\textcolor{brown}{410\%}};
+            \draw [->, line width=0.35mm] (Aexpl) -- (Aval);
+            
+            % Oscar overhead of 482.sphinx3, which is 400%
+            \node at (axis cs:15.1,0.99) [anchor=west] (Bval) {};
+            \node at (axis cs:14.5,0.975) [anchor=east] (Bexpl) {\textcolor{brown}{400\%}};
+            \draw [->, line width=0.35mm] (Bexpl) -- (Bval);
+
+            % 483.xalancbmk is 180%
+            \node at (axis cs:16.2,1.0) [anchor=west] (Cval) {};
+            \node at (axis cs:18.0,0.925) [anchor=east] (Cexpl) {\textcolor{brown}{180\%}};
+            \draw [->, line width=0.35mm] (Cexpl) -- (Cval);
+            
             \legend{Dune only, Dangless, Oscar}
         \end{axis}
     \end{tikzpicture}
     \label{fig:mem-dune-dangless-oscar}
     \caption{Dune vs Dangless vs Oscar: memory overhead}
 \end{figure}
-
-\todo{These diagrams could be split using axis discontinuity. Or perhaps just add additional labels for the highest overheads?}
 
 \section{Performance analysis}
 
@@ -288,7 +308,7 @@ Benchmarks like dealII, sphinx3, and xalancbmk are very allocation-heavy applica
 	\label{tab:perf-analysis-tlb}
 \end{table}
 
-Finally, the performance impact of having to perform \texttt{vmcall}s instead of regular system calls, as well as having to ``fix-up'' remapped virtual memory pointers in their arguments is shown to be minimal by Table~\ref{tab:dangless-vmcall-analysis}, as even on benchmarks that perform a large number of system calls (dealII, povray, xalancbmk), the number of pointers we had to rewrite remained low (dealII, xalancbmk) or did not measurably affect performance (povray).
+Finally, the performance impact of having to perform \lstinline!vmcall!s instead of regular system calls, as well as having to ``fix-up'' remapped virtual memory pointers in their arguments is shown to be minimal by Table~\ref{tab:dangless-vmcall-analysis}, as even on benchmarks that perform a large number of system calls (dealII, povray, xalancbmk), the number of pointers we had to rewrite remained low (dealII, xalancbmk) or did not measurably affect performance (povray).
 
 \begin{table}[]
 	\centering
@@ -318,13 +338,22 @@ Finally, the performance impact of having to perform \texttt{vmcall}s instead of
 	\label{tab:dangless-vmcall-analysis}
 \end{table}
 
+\section{Virtual memory exhaustion}
+\label{sec:virtmem-exhaustion}
+
+Let us recall that Dangless, in its current implementation, does not ever reclaim virtual memory. Once a page has been used to shadow an allocated object, it is never reused, meaning that eventually, virtual memory will run out, and we will no longer be able to re-map the allocations as they happen.
+
+Dangless is focused on the x86-64 architecture, which uses 48 bits (out of the 64 available) for virtual memory addresses, meaning that the entire address space is 256 terabytes big. Assuming a worst-case scenario of many small object allocations (since each need to be remapped on a unique virtual memory page, regardless of whether it is 32 bytes or 4 kilobytes), this would be sufficient for 68 719 476 736 ($= 2^{36} = 0x1000000000$) allocations. Let us take into account that normal, non-shadow memory also needs space, and reserve a full 1 terabyte for them (or 268 435 456 pages), leaving us with space for 68 451 041 280 shadow pages.
+
+Looking at the most allocation-heavy SPEC2006 benchmarks as seen on Table~\ref{tab:perf-analysis-tlb}, xalancbmk performs almost 150 000 allocations per second on average. With the calculated virtual memory available, this means that it would be able to keep running at this pace for 456 340 seconds, or almost 127 hours. (The benchmark, however, on my machine completes in just 1287 seconds.) The second most intensive benchmark, dealII, performs 77 100 allocations every second (on average), so it run continuously for almost double of that time. These benchmarks are also highly unusual in their memory intensity.
+
+These numbers go to show that while not reclaiming virtual memory is certainly wasteful and eventually leads to Dangless being unable to protect further allocations, this limitation is not necessarily crippling. Nonetheless, this is the primary opportunity for improvement on its design and implementation.
+
 \section{Summary of contributions}
 
-\todo{Most of this is now mentioned in Performance Analysis, so probably rewrite or remove this?}
+%\todo{Most of this is now mentioned in Performance Analysis - is it bad to talk about it again? A summary like this makes sense, I believe.}
 
-Dangless MAlloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance penalties. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex.
-
-\todo{It should be noted though that it can be hard to debug when Dune is involved...}
+Dangless MAlloc demonstrates the power of process-level, hardware-assisted virtualization and its use for hardening processes against bugs and malicious users without having to pay the usual performance penalties. This makes the approach of creating and destroying shadow virtual pages, used by previous work such as Oscar~\cite{oscar2017}, noticeably cheaper, without making the design significantly more complex. (Although the implementation does take somewhat more effort, due to the virtualization making a Dune-enabled application more difficult to debug.)
 
 Specifically, by running the process in a virtualized environment, Dangless does not have to perform a system call for managing the remapped (shadow) virtual memory, being able to manipulate the (guest) page tables directly -- at the minor cost of having to pass all normal system calls to the host kernel as measured by the original Dune research paper~\cite{dune-paper}.
 
